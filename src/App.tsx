@@ -40,6 +40,7 @@ export default function App() {
   const changeView = (v: View) => {
     setView(v)
     window.location.hash = v === 'home' ? '' : v
+    if (v === 'home') history.replaceState(null, '', window.location.pathname)
   }
 
   // 브라우저 뒤로가기 지원
