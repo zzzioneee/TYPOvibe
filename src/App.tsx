@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import Day001 from './works/day001'
-import Day002 from './works/day002'
+import Day001 from './works/day1'
+import Day002 from './works/day2'
 
 type View = 'home' | string
 
 const WORKS = [
   {
-    id: 'day001',
+    id: 'day1',
     day: '1',
     date: '2026.04.16',
     title: '내가 바흐라니',
@@ -16,7 +16,7 @@ const WORKS = [
     bgTheme: 'light' as const,
   },
   {
-    id: 'day002',
+    id: 'day2',
     day: '2',
     date: '2026.04.17',
     title: '로봇개가 개를 산책시켜..',
@@ -75,8 +75,8 @@ export default function App() {
           </button>
         </header>
         <main style={{ flex: 1, overflow: 'hidden' }}>
-          {view === 'day001' && <Day001 />}
-          {view === 'day002' && <Day002 />}
+          {view === 'day1' && <Day001 />}
+          {view === 'day2' && <Day002 />}
         </main>
       </div>
     )
@@ -189,7 +189,7 @@ export default function App() {
           }}>
             {[...WORKS].reverse().map(work => {
               // 3:1 같은 가로형은 2컬럼 차지
-              const isWide = work.id === 'day002';
+              const isWide = work.id === 'day2';
               return (
               <article
                 id={`thumb-${work.id}`}
