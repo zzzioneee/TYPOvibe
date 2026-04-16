@@ -196,7 +196,7 @@ export default function App() {
                 >
                   {/* 라이브 iframe 프리뷰 */}
                   <iframe
-                    src={`/works/${work.id}/index.html`}
+                    src={`${import.meta.env.BASE_URL}works/${work.id}/index.html`}
                     loading="lazy"
                     style={{
                       width: '200%', height: '200%',
