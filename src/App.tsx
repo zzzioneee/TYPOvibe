@@ -28,8 +28,26 @@ const WORKS = [
 ]
 
 export default function App() {
-  const [view, setView] = useState<View>('home')
+  // URL hash로 현재 뷰 유지 (새로고침해도 유지)
+  const getViewFromHash = (): View => {
+    const hash = window.location.hash.replace('#', '')
+    return hash || 'home'
+  }
+  const [view, setView] = useState<View>(getViewFromHash)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
+
+  // view 바뀌면 URL hash 업데이트
+  const changeView = (v: View) => {
+    setView(v)
+    window.location.hash = v === 'home' ? '' : v
+  }
+
+  // 브라우저 뒤로가기 지원
+  useState(() => {
+    const onHashChange = () => setView(getViewFromHash())
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  })
 
   // ─── Day 상세 뷰 ───
   if (view !== 'home') {
@@ -45,7 +63,7 @@ export default function App() {
           background: isLight ? '#111' : '#fff',
           flexShrink: 0,
         }}>
-          <button onClick={() => setView('home')} style={{
+          <button onClick={() => changeView('home')} style={{
             color: isLight ? '#fff' : '#111',
             background: 'none', border: 'none', cursor: 'pointer',
             display: 'flex', alignItems: 'center', gap: 8,
@@ -83,7 +101,7 @@ export default function App() {
       }}>
         <div style={{ width: '100%', maxWidth: '1440px' }}>
           <h1
-            onClick={() => setView('home')}
+            onClick={() => changeView('home')}
             style={{
               fontFamily: '"Plus Jakarta Sans", sans-serif',
               fontSize: '84px',
@@ -181,7 +199,7 @@ export default function App() {
                 }}
               >
                 <div
-                  onClick={() => setView(work.id)}
+                  onClick={() => changeView(work.id)}
                   onMouseEnter={() => setHoveredId(work.id)}
                   onMouseLeave={() => setHoveredId(null)}
                   style={{
