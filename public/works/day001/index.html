@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 1: G선상의 아리아 오르골 타이포그래피</title>
+<link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&family=Noto+Sans+KR:wght@300;400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #fefefe;
+  --text: #58595b;
+  --text-sub: rgba(0,0,0,0.35);
+  --glow-color: #ffff00;
+  --glow-shadow: rgba(255, 247, 109, 0.5);
+  --fade-color: #58595b;
+  --compose-color: #ffff00;
+  --border-glow: rgba(255, 255, 0, 0.8);
+  --border-glow-inner: rgba(255, 255, 0, 0.4);
+  --pin-color: rgba(255, 255, 0, 0.25);
+  --pin-active: rgba(255, 255, 0, 0.8);
+  --cursor-color: rgba(255, 247, 109, 0.7);
+  --info-color: rgba(0,0,0,0.15);
+  --guide-color: rgba(0,0,0,0.2);
+}
+
+body {
+  height: 100vh;
+  background: #111;
+  font-family: 'Nanum Myeongjo', serif;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 메인 영역 — 노란 그라데이션 테두리 효과 */
+#main-frame {
+  flex: 1;
+  margin: 0;
+  background: var(--bg);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: background 0.5s;
+}
+
+/* 사방 테두리 노란 그라데이션 글로우 */
+#main-frame::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  box-shadow:
+    inset 0 0 60px var(--border-glow),
+    inset 0 0 120px var(--border-glow-inner);
+  transition: box-shadow 0.5s;
+}
+
+/* 상단 바 */
+.top-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 18px 25px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 3;
+}
+
+.top-bar .desc {
+  font-size: 10px;
+  color: rgba(0,0,0,0.3);
+  font-family: 'Noto Sans KR', sans-serif;
+  font-weight: 300;
+  line-height: 1.6;
+  max-width: 500px;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+}
+
+.top-bar .info {
+  text-align: right;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 10px;
+  color: rgba(0,0,0,0.25);
+  letter-spacing: 1px;
+  line-height: 1.6;
+}
+
+/* 녹음 버튼 */
+.rec-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid rgba(0,0,0,0.15);
+  background: #fefefe;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  transition: all 0.3s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.rec-btn:hover {
+  border-color: rgba(0,0,0,0.3);
+}
+
+.rec-btn .dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ccc;
+  transition: all 0.3s;
+}
+
+.rec-btn.recording {
+  border-color: #ff3b30;
+}
+
+.rec-btn.recording .dot {
+  background: #ff3b30;
+  border-radius: 3px;
+  width: 12px;
+  height: 12px;
+  animation: recPulse 1s ease-in-out infinite;
+}
+
+@keyframes recPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.rec-label {
+  position: fixed;
+  bottom: 24px;
+  right: 68px;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 10px;
+  color: rgba(0,0,0,0.25);
+  z-index: 20;
+  letter-spacing: 0.5px;
+}
+
+/* 타이핑 영역 */
+.canvas-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  position: relative;
+  z-index: 1;
+}
+
+#text-display {
+  width: 90%;
+  max-width: 800px;
+  min-height: 200px;
+  font-size: clamp(24px, 4vw, 48px);
+  line-height: 1.7;
+  text-align: center;
+  word-break: keep-all;
+  position: relative;
+  color: var(--text);
+  transition: color 0.5s;
+}
+
+.char {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(12px) scale(0.8);
+  color: #58595b;
+}
+
+.char.glow {
+  color: #58595b;
+  text-shadow: none;
+}
+
+.char.glow-fade {
+  color: #58595b;
+  text-shadow: none;
+}
+
+.char.composing {
+  opacity: 1;
+  transform: none;
+  color: #58595b;
+  background: #ffff00;
+}
+
+.space { display: inline-block; width: 0.4em; }
+
+/* 커서 — 빈 블록, 글자 입력 시 뒤로 이동 */
+#cursor {
+  display: inline-block;
+  width: 3px;
+  height: 1.15em;
+  background: #ffff00;
+  margin-left: 0px;
+  vertical-align: text-bottom;
+  animation: cursorPulse 1s ease-in-out infinite;
+}
+
+@keyframes cursorPulse {
+  0%, 100% { opacity: 0.9; }
+  50% { opacity: 0.4; }
+}
+
+/* 마지막 입력 글자 — 노란 배경 하이라이트 */
+.char.active-char {
+  background: #ffff00;
+  color: #58595b;
+}
+
+/* 오르골 핀 */
+.music-box {
+  height: 80px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 40px 80px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.pin {
+  width: 3px;
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 1px 1px 0 0;
+  transition: height 0.1s, background 0.15s;
+}
+
+.pin.active {
+  background: rgba(0, 0, 0, 0.45);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 곡 정보 — top-bar로 이동 */
+
+.guide {
+  position: absolute;
+  bottom: 140px;
+  font-size: 13px;
+  color: var(--guide-color);
+  font-family: 'Noto Sans KR', sans-serif;
+  font-weight: 300;
+  letter-spacing: 2px;
+  animation: pulse 2.5s ease-in-out infinite;
+  z-index: 3;
+  transition: color 0.5s;
+}
+
+@keyframes pulse { 0%, 100% { opacity: 0.15; } 50% { opacity: 0.4; } }
+.guide.hidden { display: none; }
+
+
+#hidden-input {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  opacity: 0;
+  border: none; outline: none;
+  background: transparent;
+  color: transparent;
+  font-size: 16px;
+  caret-color: transparent;
+  z-index: 10;
+}
+</style>
+</head>
+<body>
+
+<div id="main-frame">
+  <div class="top-bar">
+    <div class="desc">
+      Day 1. 타이핑 한 자 한 자가 오르골의 레버를 돌리는 물리적 행위가 되어 클래식 선율을 완성합니다
+    </div>
+    <div class="info">
+      J.S. Bach — Air on the G String<br>
+      BWV 1068, Suite No.3 in D Major<br>
+      <br>
+      sampled by Red Velvet 'Feel My Rhythm'<br>
+      inspired by 'JazzKeys'
+    </div>
+  </div>
+
+  <div class="canvas-area">
+    <div id="text-display"><span id="cursor"></span></div>
+
+    <div class="guide hidden" id="guide"></div>
+  </div>
+
+  <div class="music-box" id="musicBox"></div>
+</div>
+
+<span class="rec-label" id="recLabel">REC</span>
+<button class="rec-btn" id="recBtn" title="녹음 시작/정지">
+  <span class="dot"></span>
+</button>
+
+<input type="text" id="hidden-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+
+<script>
+// ===== 음 =====
+const NM = {
+  'G2':43,'G#2':44,'A2':45,'B2':47,
+  'C3':48,'C#3':49,'D3':50,'D#3':51,'E3':52,'F3':53,'F#3':54,'G3':55,'G#3':56,'A3':57,'B3':59,
+  'C4':60,'C#4':61,'D4':62,'D#4':63,'E4':64,'F4':65,'F#4':66,'G4':67,'G#4':68,'A4':69,'A#4':70,'B4':71,
+  'C5':72,'C#5':73,'D5':74,'D#5':75,'E5':76,'F5':77,'F#5':78,'G5':79,'G#5':80,'A5':81,'A#5':82,'B5':83,
+};
+function nf(n) { const m = NM[n]; return m ? 440 * Math.pow(2, (m - 69) / 12) : 440; }
+
+const MP = [
+  ["F#5","D4"],["B4","C#4"],["F#5",null],["D5","B3"],["F#4",null],["F#4","A3"],["A4","A3"],["B4","G3"],
+  ["B4","G3"],["F#5","G3"],["F#5","G#3"],["E3",null],["D5","G#3"],["C#5","G#3"],["D5","D5"],["C#5","A3"],
+  ["G5","E3"],["A4","E4"],["B4","E3"],["A4",null],["A5","F#3"],["A4","E4"],["C5",null],["E5","E3"],
+  ["A4","E3"],["C5",null],["B4","D#3"],["F#5","B3"],["C5",null],["F#4",null],["B4","B3"],["E5","B2"],
+  ["D#5","F#3"],["A5","B3"],["B4",null],["D5","B3"],["D#3",null],["G5","E3"],["B3",null],["G4","E3"],
+  ["B3",null],["D5",null],["B4","D3"],["B3","G3"],["D4",null],["B4",null],["D5","B3"],["A4","C#3"],
+  ["E5","A3"],["B4","C#3"],["B4","A3"],["E3",null],["D5","A2"],["C#5","E4"],["G5","A2"],["F#5","A4"],
+  ["F#5","A2"],["A3","A2"],["A4","A3"],["B4","C#3"],["E3",null],["G#5","G#5"],["A5","C#3"],["D5","B2"],
+  ["E5","F#4"],["F#5","F#4"],["B2",null],["F#5","G#3"],["E5","E4"],["B3","E3"],["G#5","E3"],["D5","E3"],
+  ["G#4","B3"],["C#5","E3"],["G#3",null],["B4","B3"],["E4","A3"],["B4","D3"],["C#5","F#4"],["D5","A3"],
+  ["D5","E3"],["F#4",null],["C#5","E3"],["A4","A2"],["B3",null],["A3","E3"],["B3","E3"],["C#4",null],
+  ["A3",null],["E4","A2"],["G4","A2"],["C#4",null],["F#4","G3"],["E3",null],["E4","A2"],["D5","D3"],
+  ["G3",null],["A3",null],["F#4","G3"],["F#4","A3"],["A3",null],["C#3",null],["G#4",null],["A3",null],
+  ["E4",null],["E4","C#3"],["D5","B2"],["F#3",null],["D4",null],["F#3",null],["A3","A2"],["F#3",null],
+  ["A3",null],["C#5","F#3"],["A3",null],["D5","D4"],["B4","G2"],["G3",null],["G3","D3"],["B4","G3"],
+  ["G2",null],["G5","D3"],["F#5","G#2"],["D5","E3"],["G#5","G#3"],["C#5","E3"],["D5","E3"],["C#5","A2"],
+  ["E3",null],["E4",null],["C#4",null],["E4",null],["B4",null],["B4","G2"],["A4",null],["E3",null],
+  ["G3",null],["D4",null],["A4",null],["A5","F#3"],["C4","A3"],["A5",null],["A4","F#3"],["E5",null],
+  ["C5","E3"],["E4","C4"],["A5","E3"],["E4",null],["C5","C4"],["B4","D#3"],["F#5","D#3"],["C5","D#3"],
+  ["B4","B3"],["E5","B2"],["D#5","F#3"],["A5","D#4"],["F#3",null],["G5","B3"],["G5","E3"],["B3",null],
+  ["E4",null],["G5","G4"],["G5","D3"],["B3","G3"],["B4","B3"],["F#5","B3"],["D3",null],["G5","G4"],
+  ["B4","C#3"],["E5","A3"],["C#3",null],["B4","C#3"],["A5","A3"],["E5",null],["D5","A2"],["C#5","E3"],
+  ["A3",null],["G5","E3"],["G5","A4"],["F#5","D3"],["A3","A2"],["A4",null],["F#4",null],["A3",null],
+  ["B4","C#3"],["A3",null],["E3",null],["G#5","B4"],["A3","C#3"],["A5","B4"],["D5","B2"],["E5","F#4"],
+  ["F#5","F#4"],["F#5","G#3"],["E5","E4"],["B4","E3"],["C#5","E3"],["C#5",null],["F#5","E3"],["C#5","A2"],
+];
+const MN = MP.map(p => p[0]);
+const MF = MN.map(nf);
+
+const SONG = { type:'sine', atk:0.04, rel:3, vol:0.45, harm:[1, 0.2, 0.12, 0.04] };
+
+let ni = 0, audioCtx = null, started = false;
+
+const textDisplay = document.getElementById('text-display');
+const cursor = document.getElementById('cursor');
+const guide = document.getElementById('guide');
+const musicBox = document.getElementById('musicBox');
+const inp = document.getElementById('hidden-input');
+
+// 핀
+const pins = [];
+for (let i = 0; i < MN.length; i++) {
+  const p = document.createElement('div');
+  p.className = 'pin';
+  p.style.height = Math.max(4, 4 + ((MF[i] - 300) / 700) * 28) + 'px';
+  musicBox.appendChild(p); pins.push(p);
+}
+
+// 오디오
+let dest = null; // MediaStreamDestination for recording
+function initA() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    dest = audioCtx.createMediaStreamDestination();
+  }
+}
+
+// 녹음
+let mediaRecorder = null;
+let recordedChunks = [];
+let isRecording = false;
+const recBtn = document.getElementById('recBtn');
+const recLabel = document.getElementById('recLabel');
+
+recBtn.addEventListener('click', async () => {
+  initA();
+  if (!isRecording) {
+    try {
+      // 화면 캡처 스트림
+      const screenStream = await navigator.mediaDevices.getDisplayMedia({
+        video: { displaySurface: 'browser' },
+        audio: false,
+      });
+
+      // 오르골 오디오 스트림
+      const audioStream = dest.stream;
+
+      // 화면 + 오디오 합치기
+      const combined = new MediaStream([
+        ...screenStream.getVideoTracks(),
+        ...audioStream.getAudioTracks(),
+      ]);
+
+      recordedChunks = [];
+      mediaRecorder = new MediaRecorder(combined, { mimeType: 'video/webm;codecs=vp9' });
+      mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'day001-musicbox-' + new Date().toISOString().slice(0,19).replace(/:/g,'-') + '.webm';
+        a.click();
+        URL.revokeObjectURL(url);
+      };
+
+      // 화면 공유 중지 시 녹화도 정지
+      screenStream.getVideoTracks()[0].onended = () => {
+        if (isRecording) recBtn.click();
+      };
+
+      mediaRecorder.start();
+      isRecording = true;
+      recBtn.classList.add('recording');
+      recLabel.textContent = 'REC ●';
+      recLabel.style.color = '#ff3b30';
+    } catch (e) {
+      console.log('화면 공유 취소됨');
+    }
+  } else {
+    mediaRecorder.stop();
+    isRecording = false;
+    recBtn.classList.remove('recording');
+    recLabel.textContent = 'REC';
+    recLabel.style.color = '';
+  }
+});
+
+function playN(freq, vs) {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime, v = (vs||1) * SONG.vol;
+  SONG.harm.forEach((a,i) => {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = SONG.type; o.frequency.value = freq*(i+1);
+    g.gain.setValueAtTime(0,t);
+    g.gain.linearRampToValueAtTime(v*a, t+SONG.atk);
+    g.gain.exponentialRampToValueAtTime(0.001, t+SONG.rel);
+    o.connect(g); g.connect(audioCtx.destination);
+    if (dest) g.connect(dest); // 녹음용
+    o.start(t); o.stop(t+SONG.rel);
+  });
+  const pi = ni % pins.length, p = pins[pi];
+  p.classList.add('active');
+  gsap.to(p, { height: parseFloat(p.style.height)+18, duration:0.1 });
+  setTimeout(() => {
+    p.classList.remove('active');
+    gsap.to(p, { height: Math.max(4, 4+((MF[pi]-300)/700)*28), duration:0.3 });
+  }, 350);
+}
+
+function playCur() {
+  const pair = MP[ni % MP.length];
+  playN(nf(pair[0]));
+  if (pair[1]) playN(nf(pair[1]), 0.5);
+  ni++;
+}
+
+let lastCharSpan = null;
+
+function addChar(char) {
+  // 전체 선택 해제
+  if (allSelected) {
+    allSelected = false;
+    textDisplay.querySelectorAll('.char').forEach(c => c.style.background = '');
+  }
+  // 이전 글자의 하이라이트 제거
+  if (lastCharSpan) {
+    lastCharSpan.classList.remove('active-char');
+  }
+
+  const span = document.createElement('span');
+  span.className = 'char active-char';
+  span.textContent = char;
+  textDisplay.insertBefore(span, cursor);
+
+  lastCharSpan = span;
+
+  gsap.fromTo(span,
+    { opacity: 0, y: 8, scale: 0.85 },
+    { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: 'back.out(1.4)',
+      onComplete: () => {
+        gsap.to(span, {
+          y: '+=' + (2 + Math.random() * 4),
+          repeat: -1, yoyo: true,
+          duration: 1.5 + Math.random() * 2,
+          ease: 'sine.inOut',
+        });
+      }
+    }
+  );
+
+  initA(); playCur();
+}
+
+function addSpace() {
+  const space = document.createElement('span');
+  space.className = 'space';
+  space.innerHTML = '&nbsp;';
+  textDisplay.insertBefore(space, cursor);
+}
+
+function delChar() {
+  const chars = textDisplay.querySelectorAll('.char, .space');
+  if (chars.length > 0) {
+    const last = chars[chars.length - 1];
+    gsap.to(last, { opacity:0, scale:0, duration:0.2, onComplete: () => last.remove() });
+    if (ni > 0) ni--;
+  }
+}
+
+// 입력
+let compSpan = null;
+let allSelected = false;
+inp.addEventListener('compositionstart', () => {
+  // 조합 시작 시 이전 글자 하이라이트 제거
+  if (lastCharSpan) { lastCharSpan.classList.remove('active-char'); lastCharSpan = null; }
+});
+inp.addEventListener('compositionupdate', (e) => {
+  if (!started) { started = true; guide.classList.add('hidden'); }
+  if (!compSpan) {
+    compSpan = document.createElement('span');
+    compSpan.className = 'char composing';
+    textDisplay.insertBefore(compSpan, cursor);
+  }
+  compSpan.textContent = e.data || '';
+});
+inp.addEventListener('compositionend', (e) => {
+  if (compSpan) { compSpan.remove(); compSpan = null; }
+  // 이전 하이라이트 제거
+  if (lastCharSpan) lastCharSpan.classList.remove('active-char');
+  if (e.data) { for (const ch of e.data) addChar(ch); }
+  // 한글 확정 후 마지막 글자에 하이라이트 유지
+  justComposed = true;
+  inp.value = '';
+  setTimeout(() => { justComposed = false; }, 30);
+});
+let justComposed = false;
+inp.addEventListener('input', (e) => {
+  if (e.isComposing || justComposed) return;
+  const v = inp.value;
+  if (!v) return;
+  if (!started) { started = true; guide.classList.add('hidden'); }
+  initA();
+  for (const ch of v) { if (ch === ' ') addSpace(); else addChar(ch); }
+  inp.value = '';
+});
+inp.addEventListener('keydown', (e) => {
+  // Cmd/Ctrl+A → 전체 선택 (시각적 표시)
+  if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
+    e.preventDefault();
+    allSelected = true;
+    textDisplay.querySelectorAll('.char').forEach(c => c.style.background = '#ffff00');
+    return;
+  }
+  if (e.key === 'Backspace') {
+    e.preventDefault();
+    // 전체 선택 상태면 전부 삭제
+    if (allSelected) {
+      textDisplay.querySelectorAll('.char, .space, .composing, br').forEach(c => c.remove());
+      ni = 0; lastCharSpan = null; allSelected = false;
+      return;
+    }
+    if (compSpan) { compSpan.remove(); compSpan = null; inp.value = ''; }
+    else delChar();
+  }
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    // 한글 조합 중이면 조합만 끝내고 줄바꿈은 다음 엔터에서
+    if (compSpan) return;
+    textDisplay.insertBefore(document.createElement('br'), cursor);
+  }
+  if (e.key === ' ') {
+    e.preventDefault();
+    setTimeout(() => addSpace(), 10);
+  }
+});
+document.addEventListener('click', () => {
+  initA(); inp.focus();
+  if (!started) guide.textContent = '이제 키보드를 자유롭게 타이핑하세요 🎹';
+});
+inp.focus();
+</script>
+</body>
+</html>

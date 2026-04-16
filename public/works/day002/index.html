@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 2: 로봇개가 개를 산책시켜..</title>
+<style>
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#fff; display:flex; justify-content:center; align-items:center; height:100vh; overflow:hidden; font-family:'Pretendard',sans-serif; }
+#scene { position:relative; width:100%; aspect-ratio:3/1; max-height:100vh; overflow:hidden; background:#000; }
+#park-bg { position:absolute; inset:0; z-index:0; }
+#mask-canvas { position:absolute; inset:0; z-index:1; }
+#main-canvas { position:absolute; inset:0; z-index:2; }
+#particle-canvas { position:absolute; inset:0; z-index:3; pointer-events:none; }
+#scanlines { position:absolute; inset:0; z-index:4; pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px); }
+.info-bar { position:absolute; top:14px; left:20px; right:20px; z-index:10; display:flex; justify-content:space-between; font-size:10px; color:rgba(255,255,255,0.3); }
+</style>
+</head>
+<body>
+<div id="scene">
+  <canvas id="park-bg"></canvas>
+  <canvas id="mask-canvas"></canvas>
+  <canvas id="main-canvas"></canvas>
+  <canvas id="particle-canvas"></canvas>
+  <div id="scanlines"></div>
+  <div class="info-bar">
+    <span>Day 2. 텍스트 자체가 삐그덕거리는 로봇이 됩니다</span>
+    <span>GSAP · Canvas · 한글 자모 분리</span>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/EasePack.min.js"></script>
+<script>
+const scene=document.getElementById('scene');
+const parkBg=document.getElementById('park-bg');
+const parkCtx=parkBg.getContext('2d');
+const maskCanvas=document.getElementById('mask-canvas');
+const maskCtx=maskCanvas.getContext('2d');
+const mainCanvas=document.getElementById('main-canvas');
+const mainCtx=mainCanvas.getContext('2d');
+const particleCanvas=document.getElementById('particle-canvas');
+const partCtx=particleCanvas.getContext('2d');
+let W,H;
+let mouseX,mouseY,prevMouseX=0,prevMouseY=0,mouseSpeed=0;
+let dogX=0,dogY=0;
+let textScrollX=0;
+let textPosX=0;
+let textVelX=0;
+let textShake=0; // 강아지 버틸 때 텍스트 떨림 강도
+let time=0;
+
+// ─── 한글 자모 ───
+const CHO='ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ'.split('');
+const JUNG='ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ'.split('');
+const JONG=['','ㄱ','ㄲ','ㄳ','ㄴ','ㄵ','ㄶ','ㄷ','ㄹ','ㄺ','ㄻ','ㄼ','ㄽ','ㄾ','ㄿ','ㅀ','ㅁ','ㅂ','ㅄ','ㅅ','ㅆ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+function splitH(ch){const c=ch.charCodeAt(0);if(c<0xAC00||c>0xD7A3)return null;const o=c-0xAC00;const p=[CHO[Math.floor(o/(21*28))],JUNG[Math.floor((o%(21*28))/28)]];const j=o%28;if(j>0)p.push(JONG[j]);return p;}
+
+// ─── 텍스트 3줄 ───
+const LINES = ['로봇개가', '개를', '산책시켜 ···'];
+const MODES_CYCLE = ['split','static','split','whole','split_wide','whole','split','static','split','whole'];
+const lineBlocks = []; // [ [blocks], [blocks], [blocks] ]
+let mi = 0;
+LINES.forEach(line => {
+  const blocks = [];
+  line.split('').forEach(ch => {
+    if(ch === ' ') { blocks.push({type:'space'}); return; }
+    if(ch === '.' || ch === '·') { blocks.push({type:'char',display:ch,mode:'static',off:{x:0,y:0,r:0,sx:1},baseOff:(Math.random()-0.5)*5,_dotIdx:blocks.filter(b=>b.display==='.'||b.display==='·').length}); return; }
+    const mode = MODES_CYCLE[mi % MODES_CYCLE.length]; mi++;
+    const parts = splitH(ch);
+    const baseOff = (Math.random()-0.5) * 6;
+    if((mode==='split' || mode==='split_wide') && parts){
+      blocks.push({type:'char',display:ch,mode:'split',parts,offsets:parts.map(()=>({x:0,y:0,r:0})),baseOff});
+    } else {
+      blocks.push({type:'char',display:ch,mode,off:{x:0,y:0,r:0,sx:1,glitchX:0},baseOff});
+    }
+  });
+  lineBlocks.push(blocks);
+});
+
+// ─── GSAP 애니메이션 ───
+function initTextAnim(){
+  lineBlocks.forEach(blocks => {
+    blocks.forEach(b => {
+      if(b.type!=='char') return;
+      if((b.mode==='split') && b.offsets){
+        // 자모별 삐걱 회전 — 느리고 기계적
+        b.offsets.forEach((o,i)=>{
+          gsap.to(o,{r:(Math.random()>0.5?1:-1)*(8+Math.random()*12),
+            duration:1.2+Math.random()*1.5,ease:'steps(3)',yoyo:true,repeat:-1,delay:i*0.25});
+        });
+      } else if(b.mode==='whole' && b.off){
+        // 통째로 미세 기울어짐
+        gsap.to(b.off,{r:(Math.random()>0.5?1:-1)*(3+Math.random()*5),
+          duration:2+Math.random()*2,ease:'sine.inOut',yoyo:true,repeat:-1});
+      }
+    });
+  });
+}
+
+// ─── 강아지 ───
+const dp={body:{cx:0,cy:0,rx:40,ry:25},head:{cx:-35,cy:-20,r:22},
+  earL:[[-48,-35],[-60,-55],[-42,-40]],earR:[[-25,-35],[-15,-58],[-30,-40]],
+  legs:[{x:-20,y:22,h:30},{x:-10,y:22,h:30},{x:20,y:22,h:30},{x:30,y:22,h:30}],
+  tail:[[38,-5],[55,-20],[60,-30]],eyeL:{cx:-40,cy:-22,r:3},eyeR:{cx:-30,cy:-22,r:3},nose:{cx:-45,cy:-15,r:4}};
+let legPhase=0,bounceY=0,tailWag=0;
+
+function drawDog(ctx,x,y,sc){
+  // 다리 속도를 마우스 속도에 연동
+  const speedMult = 1 + mouseSpeed * 0.02;
+  ctx.save();ctx.translate(x,y);ctx.scale(sc,sc);
+  legPhase+=0.12*speedMult; bounceY=Math.sin(legPhase*2)*5*speedMult; tailWag=Math.sin(legPhase*3)*15;
+  ctx.translate(0,bounceY);
+  const j=()=>(Math.random()-0.5)*2;
+  ctx.strokeStyle='#222';ctx.lineWidth=3;ctx.lineCap='round';
+  dp.legs.forEach((l,i)=>{const sw=Math.sin(legPhase+i*Math.PI*0.5)*14*speedMult;
+    ctx.beginPath();ctx.moveTo(l.x+j(),l.y+j());ctx.lineTo(l.x+sw+j(),l.y+l.h+j());ctx.stroke();
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(l.x+sw,l.y+l.h,4,0,Math.PI*2);ctx.fill();ctx.stroke();});
+  ctx.beginPath();ctx.moveTo(dp.tail[0][0]+j(),dp.tail[0][1]+j());
+  ctx.quadraticCurveTo(dp.tail[1][0]+tailWag+j(),dp.tail[1][1]+j(),dp.tail[2][0]+tailWag*1.5+j(),dp.tail[2][1]+j());
+  ctx.strokeStyle='#222';ctx.lineWidth=3;ctx.stroke();
+  ctx.fillStyle='#fff';ctx.strokeStyle='#222';ctx.lineWidth=3;
+  ctx.beginPath();ctx.ellipse(dp.body.cx+j(),dp.body.cy+j(),dp.body.rx+j(),dp.body.ry+j(),0,0,Math.PI*2);ctx.fill();ctx.stroke();
+  ctx.beginPath();ctx.arc(dp.head.cx+j(),dp.head.cy+j(),dp.head.r+j(),0,Math.PI*2);ctx.fill();ctx.stroke();
+  [dp.earL,dp.earR].forEach(ear=>{ctx.fillStyle='#eee';ctx.beginPath();ctx.moveTo(ear[0][0]+j(),ear[0][1]+j());ctx.lineTo(ear[1][0]+j(),ear[1][1]+j());ctx.lineTo(ear[2][0]+j(),ear[2][1]+j());ctx.closePath();ctx.fill();ctx.stroke();});
+  ctx.fillStyle='#222';[dp.eyeL,dp.eyeR].forEach(e=>{ctx.beginPath();ctx.arc(e.cx+j(),e.cy+j(),e.r,0,Math.PI*2);ctx.fill();});
+  ctx.fillStyle='#333';ctx.beginPath();ctx.arc(dp.nose.cx+j(),dp.nose.cy+j(),dp.nose.r,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#333';ctx.lineWidth=2;ctx.beginPath();ctx.arc(dp.nose.cx+2,dp.nose.cy+6,8,0.2,Math.PI-0.2);ctx.stroke();
+  ctx.restore();
+  return{noseX:x+(dp.body.cx+dp.body.rx*0.5)*sc, noseY:y+(dp.head.cy+dp.head.r*0.5+bounceY)*sc};
+}
+
+// ─── 파티클 ───
+const particles=[];
+class Particle{
+  constructor(x,y){this.x=x;this.y=y;this.vx=(Math.random()-0.5)*3;this.vy=(Math.random()-0.5)*3-1;
+    this.life=1;this.decay=0.01+Math.random()*0.02;this.size=2+Math.random()*5;this.hue=[330,280,190,50][Math.floor(Math.random()*4)];}
+  update(){this.x+=this.vx;this.y+=this.vy;this.vy+=0.02;this.life-=this.decay;}
+  draw(ctx){if(this.life<=0)return;ctx.save();ctx.globalAlpha=this.life*0.9;ctx.fillStyle=`hsl(${this.hue},100%,75%)`;ctx.shadowColor=`hsl(${this.hue},100%,60%)`;ctx.shadowBlur=15;ctx.translate(this.x,this.y);ctx.beginPath();for(let i=0;i<4;i++){const a=(i/4)*Math.PI*2-Math.PI/2;ctx.lineTo(Math.cos(a)*this.size,Math.sin(a)*this.size);ctx.lineTo(Math.cos(a+Math.PI/4)*this.size*0.3,Math.sin(a+Math.PI/4)*this.size*0.3);}ctx.closePath();ctx.fill();ctx.restore();}
+}
+
+// ─── 공원 배경 ───
+function drawParkBg(){
+  const c=parkCtx,g=c.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#87CEEB');g.addColorStop(0.45,'#B2DFDB');g.addColorStop(0.5,'#4CAF50');g.addColorStop(1,'#2E7D32');
+  c.fillStyle=g;c.fillRect(0,0,W,H);
+  c.strokeStyle='#1B5E20';c.lineWidth=2;
+  for(let i=0;i<120;i++){const x=Math.random()*W,y=H*0.45+Math.random()*H*0.5;c.beginPath();c.moveTo(x,y);c.quadraticCurveTo(x+(Math.random()-0.5)*12,y-20-Math.random()*25,x+(Math.random()-0.5)*8,y-30-Math.random()*20);c.stroke();}
+  for(let i=0;i<6;i++){const tx=W*0.05+Math.random()*W*0.9,ty=H*0.3+Math.random()*H*0.15;c.fillStyle='#5D4037';c.fillRect(tx-4,ty,8,50);c.fillStyle='#388E3C';c.beginPath();c.arc(tx,ty-8,22+Math.random()*15,0,Math.PI*2);c.fill();c.strokeStyle='#2E7D32';c.lineWidth=2;c.stroke();}
+}
+
+// ─── 텍스트 그리기 (3줄 중앙정렬) ───
+function drawText(ctx){
+  const fontSize = Math.min(180, H * 0.45);
+  const jamoSize = fontSize * 0.45;
+  const lineHeight = fontSize * 0.85;
+  
+  const textBaseX = textPosX;
+  const textBaseY = H * 0.5 - lineHeight; // 세로 중앙
+  
+  let firstCharX = null, firstCharY = null;
+  
+  // 각 줄 너비 미리 계산 (중앙 정렬용)
+  const lineWidths = lineBlocks.map(blocks => {
+    let w = 0;
+    blocks.forEach(b => { if(b.type==='space') w+=fontSize*0.3; else w += (b.display === '.' || b.display === '·') ? fontSize * 0.25 : fontSize * 0.7; });
+    return w;
+  });
+  const maxLineW = Math.max(...lineWidths);
+  
+  lineBlocks.forEach((blocks, lineIdx) => {
+    const lineW = lineWidths[lineIdx];
+    const offsetX = (maxLineW - lineW) / 2; // 중앙 정렬 오프셋
+    let cursorX = textBaseX + offsetX;
+    const lineY = textBaseY + lineIdx * lineHeight;
+    
+    blocks.forEach(b => {
+      if(b.type==='space'){cursorX+=fontSize*0.3;return;}
+      const blockW = (b.display === '.' || b.display === '·') ? fontSize * 0.25 : fontSize * 0.7;
+      const charY = lineY + (b.baseOff || 0) + 0;
+      const shakeX = textShake > 0.5 ? (Math.random()-0.5) * textShake * 1.2 : 0;
+      
+      if(firstCharX === null && b.type === 'char' && b.display !== '.') {
+        firstCharX = cursorX + blockW * 0.35; // 글자 왼쪽 끝에 정확히
+        firstCharY = charY - fontSize * 0.15;
+      }
+      
+      if(cursorX + blockW < -50 || cursorX > W + 50) { cursorX += blockW; return; }
+      
+      if((b.mode === 'split' || b.mode === 'split_wide') && b.parts) {
+        ctx.font = `900 ${jamoSize}px Pretendard`; ctx.textBaseline = 'middle';
+        const p = b.parts, o = b.offsets;
+        const drawJamo = (text, ox, oy, off) => {
+          ctx.save();ctx.translate(ox+(off.glitchX||0),oy+off.y);ctx.rotate(off.r*Math.PI/180);
+          if(off.glitchX){ctx.fillStyle='rgba(255,50,50,0.5)';ctx.fillText(text,-2,0);ctx.fillStyle='rgba(50,255,50,0.5)';ctx.fillText(text,2,0);}
+          ctx.fillStyle='#fff';ctx.fillText(text,0,0);ctx.restore();
+        };
+        if(p[0]) drawJamo(p[0], cursorX+shakeX+blockW*0.3+o[0].x, charY-fontSize*0.18, o[0]);
+        if(p[1]) drawJamo(p[1], cursorX+shakeX+blockW*(b.mode==='split_wide'?0.75:0.6)+o[1].x, charY, o[1]);
+        if(p[2]) drawJamo(p[2], cursorX+shakeX+blockW*0.4+o[2].x, charY+fontSize*0.22, o[2]);
+      } else if(b.mode === 'glitch' && b.off) {
+        ctx.font = `900 ${fontSize*0.65}px Pretendard`; ctx.textBaseline = 'middle';
+        const o = b.off;
+        ctx.save();ctx.translate(cursorX+shakeX+blockW*0.4+o.glitchX,charY+o.y);ctx.scale(o.sx,1);
+        ctx.fillStyle='rgba(255,50,50,0.7)';ctx.fillText(b.display,-2,0);
+        ctx.fillStyle='rgba(50,255,50,0.7)';ctx.fillText(b.display,2,0);
+        ctx.fillStyle='#fff';ctx.fillText(b.display,0,0);
+        ctx.restore();
+      } else if(b.mode === 'whole' && b.off) {
+        ctx.font = `900 ${fontSize*0.65}px Pretendard`; ctx.textBaseline = 'middle';
+        const o = b.off;
+        ctx.save();ctx.translate(cursorX+shakeX+blockW*0.4+o.x,charY+o.y);ctx.rotate(o.r*Math.PI/180);
+        ctx.fillStyle='#fff';ctx.fillText(b.display,0,0);ctx.restore();
+      } else {
+        // 점은 각각 다른 크기
+        const dotSizes = [0.25, 0.4, 0.3];
+        const dotIdx = b._dotIdx !== undefined ? b._dotIdx : 0;
+        const dotScale = (b.display === '·' || b.display === '.') ? (dotSizes[dotIdx % 3] || 0.5) : 0.65;
+        ctx.font = `900 ${fontSize*dotScale}px Pretendard`; ctx.textBaseline = 'middle';
+        ctx.fillStyle='#fff';ctx.fillText(b.display||'.',cursorX+shakeX+blockW*0.4,charY);
+      }
+      cursorX += blockW;
+    });
+  });
+  
+  return { baseY: dogY, fontSize, firstCharX: firstCharX || dogX+100, firstCharY: firstCharY || dogY };
+}
+
+// ─── 목줄 ───
+function drawLeash(ctx,dogNose,textX,baseY){
+  const x1=dogNose.noseX,y1=dogNose.noseY;
+  const x2=textX,y2=baseY;
+  const dist=Math.hypot(x2-x1,y2-y1);
+  const sag=Math.max(40,dist*0.25);
+  ctx.strokeStyle='rgba(255,255,255,0.85)';ctx.lineWidth=2.5;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(x1,y1);ctx.quadraticCurveTo((x1+x2)/2,Math.max(y1,y2)+sag,x2,y2);ctx.stroke();
+}
+
+// ─── 마스킹: 강아지에만 원형 + 블러 ───
+function drawMask(){
+  maskCtx.clearRect(0,0,W,H);
+  maskCtx.fillStyle='#000';
+  maskCtx.fillRect(0,0,W,H);
+  maskCtx.globalCompositeOperation='destination-out';
+  const grad=maskCtx.createRadialGradient(dogX,dogY,30,dogX,dogY,120);
+  grad.addColorStop(0,'rgba(255,255,255,1)');
+  grad.addColorStop(0.7,'rgba(255,255,255,0.8)');
+  grad.addColorStop(1,'rgba(255,255,255,0)');
+  maskCtx.fillStyle=grad;
+  maskCtx.beginPath();maskCtx.arc(dogX,dogY,120,0,Math.PI*2);maskCtx.fill();
+  maskCtx.globalCompositeOperation='source-over';
+  if(Math.random()>0.7){
+    const angle=Math.random()*Math.PI*2;
+    particles.push(new Particle(dogX+Math.cos(angle)*100,dogY+Math.sin(angle)*100));
+  }
+}
+
+// ─── 글리치 ───
+function drawGlitch(ctx){
+  if(Math.random()>0.88){for(let i=0;i<2;i++){const y=Math.random()*H,h=1+Math.random()*4;ctx.fillStyle=`hsla(${Math.random()>0.5?300:200},100%,60%,0.1)`;ctx.fillRect(0,y,W,h);}}
+}
+
+// ─── 리사이즈 ───
+function resize(){
+  W=scene.offsetWidth;H=scene.offsetHeight;
+  [parkBg,maskCanvas,mainCanvas,particleCanvas].forEach(c=>{c.width=W;c.height=H;});
+  drawParkBg();
+  if(!mouseX){mouseX=W*0.25;mouseY=H*0.5;}
+  dogX = W + 50; dogY = H*0.72;
+  textPosX = W + 150;
+  autoDogX = W + 50;
+}
+
+// ─── 마우스 ───
+let mouseOver = false;
+scene.addEventListener('mouseenter', () => { mouseOver = true; });
+scene.addEventListener('mouseleave', () => { mouseOver = false; });
+scene.addEventListener('mousemove',e=>{const r=scene.getBoundingClientRect();mouseX=e.clientX-r.left;mouseY=e.clientY-r.top;});
+scene.addEventListener('touchmove',e=>{e.preventDefault();mouseOver=true;const r=scene.getBoundingClientRect();mouseX=e.touches[0].clientX-r.left;mouseY=e.touches[0].clientY-r.top;},{passive:false});
+
+// ─── 강아지 자율 움직임 ───
+let autoDogX = 0, autoDogY = 0, autoDogTime = 0;
+
+// ─── 메인 루프 ───
+function animate(){
+  time++;
+  autoDogTime += 0.02;
+  
+  // 마우스 속도 계산
+  const dx=((mouseX||W*0.25)-prevMouseX), dy=((mouseY||H*0.5)-prevMouseY);
+  mouseSpeed=Math.hypot(dx,dy);
+  prevMouseX=mouseX||W*0.25; prevMouseY=mouseY||H*0.5;
+  
+  // 강아지: 기본 폴짝폴짝 + 마우스 올리면 컨트롤
+  const prevDogX = dogX;
+  if (mouseOver) {
+    dogX += ((mouseX||W*0.25) - dogX) * 0.06;
+    dogY += ((mouseY||H*0.5) - dogY) * 0.06;
+  } else {
+    // 텍스트 왼쪽에서 폴짝폴짝
+    const targetX = textPosX - 250 + Math.sin(autoDogTime * 0.8) * 80;
+    autoDogY = H * 0.72 + Math.abs(Math.sin(autoDogTime * 4)) * -40;
+    dogX += (targetX - dogX) * 0.03;
+    dogY += (autoDogY - dogY) * 0.04;
+  }
+  const dogDeltaX = dogX - prevDogX;
+  
+  // 텍스트 독립 스크롤: 일정 속도 우→좌 + 강아지 영향 약간
+  const baseSpeed = 0.5;
+  const dogInfluence = Math.min(1.0, Math.max(-0.8, dogDeltaX * 0.25));
+  textPosX -= (baseSpeed - dogInfluence);
+  
+  // 강아지가 오른쪽으로 버티면 텍스트 떨림
+  if(dogDeltaX > 1.5) {
+    textShake = Math.min(3, textShake + dogDeltaX * 0.2);
+  } else {
+    textShake *= 0.85;
+  }
+  // 텍스트가 왼쪽 밖으로 나가면 오른쪽에서 다시
+  if(textPosX < -W * 0.5) {
+    textPosX = W + 100;
+    dogX = textPosX - 250;
+    dogY = H * 0.72;
+  }
+  
+  mainCtx.clearRect(0,0,W,H);
+  const dogScale=Math.min(1.2,H/250);
+  
+  // 텍스트 먼저
+  const textInfo=drawText(mainCtx);
+  
+  // 강아지 나중에
+  const dogNose=drawDog(mainCtx,dogX,dogY,dogScale);
+  
+  // 목줄: 강아지 코 → "ㄹ" 왼쪽
+  if(textInfo.firstCharX !== null) {
+    drawLeash(mainCtx, dogNose, textInfo.firstCharX, textInfo.firstCharY || textInfo.baseY);
+  }
+  
+  drawMask();
+  drawGlitch(mainCtx);
+  
+  partCtx.clearRect(0,0,W,H);
+  for(let i=particles.length-1;i>=0;i--){particles[i].update();particles[i].draw(partCtx);if(particles[i].life<=0)particles.splice(i,1);}
+  
+  requestAnimationFrame(animate);
+}
+
+window.addEventListener('resize',resize);
+resize();
+initTextAnim();
+animate();
+</script>
+</body>
+</html>
