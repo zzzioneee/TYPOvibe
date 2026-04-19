@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Day001 from './works/day1'
 import Day002 from './works/day2'
+import Day003 from './works/day3'
 
 type View = 'home' | string
 
@@ -24,6 +25,16 @@ const WORKS = [
     tags: ['GSAP', 'Quick Draw', 'Canvas'],
     ratio: '3 / 1',
     bgTheme: 'dark' as const,
+  },
+  {
+    id: 'day3',
+    day: '3',
+    date: '2026.04.20',
+    title: '연애 상대를 찾으러 왜 대형 서점에 갔을까?',
+    desc: '3D 회전 책장에서 책을 고르면 플러팅 문구가 뜨는 인터랙티브 타이포그래피.',
+    tags: ['CSS 3D', 'Interactive', 'Typography'],
+    ratio: '4 / 3',
+    bgTheme: 'light' as const,
   },
 ]
 
@@ -77,6 +88,7 @@ export default function App() {
         <main style={{ flex: 1, overflow: 'hidden' }}>
           {view === 'day1' && <Day001 />}
           {view === 'day2' && <Day002 />}
+          {view === 'day3' && <Day003 />}
         </main>
       </div>
     )

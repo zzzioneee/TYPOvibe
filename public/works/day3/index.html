@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 3: 연애 상대를 찾으러 왜 대형 서점에 갔을까?</title>
+<style>
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+* { margin:0; padding:0; box-sizing:border-box; }
+html { height:100%; } body { background:#fff; height:100%; font-family:'Pretendard',sans-serif; height:100%; overflow:hidden; }
+
+/* 전체 레이아웃 */
+.scene { width:100%; height:100%; display:flex; flex-direction:column; position:relative; }
+
+/* 좌상단: 선택된 책 + 플러팅 */
+.selected-area {
+  position:absolute; top:40px; right:50px; z-index:10;
+  display:flex; flex-direction:column; align-items:flex-end; gap:20px;
+  transition: opacity 0.4s;
+}
+.selected-cover {
+  width:160px; height:230px; object-fit:cover;
+  box-shadow:0 8px 30px rgba(0,0,0,0.15);
+  border-radius:4px;
+  transition: transform 0.5s cubic-bezier(0.34,1.56,0.64,1);
+}
+.selected-flirt {
+  font-size:18px; font-weight:600; color:#111; max-width:400px;
+  line-height:1.4; opacity:0; transform:translateY(8px);
+  transition: opacity 0.4s 0.2s, transform 0.4s 0.2s;
+  white-space:nowrap; text-align:right;
+}
+.selected-flirt.show { opacity:1; transform:translateY(0); }
+
+/* 책장 영역 */
+.bookshelf-area {
+  flex:1; display:flex; justify-content:center; align-items:center;
+  perspective:800px; position:relative; overflow:hidden;
+}
+
+/* 3D 캐러셀 */
+.carousel {
+  width:100px; height:280px; position:relative;
+  transform-style:preserve-3d;
+  transition: transform 0.3s ease-out;
+}
+
+/* 각 책 */
+.book-slot {
+  position:absolute; width:120px; height:170px;
+  top:50%; left:50%; margin-top:-85px; margin-left:-60px;
+  cursor:pointer;
+  transition: transform 0.5s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s;
+  border-radius:3px; overflow:hidden;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  backface-visibility: hidden;
+}
+.book-slot:hover {
+  z-index: 9999 !important;
+}
+.book-slot.active {
+  transform-origin: center bottom;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+}
+.book-slot img { width:100%; height:100%; object-fit:cover; }
+
+/* 하단 헤드라인 */
+.headline-area {
+  padding:30px 50px 40px; border-top:1px solid #eee;
+}
+.headline-text {
+  font-size:clamp(24px, 3.5vw, 48px); font-weight:900; color:#111;
+  line-height:1.2; letter-spacing:-0.02em;
+}
+.headline-sub {
+  font-size:13px; color:rgba(0,0,0,0.3); margin-top:8px; font-weight:400;
+}
+
+/* FROM */
+.from-link {
+  position:absolute; top:20px; left:50%; transform:translateX(-50%);
+  font-size:18px; font-weight:400; color:rgba(0,0,0,0.3); text-decoration:none;
+  letter-spacing:0.1em; z-index:10;
+}
+
+/* 스크롤 힌트 */
+.scroll-hint {
+  position:absolute; bottom:100px; left:50%; transform:translateX(-50%);
+  font-size:13px; color:rgba(0,0,0,0.25); letter-spacing:0.05em;
+  animation: fadeInOut 3s ease-in-out infinite;
+}
+@keyframes fadeInOut { 0%,100%{opacity:0.2} 50%{opacity:0.6} }
+</style>
+</head>
+<body>
+<div class="scene">
+  <a href="https://newneek.co/@pizzastation/article/39901" target="_blank" rel="noopener" class="from-link">FROM</a>
+  
+  <!-- 좌상단: 헤드라인 -->
+
+  
+  <!-- 우상단: 선택된 책 -->
+  <div class="selected-area" id="selectedArea">
+    <img class="selected-cover" id="selectedCover" src="covers/book1.jpg" alt="">
+    <div class="selected-flirt" id="selectedFlirt"></div>
+  </div>
+  
+  <div class="bookshelf-area">
+    <div class="carousel" id="carousel"></div>
+    <div class="scroll-hint">← scroll to browse →</div>
+  </div>
+  
+  <!-- 하단 제거됨 -->
+</div>
+
+<script>
+const BOOKS = [
+  { title:'동물농장', img:'covers/book1.jpg' },
+  { title:'래퍼와 공원', img:'covers/book2.jpg' },
+  { title:'다음 리카에게', img:'covers/book3.jpg' },
+  { title:'날로 노는 홍대', img:'covers/book4.jpg' },
+  { title:'이반 일리치의 죽음', img:'covers/book5.jpg' },
+  { title:'인간 실격', img:'covers/book6.jpg' },
+  { title:'데미안', img:'covers/book7.jpg' },
+  { title:'에드거 앨런 포', img:'covers/book8.jpg' },
+  { title:'처형인의 노래', img:'covers/book9.jpg' },
+  { title:'릿터 59호', img:'covers/book10.jpg' },
+  { title:'뱀에게 피어싱', img:'covers/book11.jpg' },
+  { title:'우리는 왜 할일을 미루는 걸까', img:'covers/book12.jpg' },
+  { title:'GV 빌런 고태경', img:'covers/book13.jpg' },
+  { title:'모우어', img:'covers/book14.jpg' },
+  { title:'고래', img:'covers/book15.jpg' },
+  { title:'사랑과 결함', img:'covers/book16.jpg' },
+  { title:'괄호 밖은 안녕', img:'covers/book17.jpg' },
+  { title:'어머니 내게 오시네', img:'covers/book18.jpg' },
+  { title:'살인자의 정신', img:'covers/book19.jpg' },
+  { title:'마신자', img:'covers/book20.jpg' },
+  { title:'셋이 되어 버렸다', img:'covers/book21.jpg' },
+  { title:'가면을 쓴 철학자', img:'covers/book22.jpg' },
+  { title:'생활공부', img:'covers/book23.jpg' },
+  { title:'아와지마 가극학교', img:'covers/book24.jpg' },
+  { title:'아와지마 가극학교 5', img:'covers/book25.jpg' },
+  { title:'동물농장', img:'covers/book1.jpg' },
+  { title:'래퍼와 공원', img:'covers/book2.jpg' },
+  { title:'다음 리카에게', img:'covers/book3.jpg' },
+  { title:'날로 노는 홍대', img:'covers/book4.jpg' },
+  { title:'이반 일리치의 죽음', img:'covers/book5.jpg' },
+  { title:'인간 실격', img:'covers/book6.jpg' },
+  { title:'데미안', img:'covers/book7.jpg' },
+  { title:'에드거 앨런 포', img:'covers/book8.jpg' },
+  { title:'처형인의 노래', img:'covers/book9.jpg' },
+  { title:'릿터 59호', img:'covers/book10.jpg' },
+  { title:'뱀에게 피어싱', img:'covers/book11.jpg' },
+  { title:'우리는 왜 할일을 미루는 걸까', img:'covers/book12.jpg' },
+  { title:'GV 빌런 고태경', img:'covers/book13.jpg' },
+  { title:'모우어', img:'covers/book14.jpg' },
+  { title:'고래', img:'covers/book15.jpg' },
+  { title:'사랑과 결함', img:'covers/book16.jpg' },
+  { title:'괄호 밖은 안녕', img:'covers/book17.jpg' },
+  { title:'어머니 내게 오시네', img:'covers/book18.jpg' },
+  { title:'살인자의 정신', img:'covers/book19.jpg' },
+  { title:'마신자', img:'covers/book20.jpg' },
+  { title:'셋이 되어 버렸다', img:'covers/book21.jpg' },
+  { title:'가면을 쓴 철학자', img:'covers/book22.jpg' },
+  { title:'생활공부', img:'covers/book23.jpg' },
+  { title:'아와지마 가극학교', img:'covers/book24.jpg' },
+  { title:'아와지마 가극학교 5', img:'covers/book25.jpg' },
+];
+
+const FLIRT_FONTS = [
+  "'Noto Serif KR', serif",
+];
+
+const FLIRTS = [
+  '번호 좀 주시겠어요?',
+  '핸드크림 향이 좋아요',
+  '이 작가 좋아하시나봐요?',
+  '이 책 좋아요?',
+  '혹시 여기 자주 오세요?',
+  '같은 책 읽고 있었네요',
+  '추천해 주실 책 있어요?',
+  '커피 한 잔 어때요?',
+  '이 책 결말 알려드릴까요?',
+  '독서 취향이 비슷한 것 같아요',
+  '다 읽으시면 빌려주실 수 있어요?',
+  '이 작가 신작 나온 거 아세요?',
+  '이 코너 자주 오시나봐요',
+  '저도 그 책 읽고 싶었어요',
+  '혹시 이거 마지막 한 권인가요?',
+  '같은 장르 좋아하시네요',
+  '이 책 표지가 예쁘지 않아요?',
+  '읽다가 울었어요, 이 책',
+  '여기 조명 아래서 읽으면 분위기 좋아요',
+  '옆자리 비어있는데 앉으실래요?',
+  '이 책 첫 문장이 끝내줘요',
+  '서점 마감까지 같이 있을래요?',
+  '이거 선물용으로도 좋을까요?',
+  '혹시 북클럽 하세요?',
+  '이 작가 사인회 같이 갈래요?',
+  '저 이 책 세 번째 읽는 중이에요',
+  '여기 카페 아메리카노 맛있어요',
+  '이 책 읽으면 인생이 바뀌어요',
+  '표지만 보고 골랐는데 대박이었어요',
+  '혹시 문학동네 파인가요?',
+  '이 책 밑줄 치고 싶은 문장이 너무 많아요',
+  '서점에서 만난 인연이 제일 좋대요',
+  '이거 영화로도 나왔는데 아세요?',
+  '독서 모임 같이 해볼래요?',
+  '이 책 향기 맡아보세요',
+  '여기 숨은 명작 코너 아세요?',
+  '주말마다 여기 오는데 처음 뵙네요',
+  '이 책 읽고 나면 얘기하고 싶어질 거예요',
+  '혹시 에세이 좋아하세요?',
+  '이 작가 문체가 제 취향이에요',
+  '서점 데이트 어때요?',
+  '이 책 뒤표지 문구가 심장을 찔러요',
+  '같은 책 들고 있으면 운명 아닐까요?',
+  '이 책 읽으면서 웃었어요, 진짜로',
+  '혹시 시집도 좋아하세요?',
+  '여기 창가 자리가 제일 좋아요',
+  '이 책 마지막 페이지에서 멈췄어요',
+  '서점에서 이렇게 말 걸어도 되나요?',
+  '다음에 또 여기서 만나면 좋겠어요',
+  '이 책이 저를 여기로 데려왔나봐요',
+];
+
+const carousel = document.getElementById('carousel');
+const selectedCover = document.getElementById('selectedCover');
+const selectedFlirt = document.getElementById('selectedFlirt');
+const count = BOOKS.length;
+const radius = 350;
+const slots = [];
+let angle = 0;
+let targetAngle = 0;
+let velocity = 0;
+let isScrolling = false;
+let scrollTimeout;
+let activeIdx = 0;
+
+// 책 생성
+BOOKS.forEach((book, i) => {
+  const a = (i / count) * 360;
+  const slot = document.createElement('div');
+  slot.className = 'book-slot';
+  slot.innerHTML = `<img src="${book.img}" alt="${book.title}">`;
+  slot.style.pointerEvents = 'auto';
+  
+  // hover 플로팅
+  slot.addEventListener('mouseenter', () => {
+    slot.style.zIndex = '9999';
+    slot._hovered = true;
+  });
+  slot.addEventListener('mouseleave', () => {
+    slot._hovered = false;
+  });
+  
+  // 클릭 → 좌상단 표시
+  let downX = 0;
+  slot.addEventListener('mousedown', (e) => { downX = e.clientX; e.stopPropagation(); });
+  slot.addEventListener('mouseup', (e) => {
+    e.stopPropagation();
+    if (Math.abs(e.clientX - downX) < 10) {
+      selectedCover.src = BOOKS[i].img;
+      selectedFlirt.textContent = '"' + FLIRTS[i % FLIRTS.length] + '"';
+      selectedFlirt.style.fontFamily = FLIRT_FONTS[i % FLIRT_FONTS.length];
+      selectedFlirt.classList.add('show');
+    }
+  });
+  
+  carousel.appendChild(slot);
+  slots.push(slot);
+});
+
+// 위치 업데이트
+function updatePositions() {
+  let closestDist = -Infinity;
+  let closestIdx = 0;
+  
+  slots.forEach((slot, i) => {
+    const a = (i / count) * 360 + angle;
+    const rad = a * Math.PI / 180;
+    
+    // 앞에 있는 책이 가장 가까움 (z가 가장 큼)
+    const z = Math.cos(rad) * radius;
+    const x = Math.sin(rad) * radius;
+    const scale = 0.6 + (z + radius) / (radius * 2) * 0.6;
+    const opacity = 0.3 + (z + radius) / (radius * 2) * 0.7;
+    
+    const hoverLift = slot._hovered ? -20 : 0;
+    slot.style.transform = `translateX(${x}px) translateZ(${z}px) scale(${slot._hovered ? scale * 1.1 : scale}) translateY(${hoverLift}px)`;
+    slot.style.opacity = opacity;
+    slot.style.zIndex = slot._hovered ? 9999 : Math.round(z + radius);
+    
+    // 가장 앞에 있는 책 찾기
+    if (z > closestDist * -1 && z > closestDist) {
+      // noop
+    }
+    const dist = Math.abs(((a % 360) + 360) % 360 - 180);
+    if (dist > 360 - 20 || dist < 20) {
+      // 정면 근처
+    }
+    if (z > closestDist) {
+      closestDist = z;
+      closestIdx = i;
+    }
+  });
+  
+  // 활성 책 업데이트
+  if (closestIdx !== activeIdx) {
+    slots[activeIdx]?.classList.remove('active');
+    activeIdx = closestIdx;
+  }
+}
+
+// 스크롤 멈추면 활성 책 올리기 + 플러팅 표시
+function onScrollStop() {
+  isScrolling = false;
+  // 플로팅은 hover CSS로 처리
+}
+
+// 스크롤 이벤트
+window.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  isScrolling = true;
+  // flirt stays visible until next book selected
+  slots[activeIdx]?.classList.remove('active');
+  
+  velocity += e.deltaY * 0.08;
+  
+  clearTimeout(scrollTimeout);
+  scrollTimeout = setTimeout(onScrollStop, 300);
+}, { passive: false });
+
+// 드래그 지원
+let isDragging = false, dragStartX = 0;
+window.addEventListener('mousedown', (e) => { isDragging = true; dragStartX = e.clientX; });
+window.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+  const dx = e.clientX - dragStartX;
+  velocity += dx * 0.15;
+  dragStartX = e.clientX;
+  isScrolling = true;
+  // flirt stays visible until next book selected
+  slots[activeIdx]?.classList.remove('active');
+  clearTimeout(scrollTimeout);
+  scrollTimeout = setTimeout(onScrollStop, 300);
+});
+window.addEventListener('mouseup', (e) => {
+  const dragDist = Math.abs(e.clientX - dragStartX);
+  isDragging = false;
+  if (dragDist < 8) {
+    const slotEl = e.target.closest('.book-slot');
+    if (slotEl && slotEl.dataset.idx !== undefined) {
+      const idx = parseInt(slotEl.dataset.idx);
+      const book = BOOKS[idx];
+      if (book) {
+        selectedCover.src = book.img;
+        selectedFlirt.textContent = '"' + FLIRTS[idx % FLIRTS.length] + '"';
+        selectedFlirt.style.fontFamily = FLIRT_FONTS[idx % FLIRT_FONTS.length];
+        selectedFlirt.classList.add('show');
+      }
+    }
+  }
+});
+
+// 애니메이션 루프
+let tiltX = -20; // 기본 하이앵글
+
+// 마우스 Y로 뷰 각도 조절
+document.addEventListener('mousemove', (e) => {
+  const normalizedY = e.clientY / window.innerHeight; // 0(위) ~ 1(아래)
+  tiltX = -35 + normalizedY * 40; // -35(위=하이앵글) ~ 5(아래=로우앵글)
+  carousel.style.transform = 'rotateX(' + tiltX + 'deg)';
+});
+
+function animate() {
+  angle += velocity;
+  velocity *= 0.92; // 감속
+  
+  updatePositions();
+  requestAnimationFrame(animate);
+}
+
+updatePositions();
+animate();
+
+// 초기 플러팅 표시
+setTimeout(onScrollStop, 500);
+</script>
+</body>
+</html>
