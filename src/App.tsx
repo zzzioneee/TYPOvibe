@@ -24,7 +24,7 @@ const WORKS = [
     title: '로봇개가 개를 산책시켜..',
     desc: 'Quick Draw 데이터셋의 핸드드로잉 개와 삐그덕거리는 로봇 텍스트가 목줄로 연결된 모션 타이포그래피.',
     tags: ['GSAP', 'Quick Draw', 'Canvas'],
-    ratio: '3 / 1',
+    ratio: '8 / 3',
     bgTheme: 'dark' as const,
   },
   {
@@ -235,6 +235,7 @@ export default function App() {
                     border: hoveredId === work.id ? '3px solid #111' : '3px solid transparent',
                     transition: 'border-color 0.3s',
                     cursor: 'pointer',
+                    background: '#fff',
                   }}
                 >
                   {/* 라이브 iframe 프리뷰 */}
