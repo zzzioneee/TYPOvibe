@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Day001 from './works/day1'
 import Day002 from './works/day2'
 import Day003 from './works/day3'
+import Day004 from './works/day4'
 
 type View = 'home' | string
 
@@ -35,6 +36,16 @@ const WORKS = [
     tags: ['CSS 3D', 'Interactive', 'Typography'],
     ratio: '4 / 3',
     bgTheme: 'light' as const,
+  },
+  {
+    id: 'day4',
+    day: '4',
+    date: '2026.04.20',
+    title: '불황 속의 웨이팅?',
+    desc: '텍스트로 만든 인간 조형물이 줄 서서 웨이팅하다 입장하는 모션 타이포그래피.',
+    tags: ['Canvas', 'Motion', 'Typography'],
+    ratio: '16 / 9',
+    bgTheme: 'dark' as const,
   },
 ]
 
@@ -89,6 +100,7 @@ export default function App() {
           {view === 'day1' && <Day001 />}
           {view === 'day2' && <Day002 />}
           {view === 'day3' && <Day003 />}
+          {view === 'day4' && <Day004 />}
         </main>
       </div>
     )

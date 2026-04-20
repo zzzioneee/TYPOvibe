@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 4: 불황 속의 웨이팅?</title>
+<style>
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:100%; height:100%; overflow:hidden; background:#000; }
+canvas { display:block; width:100%; height:100%; }
+.from-link {
+  position:absolute; top:24px; left:50%; transform:translateX(-50%);
+  font-family:'Pretendard',sans-serif; font-size:18px; font-weight:600;
+  color:#fff; text-decoration:none; z-index:10; letter-spacing:0.05em;
+}
+.from-link:hover { text-decoration:underline; }
+</style>
+</head>
+<body>
+<a href="https://eopla.net/magazines/41553" target="_blank" rel="noopener" class="from-link">FROM</a>
+<canvas id="canvas"></canvas>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let W, H;
+function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+
+const HEADLINES = ['불황 속의 웨이팅?', '우리는 왜 줄 서는 것에 열광하는가'];
+const TEAM_SIZES = [3, 2, 3, 2, 2];
+
+// ─── 텍스트 인간 ───
+class TextPerson {
+  constructor(headline, scale, yBase) {
+    this.headline = headline;
+    this.chars = headline.split('');
+    this.scale = scale;
+    this.x = 0;
+    this.yBase = yBase;
+    this.walkPhase = Math.random() * Math.PI * 2;
+    this.walkFreq = 3 + Math.random() * 4;        // 3~7 (이전 4~6)
+    this.walkAmp = 0.3 + Math.random() * 0.5;     // 0.3~0.8 (이전 0.4~0.7)
+    this.bobAmp = 2 + Math.random() * 6;           // 2~8 (이전 3~6)
+    this.idleSway = 0.03 + Math.random() * 0.04;
+    this.speedMult = 0.8 + Math.random() * 0.4;
+    this.isWalking = false;
+    this.headType = Math.floor(Math.random() * 3); // 0: 1글자큰, 1: 2글자몸통크기, 2: 2줄(4글자)
+    this.strokeColor = '#fff'; // 기본값, 팀 생성 시 덮어씀
+    this.walkMode = Math.random() < 0.5 ? 'cross' : 'same'; // X자 or 같은 방향
+  }
+
+  draw() {
+    const s = this.scale;
+    const t = this.walkPhase;
+    const walking = this.isWalking;
+
+    const bounce = walking ? Math.abs(Math.sin(t)) * this.bobAmp : Math.sin(t * 0.5) * 3;
+
+    ctx.save();
+    ctx.translate(this.x, this.yBase - bounce);
+
+    // 걷기: 다리/팔이 어깨·엉덩이 기준으로 앞뒤 진자 회전
+    const swing = walking ? Math.sin(t) : 0;
+    const armAng = swing * this.walkAmp * 0.7;
+    const legAng = swing * (this.walkAmp + 0.1);
+    // 같은 방향 모드: 팔다리가 같은 방향으로
+    const legSign = this.walkMode === 'cross' ? -1 : 1;
+
+    const parts = [
+      // 머리: 3종 랜덤
+      // 0: 1글자 큰 / 1: 2글자 몸통크기 / 2: 2줄 4글자 (우리\n불황)
+      this.headType === 0
+        ? { x:-0.06, y:-0.49, w:0.12, h:0.13, fontSize: s*0.11, rot:0, pivotX:0, pivotY:0, isPivot:false, isHead:true }
+        : this.headType === 1
+        ? { x:-0.08, y:-0.48, w:0.16, h:0.12, fontSize: s*0.075, rot:0, pivotX:0, pivotY:0, isPivot:false, isHead:true }
+        : { x:-0.05, y:-0.52, w:0.10, h:0.18, fontSize: s*0.075, rot:0, pivotX:0, pivotY:0, isPivot:false, isHead:true },
+      // 몸통
+      { x:-0.11, y:-0.35, w:0.22, h:0.28, fontSize: s*0.075, rot:0, pivotX:0, pivotY:0, isPivot:false, isHead:false },
+      // 왼다리 — same: 왼팔과 같은 방향 / cross: 왼팔과 반대
+      { x:-0.08, y:-0.06, w:0.08, h:0.28, fontSize: s*0.06,
+        rot: legSign * -legAng, pivotX:-0.04*s, pivotY:-0.06*s, isPivot:true, isHead:false },
+      // 오른다리 — same: 오른팔과 같은 방향 / cross: 오른팔과 반대
+      { x:0.00, y:-0.06, w:0.08, h:0.28, fontSize: s*0.06,
+        rot: legSign * legAng, pivotX:0.04*s, pivotY:-0.06*s, isPivot:true, isHead:false },
+      // 왼팔 (다리 다음 = 남은 글자 or 반복)
+      { x:-0.19, y:-0.33, w:0.08, h:0.22, fontSize: s*0.055,
+        rot: armAng, pivotX:-0.15*s, pivotY:-0.33*s, isPivot:true, isHead:false },
+      // 오른팔
+      { x:0.11, y:-0.33, w:0.08, h:0.22, fontSize: s*0.055,
+        rot: -armAng, pivotX:0.15*s, pivotY:-0.33*s, isPivot:true, isHead:false },
+    ];
+
+    let charIdx = 0;
+    const getChar = () => {
+      const c = this.chars[charIdx % this.chars.length];
+      charIdx++;
+      return c;
+    };
+
+    parts.forEach(part => {
+      ctx.save();
+      const px = part.x * s;
+      const py = part.y * s;
+      const pw = part.w * s;
+      const ph = part.h * s;
+      const fs = part.fontSize;
+
+      if (part.isPivot) {
+        ctx.translate(part.pivotX, part.pivotY);
+        ctx.rotate(part.rot);
+        ctx.translate(-part.pivotX, -part.pivotY);
+      }
+
+      // 머리 클리핑
+      if (part.isHead) {
+        ctx.beginPath();
+        ctx.ellipse(px + pw/2, py + ph/2, pw/2 + 3, ph/2 + 3, 0, 0, Math.PI*2);
+        ctx.clip();
+      }
+
+      ctx.font = `900 ${fs}px "Pretendard", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.lineJoin = 'round';
+
+      const cols = Math.max(1, Math.floor(pw / (fs * 0.85)));
+      const rows = Math.max(1, Math.floor(ph / (fs * 1.05)));
+      const sx = px + (pw - cols * fs * 0.85) / 2 + fs * 0.42;
+      const sy = py + (ph - rows * fs * 1.05) / 2 + fs * 0.52;
+
+      const savedIdx = charIdx;
+
+      // 1) 외곽 스트로크
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const ch = getChar();
+          if (ch === ' ') continue;
+          const cx = sx + c * fs * 0.85;
+          const cy = sy + r * fs * 1.05;
+          ctx.strokeStyle = this.strokeColor;
+          ctx.lineWidth = fs * 0.4;
+          ctx.strokeText(ch, cx, cy);
+        }
+      }
+
+      // 2) 텍스트 본체 — 3번 그려서 ㅇ 안쪽까지 확실히 덮기
+      for (let pass = 0; pass < 3; pass++) {
+        charIdx = savedIdx;
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const ch = getChar();
+            if (ch === ' ') continue;
+            const cx = sx + c * fs * 0.85;
+            const cy = sy + r * fs * 1.05;
+            ctx.fillStyle = '#000';
+            ctx.fillText(ch, cx, cy);
+          }
+        }
+      }
+
+      ctx.restore();
+    });
+
+    ctx.restore();
+  }
+}
+
+// ─── 기차 시스템 ───
+// 모든 팀이 하나의 행렬로 왼쪽에서 오른쪽으로 이동
+// A팀이 맨 앞(오른쪽), 뒤로 갈수록 왼쪽
+
+const PERSON_SPACING = 0.33;  // 팀 내 사람 간격
+const TEAM_GAP = 0.56;        // 팀 간 간격
+const WAIT_TIME = 3000;
+const WALK_SPEED = 2.4;
+const STOP_X = 0.88;          // 맨 앞 사람이 멈추는 위치
+
+function getPersonScale() { return H * 0.65; }
+
+// 전체 행렬: [{person, teamIdx}] — 맨 앞(오른쪽)이 index 0
+let train = [];
+let trainTeams = []; // [{teamIdx, size, state, waitTime}]
+let teamCounter = 0;
+
+// 원색 + 파스텔/뉴트럴 믹스
+const TEAM_COLORS = [
+  '#FF4757', // 레드
+  '#F8C3CD', // 연분홍
+  '#FFD700', // 골드
+  '#D0D0D0', // 옅은 회색
+  '#2ED573', // 그린
+  '#E2D4F0', // 연라벤더
+  '#70A1FF', // 블루
+  '#F5E6CA', // 크림
+  '#FFFFFF', // 화이트
+  '#FFD4A0', // 피치
+];
+let colorIdx = 0;
+let shuffledColors = [];
+
+function shuffleColors() {
+  // 셔플하되 같은 톤이 연달아 안 나오게 — 원색/파스텔 번갈아 배치
+  const vivid = ['#FF4757','#FFD700','#2ED573','#70A1FF','#FFFFFF'];
+  const soft = ['#F8C3CD','#D0D0D0','#E2D4F0','#F5E6CA','#FFD4A0'];
+  // 각각 셔플
+  for (let i = vivid.length - 1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [vivid[i],vivid[j]]=[vivid[j],vivid[i]]; }
+  for (let i = soft.length - 1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [soft[i],soft[j]]=[soft[j],soft[i]]; }
+  // 번갈아 배치
+  shuffledColors = [];
+  for (let i = 0; i < 5; i++) {
+    shuffledColors.push(vivid[i]);
+    shuffledColors.push(soft[i]);
+  }
+  colorIdx = 0;
+}
+shuffleColors();
+
+function getTeamColor() {
+  if (colorIdx >= shuffledColors.length) shuffleColors();
+  return shuffledColors[colorIdx++];
+}
+
+function addTeamToTrain() {
+  const sizeIdx = teamCounter % TEAM_SIZES.length;
+  const size = TEAM_SIZES[sizeIdx];
+  const scale = getPersonScale();
+  const spacing = scale * PERSON_SPACING;
+  const gap = scale * TEAM_GAP;
+
+  // 헤드라인 배분
+  const headlines = [];
+  for (let i = 0; i < size; i++) headlines.push(HEADLINES[i % HEADLINES.length]);
+  for (let i = headlines.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [headlines[i], headlines[j]] = [headlines[j], headlines[i]];
+  }
+
+  // 마지막 사람의 x 위치 기준으로 새 팀 배치
+  let lastX;
+  if (train.length === 0) {
+    lastX = -scale * 0.3; // 첫 팀: 화면 왼쪽 밖
+  } else {
+    lastX = train[train.length - 1].person.x - gap; // 마지막 사람 뒤에 간격
+  }
+
+  const teamIdx = teamCounter;
+  const teamColor = getTeamColor();
+  const teamInfo = { teamIdx, size, state: 'walking', waitTime: 0 };
+  trainTeams.push(teamInfo);
+
+  for (let i = 0; i < size; i++) {
+    const yBase = H * 0.72 + (Math.random() - 0.5) * 15;
+    const p = new TextPerson(headlines[i], scale, yBase);
+    p.strokeColor = teamColor;
+    p.x = lastX - i * spacing;
+    p.isWalking = true;
+    p.arrived = false;
+    train.push({ person: p, teamIdx, slotOffset: 0 });
+  }
+
+  teamCounter++;
+}
+
+// 초기: 4팀 추가
+addTeamToTrain();
+addTeamToTrain();
+addTeamToTrain();
+addTeamToTrain();
+
+let lastTime = 0;
+
+function animate(now) {
+  requestAnimationFrame(animate);
+  const dt = Math.min((now - lastTime) / 1000, 0.05);
+  lastTime = now;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  const scale = getPersonScale();
+  const stopX = W * STOP_X;
+
+  // 맨 앞 팀 찾기
+  const frontTeam = trainTeams.find(t => t.state !== 'exiting' && t.state !== 'done');
+
+  if (frontTeam) {
+    // 맨 앞 사람 (frontTeam의 첫 번째 사람)
+    const frontPerson = train.find(s => s.teamIdx === frontTeam.teamIdx);
+
+    if (frontTeam.state === 'walking') {
+      // 맨 앞 사람이 stopX에 도달했는지
+      if (frontPerson && frontPerson.person.x >= stopX) {
+        frontTeam.state = 'waiting';
+        frontTeam.waitTime = 0;
+      }
+    }
+
+    if (frontTeam.state === 'waiting') {
+      frontTeam.waitTime += dt * 1000;
+      if (frontTeam.waitTime >= WAIT_TIME) {
+        frontTeam.state = 'exiting';
+      }
+    }
+  }
+
+  // 전체 이동: 맨 앞 팀이 waiting이면 멈춤, 아니면 이동
+  const shouldMove = !frontTeam || frontTeam.state === 'walking';
+  const frontExiting = frontTeam && frontTeam.state === 'exiting';
+
+  train.forEach(slot => {
+    const p = slot.person;
+    const myTeam = trainTeams.find(t => t.teamIdx === slot.teamIdx);
+
+    if (myTeam && myTeam.state === 'exiting') {
+      // 퇴장 중인 팀: 빠르게 오른쪽으로
+      p.isWalking = true;
+      p.walkPhase += dt * p.walkFreq;
+      p.x += WALK_SPEED * 2.5 * (dt * 60);
+    } else if (shouldMove) {
+      // 전체 행렬 이동
+      p.isWalking = true;
+      p.walkPhase += dt * p.walkFreq;
+      p.x += WALK_SPEED * (dt * 60);
+    } else if (frontExiting) {
+      // 앞 팀 퇴장 중: 나머지도 앞으로 이동
+      p.isWalking = true;
+      p.walkPhase += dt * p.walkFreq;
+      p.x += WALK_SPEED * (dt * 60);
+    } else {
+      // 대기 중
+      p.isWalking = false;
+      p.walkPhase += dt * p.walkFreq * 0.3;
+    }
+  });
+
+  // 퇴장 완료 체크
+  trainTeams.forEach(t => {
+    if (t.state === 'exiting') {
+      const teamSlots = train.filter(s => s.teamIdx === t.teamIdx);
+      if (teamSlots.every(s => s.person.x > W + scale * 0.5)) {
+        t.state = 'done';
+      }
+    }
+  });
+
+  // 퇴장 완료된 팀 제거
+  const doneTeams = trainTeams.filter(t => t.state === 'done').map(t => t.teamIdx);
+  if (doneTeams.length > 0) {
+    train = train.filter(s => !doneTeams.includes(s.teamIdx));
+    trainTeams = trainTeams.filter(t => t.state !== 'done');
+  }
+
+  // 뒤에 팀 추가: 마지막 사람이 화면 안에 들어오면 새 팀 추가
+  if (train.length > 0) {
+    const lastPerson = train[train.length - 1].person;
+    if (lastPerson.x > -scale * 0.3) {
+      addTeamToTrain();
+    }
+  } else {
+    addTeamToTrain();
+    addTeamToTrain();
+    addTeamToTrain();
+  }
+
+  // 그리기 (뒤에서부터 — 뒤 사람이 먼저)
+  for (let i = train.length - 1; i >= 0; i--) {
+    train[i].person.draw();
+  }
+}
+
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
