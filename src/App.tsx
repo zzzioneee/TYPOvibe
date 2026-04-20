@@ -40,7 +40,7 @@ const WORKS = [
   {
     id: 'day4',
     day: '4',
-    date: '2026.04.20',
+    date: '2026.04.21',
     title: '불황 속의 웨이팅?',
     desc: '텍스트로 만든 인간 조형물이 줄 서서 웨이팅하다 입장하는 모션 타이포그래피.',
     tags: ['Canvas', 'Motion', 'Typography'],
