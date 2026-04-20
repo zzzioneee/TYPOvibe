@@ -44,7 +44,7 @@ const WORKS = [
     title: '불황 속의 웨이팅?',
     desc: '텍스트로 만든 인간 조형물이 줄 서서 웨이팅하다 입장하는 모션 타이포그래피.',
     tags: ['Canvas', 'Motion', 'Typography'],
-    ratio: '16 / 9',
+    ratio: '4 / 3',
     bgTheme: 'dark' as const,
   },
 ]
