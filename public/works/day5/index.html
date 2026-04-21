@@ -74,17 +74,17 @@ canvas.addEventListener('mouseleave', () => { mouseX = -9999; mouseY = -9999; })
 <script>
 // ─── 가사 (모두 처음부터 보임, 타이밍에 반응) ───
 const LYRICS = [
-  { start:0.3, end:0.7, text:'No', x:0.05782792665726375, y:0.03805496828752643, size:0.10, type:'en', rot:0 },
-  { start:0.7, end:1.3, text:'pain,', x:0.35825105782792666, y:0.03171247357293869, size:0.10, type:'en', rot:0 },
-  { start:1.3, end:1.7, text:'no', x:0.0535966149506347, y:0.1733615221987315, size:0.10, type:'en', rot:0 },
-  { start:1.7, end:2.3, text:'fail', x:0.5091678420310296, y:0.17758985200845667, size:0.10, type:'en', rot:0 },
-  { start:5.5, end:6.5, text:'Nowhere', x:0.1607898448519041, y:0.3224101479915433, size:0.10, type:'en', rot:0 },
-  { start:7.0, end:7.4, text:'no', x:0.0535966149506347, y:0.47463002114164904, size:0.10, type:'en', rot:0 },
-  { start:7.4, end:8.0, text:'fear', x:0.36530324400564174, y:0.4704016913319239, size:0.10, type:'en', rot:0 },
-  { start:11.0, end:11.4, text:'No', x:0.47249647390691113, y:0.6067653276955602, size:0.10, type:'en', rot:0 },
-  { start:11.4, end:12.0, text:'cap,', x:0.5923836389280677, y:0.7272727272727273, size:0.10, type:'en', rot:0 },
-  { start:12.0, end:12.4, text:'no', x:0.05077574047954866, y:0.7241014799154334, size:0.10, type:'en', rot:0 },
-  { start:12.4, end:13.0, text:'cry', x:0.04372355430183357, y:0.8583509513742071, size:0.10, type:'en', rot:0 },
+  { start:0.3, end:0.7, text:'No', waveStart:0, waveEnd:1, x:0.05782792665726375, y:0.03805496828752643, size:0.10, type:'en', rot:0 },
+  { start:0.7, end:1.3, text:'pain,', waveStart:0, waveEnd:1, x:0.35825105782792666, y:0.03171247357293869, size:0.10, type:'en', rot:0 },
+  { start:1.3, end:1.7, text:'no', waveStart:1, waveEnd:2, x:0.0535966149506347, y:0.1733615221987315, size:0.10, type:'en', rot:0 },
+  { start:1.7, end:2.3, text:'fail', waveStart:1, waveEnd:2, x:0.5091678420310296, y:0.17758985200845667, size:0.10, type:'en', rot:0 },
+  { start:5.5, end:6.5, text:'Nowhere', waveStart:6, waveEnd:7, x:0.1607898448519041, y:0.3224101479915433, size:0.10, type:'en', rot:0 },
+  { start:7.0, end:7.4, text:'no', waveStart:7, waveEnd:8, x:0.0535966149506347, y:0.47463002114164904, size:0.10, type:'en', rot:0 },
+  { start:7.4, end:8.0, text:'fear', waveStart:7, waveEnd:8, x:0.36530324400564174, y:0.4704016913319239, size:0.10, type:'en', rot:0 },
+  { start:11.0, end:11.4, text:'No', waveStart:11, waveEnd:12, x:0.47249647390691113, y:0.6067653276955602, size:0.10, type:'en', rot:0 },
+  { start:11.4, end:12.0, text:'cap,', waveStart:11, waveEnd:12, x:0.5923836389280677, y:0.7272727272727273, size:0.10, type:'en', rot:0 },
+  { start:12.0, end:12.4, text:'no', waveStart:12, waveEnd:13, x:0.05077574047954866, y:0.7241014799154334, size:0.10, type:'en', rot:0 },
+  { start:12.4, end:13.0, text:'cry', waveStart:12, waveEnd:13, x:0.04372355430183357, y:0.8583509513742071, size:0.10, type:'en', rot:0 },
 ];
 
 const BG_LYRICS = [
@@ -362,7 +362,7 @@ function drawMainLyric(l, elapsed, amp) {
   }
 
   if (l.type === 'en') {
-    drawEnglishWord(l.text, lx, ly, fs, l.start, l.end, elapsed, amp);
+    drawEnglishWord(l.text, lx, ly, fs, l.waveStart || l.start, l.waveEnd || l.end, elapsed, amp);
   } else {
     ctx.font = `900 ${fs}px "Pretendard", sans-serif`;
     ctx.fillText(l.text, lx, ly);
