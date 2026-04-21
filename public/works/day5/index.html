@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 5: No Pain</title>
+<style>
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+@font-face { font-family:'KimHoon'; src:url('kimhoon.woff2') format('woff2'); }
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:100%; height:100%; overflow:hidden; background:#000; display:flex; justify-content:center; align-items:center; }
+.wrap { position:relative; width:100%; height:100%; display:flex; justify-content:center; align-items:center; }
+.paper { position:relative; width:auto; height:92vh; aspect-ratio:3/4; background:url('paper.png') center/cover no-repeat; box-shadow:0 4px 40px rgba(0,0,0,0.5); overflow:hidden; cursor:pointer; }
+.paper::after { content:''; position:absolute; inset:0; z-index:2; pointer-events:none; box-shadow:inset 0 0 60px rgba(0,0,0,0.06); }
+canvas { display:block; width:100%; height:100%; position:relative; z-index:3; }
+.from-link { font-family:'Pretendard',sans-serif; font-size:13px; font-weight:600; color:rgba(255,255,255,0.35); text-decoration:none; }
+.from-wrap { position:absolute; top:8px; left:50%; transform:translateX(-50%); z-index:10; }
+.play-hint { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-family:'Pretendard',sans-serif; font-size:18px; font-weight:600; color:#013DFD; opacity:0.4; z-index:10; pointer-events:none; transition:opacity 0.5s; }
+.credit { position:absolute; bottom:12px; right:20px; z-index:10; font-family:'Pretendard',sans-serif; font-size:11px; color:rgba(255,255,255,0.35); text-align:right; line-height:1.5; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="from-wrap"><a href="https://www.youtube.com/watch?v=dFsBob8SLlg" target="_blank" rel="noopener" class="from-link">FROM</a></div>
+<div class="paper">
+<canvas id="canvas"></canvas>
+</div>
+<div class="credit">실리카겔 (Silica Gel) — No Pain<br>THE FIRST TAKE</div>
+<button id="dlBtn" style="position:fixed;top:10px;right:10px;z-index:999;padding:8px 16px;background:#013DFD;color:#fff;border:none;cursor:pointer;font-size:14px;">Download PNG</button>
+</div>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let W, H;
+function resize() {
+  const p = canvas.parentElement;
+  // 표시 크기는 부모에 맞추되, 내부 해상도는 709x946 고정
+  W = canvas.width = 709;
+  H = canvas.height = 946;
+}
+resize(); window.addEventListener('resize', resize);
+const BLUE = '#013DFD';
+
+// ─── 다운로드 버튼 ───
+document.getElementById('dlBtn').addEventListener('click', () => {
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    const tmp = document.createElement('canvas');
+    tmp.width = canvas.width; tmp.height = canvas.height;
+    const tc = tmp.getContext('2d');
+    tc.drawImage(img, 0, 0, tmp.width, tmp.height);
+    tc.drawImage(canvas, 0, 0);
+    const a = document.createElement('a');
+    a.download = 'day5-typo.png';
+    a.href = tmp.toDataURL('image/png');
+    a.click();
+  };
+  img.src = 'paper.png';
+});
+
+// ─── 마우스 위치 추적 (자석 효과용) ───
+let mouseX = -9999, mouseY = -9999;
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
+  mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
+});
+canvas.addEventListener('mouseleave', () => { mouseX = -9999; mouseY = -9999; });
+</script>
+</body>
+</html>
+
+<script>
+// ─── 가사 (모두 처음부터 보임, 타이밍에 반응) ───
+const LYRICS = [
+  { start:0.3, end:0.7, text:'No', x:0.05782792665726375, y:0.03805496828752643, size:0.10, type:'en', rot:0 },
+  { start:0.7, end:1.3, text:'pain,', x:0.35825105782792666, y:0.03171247357293869, size:0.10, type:'en', rot:0 },
+  { start:1.3, end:1.7, text:'no', x:0.0535966149506347, y:0.1733615221987315, size:0.10, type:'en', rot:0 },
+  { start:1.7, end:2.3, text:'fail', x:0.5091678420310296, y:0.17758985200845667, size:0.10, type:'en', rot:0 },
+  { start:5.5, end:6.5, text:'Nowhere', x:0.1607898448519041, y:0.3224101479915433, size:0.10, type:'en', rot:0 },
+  { start:7.0, end:7.4, text:'no', x:0.0535966149506347, y:0.47463002114164904, size:0.10, type:'en', rot:0 },
+  { start:7.4, end:8.0, text:'fear', x:0.36530324400564174, y:0.4704016913319239, size:0.10, type:'en', rot:0 },
+  { start:11.0, end:11.4, text:'No', x:0.47249647390691113, y:0.6067653276955602, size:0.10, type:'en', rot:0 },
+  { start:11.4, end:12.0, text:'cap,', x:0.5923836389280677, y:0.7272727272727273, size:0.10, type:'en', rot:0 },
+  { start:12.0, end:12.4, text:'no', x:0.05077574047954866, y:0.7241014799154334, size:0.10, type:'en', rot:0 },
+  { start:12.4, end:13.0, text:'cry', x:0.04372355430183357, y:0.8583509513742071, size:0.10, type:'en', rot:0 },
+];
+
+const BG_LYRICS = [
+  // 1행) No pain 오른쪽 — 우측정렬 (606,43)
+  { text:'내가 만든', x:0.855, y:0.045, size:0.013, align:'left' },
+  { text:'집에서', x:0.855, y:0.062, size:0.013, align:'left' },
+  { text:'모두 함께', x:0.855, y:0.079, size:0.013, align:'left' },
+  { text:'노래를', x:0.855, y:0.096, size:0.013, align:'left' },
+  { text:'합시다', x:0.855, y:0.113, size:0.013, align:'left' },
+  // 2행) no fail 사이 — 중앙정렬 (248,185)
+  { text:'소외됐던 사람들', x:0.350, y:0.196, size:0.013, align:'left' },
+  { text:'모두 함께 노래를', x:0.350, y:0.213, size:0.013, align:'left' },
+  { text:'합시다 우리만의', x:0.350, y:0.23, size:0.013, align:'left' },
+  { text:'따뜻한 불, 영원한', x:0.350, y:0.247, size:0.013, align:'left' },
+  // 3행) nowhere 왼쪽 — 좌측정렬 (39,319)
+  { text:'꿈, 영혼과', x:0.055, y:0.337, size:0.013, align:'left' },
+  { text:'삶 난 오늘', x:0.055, y:0.354, size:0.013, align:'left' },
+  { text:'떠날 거라', x:0.055, y:0.371, size:0.013, align:'left' },
+  { text:'생각을 했', x:0.055, y:0.388, size:0.013, align:'left' },
+  { text:'어 날 미워', x:0.055, y:0.405, size:0.013, align:'left' },
+  // 4행) no fear 오른쪽 — 우측정렬 (576,459)
+  { text:'하지 마 No', x:0.812, y:0.485, size:0.013, align:'left' },
+  { text:'pain, no fail,', x:0.812, y:0.502, size:0.013, align:'left' },
+  { text:'음악 없는 세상', x:0.812, y:0.519, size:0.013, align:'left' },
+  { text:'Nowhere, no', x:0.812, y:0.536, size:0.013, align:'left' },
+  { text:'fear, 바다 같은', x:0.812, y:0.553, size:0.013, align:'left' },
+  // 5행-1) no 왼쪽 — 좌측정렬 (39,583)
+  { text:'색깔 No cap, no cry,', x:0.055, y:0.616, size:0.013, align:'left' },
+  { text:'이미 죽은 사람 아냐, 사', x:0.055, y:0.633, size:0.013, align:'left' },
+  { text:'실 태양에 맡겨 뒀던 가', x:0.055, y:0.65, size:0.013, align:'left' },
+  { text:'족과 모든 분들의 사랑 밤', x:0.055, y:0.667, size:0.013, align:'left' },
+  { text:'안개 짙어진 뒤 훔치려고', x:0.055, y:0.684, size:0.013, align:'left' },
+  // 5행-2) no 바로 왼쪽 — 중앙정렬 (190,582)
+  { text:'모인 자경단 난, 난 오늘', x:0.268, y:0.615, size:0.013, align:'left' },
+  { text:'떠날 거라고 생각했어', x:0.268, y:0.632, size:0.013, align:'left' },
+  { text:'날 미워하지 마 No pa', x:0.268, y:0.649, size:0.013, align:'left' },
+  { text:'in, no fail, 음악 없는 세', x:0.268, y:0.666, size:0.013, align:'left' },
+  { text:'상 Nowhere, no fear,', x:0.268, y:0.683, size:0.013, align:'left' },
+  // 5행-3) no 바로 오른쪽 — 우측정렬 (543,582)
+  { text:'바다 같은 색깔 No cap,', x:0.766, y:0.615, size:0.013, align:'left' },
+  { text:'no cry, 이미 죽은', x:0.766, y:0.632, size:0.013, align:'left' },
+  { text:'사람 아냐 No pain, n', x:0.766, y:0.649, size:0.013, align:'left' },
+  { text:'o fail, 음악 없는 세상', x:0.766, y:0.666, size:0.013, align:'left' },
+  { text:'Nowhere, no fear,', x:0.766, y:0.683, size:0.013, align:'left' },
+  // 6행) no cap 사이 — 중앙정렬 (241,699)
+  { text:'바다 같은 색깔 No cap, no cr', x:0.340, y:0.739, size:0.013, align:'left' },
+  { text:'y, 이미 죽은 사람 아냐, 사실 내', x:0.340, y:0.756, size:0.013, align:'left' },
+  { text:'가 만든 집에서 모두 함께 노래', x:0.340, y:0.773, size:0.013, align:'left' },
+  { text:'를 합시다 소외됐던 사람들 모두', x:0.340, y:0.79, size:0.013, align:'left' },
+  { text:'함께 노래를 합시다 우리만의 따', x:0.340, y:0.807, size:0.013, align:'left' },
+  // 7행-1) cry 바로 오른쪽 — 중앙정렬 (302,821)
+  { text:'뜻한 불, 영원한 꿈, 영혼과 삶', x:0.426, y:0.868, size:0.013, align:'left' },
+  { text:'난 오늘 떠날 거라 생각을 했어', x:0.426, y:0.885, size:0.013, align:'left' },
+  { text:'날 미워하지 마 No pain, no f', x:0.426, y:0.902, size:0.013, align:'left' },
+  { text:'ail, 음악 없는 세상 Nowhere,', x:0.426, y:0.919, size:0.013, align:'left' },
+  { text:'no fear, 바다 같은 색깔 No ca', x:0.426, y:0.936, size:0.013, align:'left' },
+  // 7행-2) cry 가장 오른쪽 — 우측정렬 (501,821)
+  { text:'p, no cry, 이미 죽은 사람 아', x:0.707, y:0.868, size:0.013, align:'left' },
+  { text:'냐, 사실 태양에 맡겨 뒀던 가족', x:0.707, y:0.885, size:0.013, align:'left' },
+  { text:'과 모든 분들의 사랑 밤안개 짙', x:0.707, y:0.902, size:0.013, align:'left' },
+  { text:'어진 뒤 훔치려고 모인 자경단', x:0.707, y:0.919, size:0.013, align:'left' },
+  { text:'난, 난 오늘 떠날 거라고 생각했', x:0.707, y:0.936, size:0.013, align:'left' },
+];
+// ─── 오디오 (클릭 재생) ───
+let audioCtx, audioBuffer, sourceNode, gainNode, analyser;
+let isPlaying = false, startTime = 0;
+let analyserData;
+
+fetch('no-pain.mp3').then(r=>r.arrayBuffer()).then(buf => {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx.decodeAudioData(buf);
+}).then(d => { audioBuffer = d; }).catch(e => { console.error('Audio load failed', e); });
+
+document.querySelector('.paper').addEventListener('click', e => {
+  if (e.target.closest('a')) return;
+  if (isPlaying || !audioBuffer) return;
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  isPlaying = true;
+  sourceNode = audioCtx.createBufferSource();
+  gainNode = audioCtx.createGain();
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 512;
+  analyserData = new Uint8Array(analyser.frequencyBinCount);
+  sourceNode.buffer = audioBuffer;
+  sourceNode.connect(analyser); analyser.connect(gainNode); gainNode.connect(audioCtx.destination);
+  gainNode.gain.setValueAtTime(1, audioCtx.currentTime + 18);
+  gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 20);
+  sourceNode.start(); startTime = audioCtx.currentTime;
+  sourceNode.onended = () => { isPlaying = false; };
+});
+
+function getRealtimeAmp() {
+  if (!analyser || !analyserData) return 0;
+  analyser.getByteTimeDomainData(analyserData);
+  let sum = 0;
+  for (let i = 0; i < analyserData.length; i++) { const v = (analyserData[i]-128)/128; sum += v*v; }
+  return Math.min(Math.sqrt(sum/analyserData.length) * 4, 1);
+}
+</script>
+
+<script>
+// ─── 영문 획 경로 + 파형 스트로크 ───
+const LETTER_STROKES = {
+  'N': [[0,1, 0,0], [0,0, 1,1], [1,1, 1,0]],
+  'n': [[0,1, 0,0.3], [0,0.3, 0.5,0, 1,0.3, 1,1]],
+  'o': [[0.5,0, 0,0.3, 0,0.7, 0.5,1, 1,0.7, 1,0.3, 0.5,0]],
+  'p': [[0,1, 0,0], [0,0, 0.8,0, 0.8,0.5, 0,0.5]],
+  'a': [[0.8,0.2, 0.4,0, 0,0.3, 0,0.7, 0.4,1, 0.8,1], [0.8,0, 0.8,1]],
+  'i': [[0.5,0, 0.5,0.12], [0.5,0.3, 0.5,1]],
+  'f': [[0.3,1, 0.3,0.2, 0.6,0], [0,0.4, 0.7,0.4]],
+  'l': [[0.5,0, 0.5,1]],
+  'w': [[0,0, 0.25,1, 0.5,0.4, 0.75,1, 1,0]],
+  'h': [[0,1, 0,0], [0,0.4, 0.5,0.3, 1,0.4, 1,1]],
+  'e': [[0.8,0.5, 0,0.5, 0,0, 0.8,0, 0.8,0.5, 0,0.5, 0,1, 0.8,1]],
+  'r': [[0,1, 0,0.3], [0,0.3, 0.5,0, 0.8,0.2]],
+  'c': [[0.8,0.1, 0.4,0, 0,0.3, 0,0.7, 0.4,1, 0.8,0.9]],
+  'y': [[0,0, 0.5,0.5], [1,0, 0.5,0.5, 0.3,1]],
+};
+
+let waveformData = [];
+fetch('waveform.json').then(r=>r.json()).then(d => { waveformData = d; });
+
+function getWaveSlice(startSec, endSec, numPoints) {
+  if (!waveformData.length) return new Array(numPoints).fill(0.5);
+  const pps = waveformData.length / 20;
+  const s = Math.floor(startSec * pps), e = Math.floor(endSec * pps);
+  const slice = waveformData.slice(s, Math.max(e, s+1));
+  const result = [];
+  for (let i = 0; i < numPoints; i++) {
+    const idx = Math.floor(i / numPoints * slice.length);
+    result.push(Math.max(0.5, (slice[idx]||0.3) * 1.8));
+  }
+  return result;
+}
+
+function drawWaveStroke(x1, y1, x2, y2, waveSlice, thickness, liveBoost) {
+  const dx = x2-x1, dy = y2-y1;
+  const len = Math.sqrt(dx*dx+dy*dy);
+  if (len < 1) return;
+  const ux = dx/len, uy = dy/len;
+  const px = -uy, py = ux;
+  const pts = waveSlice.length;
+  // liveBoost 0 = 균일 두께(직선), 1 = 파형 그대로
+  const baseThickness = 0.35; // 최소 상태의 균일 두께
+  ctx.beginPath();
+  for (let i = 0; i < pts; i++) {
+    const t = i/(pts-1);
+    const cx2 = x1 + dx*t, cy2 = y1 + dy*t;
+    const waveAmp = waveSlice[i];
+    // liveBoost로 보간: 0이면 baseThickness, 1이면 waveAmp
+    const amp = (baseThickness + (waveAmp - baseThickness) * liveBoost) * thickness;
+    if (i===0) ctx.moveTo(cx2 + px*amp, cy2 + py*amp);
+    else ctx.lineTo(cx2 + px*amp, cy2 + py*amp);
+  }
+  for (let i = pts-1; i >= 0; i--) {
+    const t = i/(pts-1);
+    const cx2 = x1 + dx*t, cy2 = y1 + dy*t;
+    const waveAmp = waveSlice[i];
+    const amp = (baseThickness + (waveAmp - baseThickness) * liveBoost) * thickness;
+    ctx.lineTo(cx2 - px*amp, cy2 - py*amp);
+  }
+  ctx.closePath(); ctx.fill();
+}
+
+function drawEnglishWord(text, x, y, size, startSec, endSec, elapsed, amp) {
+  const clean = text.replace(/[^a-zA-Z ]/g,'');
+  const charW = size * 0.85, spaceW = size * 0.5;
+  let cx = x;
+  const totalChars = clean.replace(/ /g,'').length;
+  let charIdx = 0;
+  const duration = endSec - startSec;
+  const charDuration = duration / totalChars; // 각 글자에 할당된 시간
+
+  for (let ci = 0; ci < clean.length; ci++) {
+    const ch = clean[ci];
+    if (ch===' ') { cx += spaceW; continue; }
+    const strokes = LETTER_STROKES[ch] || LETTER_STROKES[ch.toLowerCase()];
+    if (!strokes) { cx += charW; charIdx++; continue; }
+    const cS = startSec + (endSec-startSec) * (charIdx/totalChars);
+    const cE = startSec + (endSec-startSec) * ((charIdx+1)/totalChars);
+
+    // 글자별 활성화: 음악 재생 중이고 이 글자의 순서가 됐을 때만
+    const charActivateTime = startSec + charIdx * charDuration;
+    let liveBoost;
+    if (!isPlaying || elapsed < charActivateTime) {
+      // 재생 전이거나 아직 이 글자 차례 아님 — 직선
+      liveBoost = 0;
+    } else {
+      // 활성화됨 — 0.15초에 걸쳐 0→1 전환
+      const transitionProgress = Math.min(1, (elapsed - charActivateTime) / 0.08);
+      liveBoost = transitionProgress;
+      // 전환 완료 후 앰프 진동 추가
+      if (transitionProgress >= 1) {
+        liveBoost = 1 + amp * 0.2;
+      }
+    }
+
+    const shakeY = 0;
+
+    strokes.forEach((stroke, si) => {
+      const sS = cS + (cE-cS) * (si/strokes.length);
+      const sE = cS + (cE-cS) * ((si+1)/strokes.length);
+      if (stroke.length===4) {
+        const w = getWaveSlice(sS, sE, 50);
+        drawWaveStroke(
+          cx + stroke[0]*charW, y + stroke[1]*size + shakeY,
+          cx + stroke[2]*charW, y + stroke[3]*size + shakeY,
+          w, size*0.10, liveBoost
+        );
+      } else {
+        for (let p=0; p<stroke.length-2; p+=2) {
+          const segT0 = p/(stroke.length-2), segT1 = (p+2)/(stroke.length-2);
+          const sw = getWaveSlice(sS+(sE-sS)*segT0, sS+(sE-sS)*segT1, 30);
+          drawWaveStroke(
+            cx + stroke[p]*charW, y + stroke[p+1]*size + shakeY,
+            cx + stroke[p+2]*charW, y + stroke[p+3]*size + shakeY,
+            sw, size*0.08, liveBoost
+          );
+        }
+      }
+    });
+    cx += charW;
+    charIdx++;
+  }
+}
+
+// ─── 글자 그리기 + 지지직 효과 ───
+function seededRandom(seed) { let s=seed; return function(){ s=(s*16807)%2147483647; return(s-1)/2147483646; }; }
+
+// 지지직 crackling: 글자 우측으로 수평 라인이 번짐
+function drawCrackling(text, x, y, fontSize, intensity, seed) {
+  const rng = seededRandom(seed);
+  // 오프스크린에 텍스트 그려서 픽셀 읽기
+  const off = document.createElement('canvas');
+  const m = ctx.measureText(text);
+  const tw = Math.ceil(m.width) + fontSize;
+  const th = Math.ceil(fontSize * 1.4);
+  off.width = tw; off.height = th;
+  const oc = off.getContext('2d');
+  oc.font = ctx.font;
+  oc.fillStyle = BLUE;
+  oc.textBaseline = 'top';
+  oc.fillText(text, 0, fontSize*0.15);
+  const img = oc.getImageData(0, 0, tw, th);
+  const px = img.data;
+
+  // 각 행에서 글자 영역의 우측 끝을 찾고, 거기서 수평 라인을 뻗음
+  const step = Math.max(1, Math.floor(2 - intensity));
+  for (let row = 0; row < th; row += step) {
+    let rightEdge = -1;
+    for (let col = tw-1; col >= 0; col--) {
+      if (px[(row*tw+col)*4+3] > 50) { rightEdge = col; break; }
+    }
+    if (rightEdge < 0) continue;
+    // 지지직 라인 길이 = intensity에 비례
+    const lineLen = (rng() * 0.5 + 0.5) * intensity * fontSize * 0.8;
+    if (lineLen < 2) continue;
+    const lineH = Math.max(1, 1 + intensity * 1.5);
+    ctx.fillRect(x + rightEdge, y + row - fontSize*0.15, lineLen, lineH);
+  }
+}
+
+function drawMainLyric(l, elapsed, amp) {
+  const lx = l.x * W, ly = l.y * H, fs = l.size * H;
+  const rot = l.rot || 0;
+
+  ctx.save();
+  ctx.fillStyle = BLUE;
+  ctx.textBaseline = 'top';
+
+  if (rot) {
+    ctx.translate(lx, ly);
+    ctx.rotate(rot);
+    ctx.translate(-lx, -ly);
+  }
+
+  if (l.type === 'en') {
+    drawEnglishWord(l.text, lx, ly, fs, l.start, l.end, elapsed, amp);
+  } else {
+    ctx.font = `900 ${fs}px "Pretendard", sans-serif`;
+    ctx.fillText(l.text, lx, ly);
+  }
+
+  ctx.restore();
+}
+
+function drawBgLyric(l, i) {
+  ctx.save();
+  const lx = l.x * W, ly = l.y * H;
+  ctx.font = `700 ${l.size * H}px "Pretendard", sans-serif`;
+  ctx.fillStyle = BLUE;
+  ctx.textBaseline = 'top';
+  ctx.textAlign = 'left';
+  ctx.filter = 'blur(0.8px)';
+  ctx.fillText(l.text, lx, ly);
+  ctx.restore();
+}
+
+// ─── 메인 루프 ───
+function animate() {
+  requestAnimationFrame(animate);
+  ctx.clearRect(0, 0, W, H);
+
+  // 전체 텍스트를 오른쪽으로 살짝 이동
+  ctx.save();
+  ctx.translate(W * 0.02, 0);
+
+  const amp = isPlaying ? getRealtimeAmp() : 0;
+  const elapsed = isPlaying ? audioCtx.currentTime - startTime : -1;
+
+  // 배경 가사
+  BG_LYRICS.forEach((l, i) => drawBgLyric(l, i));
+
+  // 주인공 가사
+  LYRICS.forEach(l => drawMainLyric(l, elapsed, amp));
+
+  ctx.restore();
+}
+animate();
+</script>
