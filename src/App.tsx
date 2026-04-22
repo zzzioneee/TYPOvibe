@@ -4,6 +4,7 @@ import Day002 from './works/day2'
 import Day003 from './works/day3'
 import Day004 from './works/day4'
 import Day005 from './works/day5'
+import Day006 from './works/day6'
 
 type View = 'home' | string
 
@@ -55,6 +56,16 @@ const WORKS = [
     title: "'No pain'",
     desc: '실리카겔의 사운드 파형을 레터링 획으로 변환한 타이포그래피.',
     tags: ['Web Audio', 'Canvas', 'Waveform'],
+    ratio: '4 / 3',
+    bgTheme: 'light' as const,
+  },
+  {
+    id: 'day6',
+    day: '6',
+    date: '2026.04.23',
+    title: 'Not a Dream',
+    desc: '송소희의 먹물이 번지듯 펼쳐지는 수묵 타이포그래피.',
+    tags: ['Canvas', 'Web Audio', '수묵'],
     ratio: '4 / 3',
     bgTheme: 'light' as const,
   },
@@ -113,6 +124,7 @@ export default function App() {
           {view === 'day3' && <Day003 />}
           {view === 'day4' && <Day004 />}
           {view === 'day5' && <Day005 />}
+          {view === 'day6' && <Day006 />}
         </main>
       </div>
     )

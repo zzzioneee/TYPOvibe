@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 6: 절약도 공감도 함께</title>
+<style>
+@font-face { font-family:'Galmuri9'; src:url('Galmuri9.woff2') format('woff2'), url('Galmuri9.ttf') format('truetype'); }
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:100%; height:100%; overflow:hidden; background:#000; display:flex; justify-content:center; align-items:center; }
+.wrap { position:relative; width:100%; height:100%; display:flex; justify-content:center; align-items:center; }
+.paper { position:relative; width:auto; height:92vh; aspect-ratio:3/4; background:#fff; box-shadow:0 4px 40px rgba(0,0,0,0.5); overflow:hidden; }
+canvas { display:block; width:100%; height:100%; }
+.from-wrap { position:absolute; top:8px; left:50%; transform:translateX(-50%); z-index:10; }
+.from-link { font-family:'Pretendard',sans-serif; font-size:13px; font-weight:600; color:rgba(255,255,255,0.35); text-decoration:none; }
+.credit { position:absolute; bottom:12px; right:20px; z-index:10; font-family:'Pretendard',sans-serif; font-size:11px; color:rgba(255,255,255,0.35); text-align:right; line-height:1.5; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="from-wrap"><a href="#" target="_blank" rel="noopener" class="from-link">FROM</a></div>
+<div class="paper"><canvas id="canvas"></canvas></div>
+<div class="credit">절약도 공감도 함께</div>
+</div>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width = 540;
+const H = canvas.height = 720;
+const BLK = 7;
+
+// ─── 글자별 픽셀 추출 ───
+function getCharBlocks(char, cx, cy, fontSize) {
+  const off = document.createElement('canvas');
+  const pad = 20;
+  off.width = fontSize + pad*2;
+  off.height = fontSize + pad*2;
+  const oc = off.getContext('2d');
+  oc.font = `${fontSize}px "Galmuri9"`;
+  oc.fillStyle = '#000';
+  oc.textAlign = 'center';
+  oc.textBaseline = 'middle';
+  oc.fillText(char, off.width/2, off.height/2);
+  const img = oc.getImageData(0, 0, off.width, off.height);
+  const blocks = [];
+  for (let y = 0; y < off.height; y += BLK) {
+    for (let x = 0; x < off.width; x += BLK) {
+      if (img.data[(y * off.width + x) * 4 + 3] > 100) {
+        blocks.push({ x: cx - off.width/2 + x, y: cy - off.height/2 + y });
+      }
+    }
+  }
+  return blocks;
+}
+
+// ─── 스마일 얼굴 블록 ───
+function getFaceBlocks(cx, cy, size, exprIdx) {
+  const blocks = [];
+  const r = size / 2;
+  // 머리 외곽: 울퉁불퉁한 원 (1블록 두께)
+  const steps = Math.floor(2 * Math.PI * r / BLK);
+  const seed = exprIdx * 137 + Math.floor(size);
+  let rng = seed;
+  const rand = () => { rng = (rng * 16807) % 2147483647; return (rng - 1) / 2147483646; };
+  // 미리 변형값 생성 (시드 기반이라 매번 동일)
+  const deform = [];
+  for (let i = 0; i < steps; i++) deform.push(0.95 + rand() * 0.1); // 0.95~1.05
+  for (let i = 0; i < steps; i++) {
+    const angle = (i / steps) * Math.PI * 2;
+    const dr = r * deform[i];
+    blocks.push({ x: cx + Math.cos(angle) * dr, y: cy + Math.sin(angle) * dr });
+  }
+  // 눈
+  const eyeY = cy - r*0.2, eyeGap = r*0.3;
+  blocks.push({ x:cx-eyeGap, y:eyeY }, { x:cx-eyeGap+BLK, y:eyeY });
+  blocks.push({ x:cx+eyeGap, y:eyeY }, { x:cx+eyeGap+BLK, y:eyeY });
+  // 입
+  const mY = cy + r*0.25;
+  if (exprIdx%4===0) {
+    blocks.push({x:cx-BLK*2,y:mY},{x:cx-BLK,y:mY+BLK},{x:cx,y:mY+BLK},{x:cx+BLK,y:mY+BLK},{x:cx+BLK*2,y:mY});
+  } else if (exprIdx%4===1) {
+    for(let i=-2;i<=2;i++) blocks.push({x:cx+i*BLK,y:mY});
+  } else if (exprIdx%4===2) {
+    blocks.push({x:cx-BLK,y:mY},{x:cx+BLK,y:mY},{x:cx,y:mY-BLK},{x:cx,y:mY+BLK});
+  } else {
+    blocks.push({x:cx-BLK*2,y:mY},{x:cx-BLK,y:mY+BLK},{x:cx,y:mY+BLK},{x:cx+BLK*2,y:mY});
+  }
+  return blocks;
+}
+
+// ─── 데이터 ───
+const FACES = []; // {cx,cy,dots[],vx,vy,size,homeX,homeY}
+let allTextBlocks = [];
+
+function initChars() {
+  const fontSize = 150;
+  const lineH = fontSize * 1.2;
+  const totalH = lineH * 3;
+  const startY = (H - totalH)/2 + fontSize*0.5;
+
+  ctx.font = `${fontSize}px "Galmuri9"`;
+  const line1W = ctx.measureText('절약도').width;
+  const leftX = (W - line1W)/2;
+
+  const charData = []; // {ch, cx, cy}
+  // 1,2행
+  ['절약도','공감도'].forEach((line, li) => {
+    const tw = ctx.measureText(line).width;
+    let cx = (W - tw)/2;
+    for (const ch of line) {
+      const cw = ctx.measureText(ch).width;
+      charData.push({ ch, cx: cx+cw/2, cy: startY+li*lineH });
+      cx += cw;
+    }
+  });
+  // 3행 양끝맞춤
+  const cw0 = ctx.measureText('함').width;
+  charData.push({ ch:'함', cx: leftX+cw0/2, cy: startY+2*lineH });
+  const cw1 = ctx.measureText('께').width;
+  charData.push({ ch:'께', cx: leftX+line1W-cw1/2, cy: startY+2*lineH });
+
+  // 텍스트 블록 전체 수집
+  allTextBlocks = [];
+  charData.forEach(cd => {
+    allTextBlocks.push(...getCharBlocks(cd.ch, cd.cx, cd.cy, fontSize));
+  });
+
+  // 사람 생성: 글자당 2~4명, 글자 근처에 배치
+  charData.forEach((cd, ci) => {
+    const count = Math.ceil(16 / charData.length); // 총 ~20명
+    for (let i = 0; i < count; i++) {
+      const size = 70 + Math.random() * 40; // 70~110
+      const ox = (Math.random()-0.5) * 80;
+      const oy = (Math.random()-0.5) * 80;
+      const fcx = cd.cx + ox;
+      const fcy = cd.cy + oy;
+      FACES.push({
+        cx: fcx, cy: fcy,
+        homeX: fcx, homeY: fcy,
+        size,
+        faceBlocks: getFaceBlocks(fcx, fcy, size, FACES.length),
+        vx: (Math.random()-0.5) * 4,
+        vy: (Math.random()-0.5) * 4,
+        moveOx: 0, moveOy: 0,
+        dots: null,
+      });
+    }
+  });
+
+  // 모든 얼굴 블록 합치기
+  let allFaceBlocks = [];
+  FACES.forEach(f => { allFaceBlocks.push(...f.faceBlocks); });
+
+  // 텍스트 블록과 얼굴 블록 수 맞추기
+  const max = Math.max(allTextBlocks.length, allFaceBlocks.length);
+  while (allTextBlocks.length < max) allTextBlocks.push({...allTextBlocks[Math.floor(Math.random()*allTextBlocks.length)]});
+  while (allFaceBlocks.length < max) allFaceBlocks.push({...allFaceBlocks[Math.floor(Math.random()*allFaceBlocks.length)]});
+
+  allTextBlocks.sort((a,b) => (a.y*W+a.x)-(b.y*W+b.x));
+  allFaceBlocks.sort((a,b) => (a.y*W+a.x)-(b.y*W+b.x));
+
+  // 도트 생성: 모든 텍스트 블록을 반드시 사용
+  // 각 도트를 텍스트→얼굴 매핑
+  const allDots = allTextBlocks.map((t, i) => ({
+    fx: t.x, fy: t.y,
+    tx: allFaceBlocks[i].x, ty: allFaceBlocks[i].y,
+    phase: Math.random()*Math.PI*2
+  }));
+  // 각 얼굴에 도트 분배 (얼굴 블록 수 기준)
+  let dotIdx = 0;
+  FACES.forEach(f => {
+    f.dots = [];
+    for (let i = 0; i < f.faceBlocks.length && dotIdx < allDots.length; i++) {
+      const d = allDots[dotIdx];
+      d.tx = f.faceBlocks[i].x - f.cx; // 상대좌표로 변환
+      d.ty = f.faceBlocks[i].y - f.cy;
+      f.dots.push(d);
+      dotIdx++;
+    }
+  });
+  // 남은 도트는 랜덤 얼굴에 추가
+  while (dotIdx < allDots.length) {
+    const f = FACES[dotIdx % FACES.length];
+    const d = allDots[dotIdx];
+    d.tx = (Math.random()-0.5) * 30; // 얼굴 근처 랜덤
+    d.ty = (Math.random()-0.5) * 30;
+    f.dots.push(d);
+    dotIdx++;
+  }
+}
+
+// ─── 메인 루프 ───
+let ready = false;
+document.fonts.ready.then(() => setTimeout(() => { initChars(); ready = true; }, 200));
+const t0 = performance.now();
+let circlePhase = 0; // 강강수월래용
+
+function animate() {
+  requestAnimationFrame(animate);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, W, H);
+  if (!ready) return;
+
+  const elapsed = (performance.now() - t0) / 1000;
+  ctx.fillStyle = '#000';
+
+  let morphT = 0, shake = 0;
+
+  if (elapsed < 1.5) {
+    morphT = 0; shake = 0;
+  } else if (elapsed < 2.5) {
+    morphT = 0;
+    shake = (elapsed - 1.5) * 5;
+  } else if (elapsed < 4) {
+    morphT = Math.min(1, (elapsed - 2.5) / 1.5);
+    shake = 2 * (1 - morphT);
+  } else {
+    morphT = 1; shake = 0.3;
+
+    // 밍글링 패턴: 돌아다니기 + 주기적으로 강강수월래
+    const cycleT = (elapsed - 4) % 12; // 12초 주기
+    circlePhase += 0.007;
+
+    FACES.forEach((f, i) => {
+      if (cycleT > 4 && cycleT < 8) {
+        // 강강수월래: 중앙으로 모여서 원형 회전
+        const angle = circlePhase + (i / FACES.length) * Math.PI * 2;
+        const radius = 120 + (i % 3) * 40;
+        const targetX = W/2 + Math.cos(angle) * radius - f.homeX;
+        const targetY = H/2 + Math.sin(angle) * radius - f.homeY;
+        f.moveOx += (targetX - f.moveOx) * 0.03;
+        f.moveOy += (targetY - f.moveOy) * 0.03;
+      } else {
+        // 자유 이동
+        f.moveOx += f.vx;
+        f.moveOy += f.vy;
+        if (f.homeX + f.moveOx < 50 || f.homeX + f.moveOx > W-50) f.vx *= -1;
+        if (f.homeY + f.moveOy < 50 || f.homeY + f.moveOy > H-50) f.vy *= -1;
+      }
+    });
+
+    // 충돌 회피
+    for (let i = 0; i < FACES.length; i++) {
+      for (let j = i+1; j < FACES.length; j++) {
+        const a = FACES[i], b = FACES[j];
+        const ax = a.homeX+a.moveOx, ay = a.homeY+a.moveOy;
+        const bx = b.homeX+b.moveOx, by = b.homeY+b.moveOy;
+        const dx = bx-ax, dy = by-ay;
+        const dist = Math.sqrt(dx*dx+dy*dy);
+        const minD = (a.size+b.size)*0.5;
+        if (dist < minD && dist > 0) {
+          const push = (minD-dist)*0.2;
+          const nx = dx/dist, ny = dy/dist;
+          a.moveOx -= nx*push; a.moveOy -= ny*push;
+          b.moveOx += nx*push; b.moveOy += ny*push;
+        }
+      }
+    }
+  }
+
+  const ease = morphT < 0.5 ? 4*morphT*morphT*morphT : 1-Math.pow(-2*morphT+2,3)/2;
+
+  FACES.forEach(f => {
+    const ox = morphT >= 1 ? f.moveOx : 0;
+    const oy = morphT >= 1 ? f.moveOy : 0;
+    const fcx = f.cx + ox;
+    const fcy = f.cy + oy;
+    f.dots.forEach(d => {
+      const x = d.fx + (d.tx + fcx - d.fx) * ease;
+      const y = d.fy + (d.ty + fcy - d.fy) * ease;
+      const sx = Math.sin(performance.now()*0.007+d.phase) * shake;
+      const sy = Math.cos(performance.now()*0.005+d.phase) * shake;
+      ctx.fillRect(Math.round(x+sx), Math.round(y+sy), BLK+1, BLK+1);
+    });
+  });
+}
+animate();
+</script>
+</body>
+</html>
