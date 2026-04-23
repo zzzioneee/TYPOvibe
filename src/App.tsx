@@ -63,11 +63,11 @@ const WORKS = [
     id: 'day6',
     day: '6',
     date: '2026.04.23',
-    title: 'Not a Dream',
-    desc: '송소희의 먹물이 번지듯 펼쳐지는 수묵 타이포그래피.',
-    tags: ['Canvas', 'Web Audio', '수묵'],
+    title: '절약도 공감도 함께',
+    desc: '픽셀 헤드라인이 분해되어 스마일 사람들로 변태하고 함께 어울리는 타이포그래피.',
+    tags: ['Canvas', 'Pixel', 'Morphing'],
     ratio: '4 / 3',
-    bgTheme: 'light' as const,
+    bgTheme: 'dark' as const,
   },
 ]
 
