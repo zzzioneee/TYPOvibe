@@ -268,7 +268,7 @@ function animate() {
       const y = d.fy + (d.ty + fcy - d.fy) * ease;
       const sx = Math.sin(performance.now()*0.007+d.phase) * shake;
       const sy = Math.cos(performance.now()*0.005+d.phase) * shake;
-      ctx.fillRect(Math.round(x+sx), Math.round(y+sy), BLK+1, BLK+1);
+      ctx.fillRect(Math.round(x+sx), Math.round(y+sy), BLK, BLK);
     });
   });
 
@@ -282,7 +282,7 @@ function animate() {
         var od = window._orphanDots[oi];
         var ox2 = od.fx + Math.sin(now2*0.007+od.phase) * shake;
         var oy2 = od.fy + Math.cos(now2*0.005+od.phase) * shake;
-        ctx.fillRect(Math.round(ox2), Math.round(oy2), BLK+1, BLK+1);
+        ctx.fillRect(Math.round(ox2), Math.round(oy2), BLK, BLK);
       }
       ctx.globalAlpha = 1;
     }
