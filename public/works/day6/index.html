@@ -130,9 +130,9 @@ function initChars() {
   charData.forEach((cd, ci) => {
     const count = Math.ceil(16 / charData.length); // 총 ~20명
     for (let i = 0; i < count; i++) {
-      const size = 70 + Math.random() * 40; // 70~110
-      const ox = (Math.random()-0.5) * 80;
-      const oy = (Math.random()-0.5) * 80;
+      const size = 75 + Math.random() * 35; // 70~110
+      const ox = (Math.random()-0.5) * 20;
+      const oy = (Math.random()-0.5) * 20;
       const fcx = cd.cx + ox;
       const fcy = cd.cy + oy;
       FACES.push({
@@ -226,7 +226,7 @@ function animate() {
       if (cycleT > 4 && cycleT < 8) {
         // 강강수월래: 중앙으로 모여서 원형 회전
         const angle = circlePhase + (i / FACES.length) * Math.PI * 2;
-        const radius = 120 + (i % 3) * 40;
+        const radius = 160;
         const targetX = W/2 + Math.cos(angle) * radius - f.homeX;
         const targetY = H/2 + Math.sin(angle) * radius - f.homeY;
         f.moveOx += (targetX - f.moveOx) * 0.03;
@@ -274,6 +274,24 @@ function animate() {
       ctx.fillRect(Math.round(x+sx), Math.round(y+sy), BLK+1, BLK+1);
     });
   });
+
+  // orphan 블록: fade out
+  if (window._orphans && ease > 0) {
+    ctx.globalAlpha = Math.max(0, 1 - ease);
+    var now2 = performance.now();
+    window._orphans.forEach(function(d) {
+      var x2 = d.fx + Math.sin(now2*0.007+d.phase) * shake;
+      var y2 = d.fy + Math.cos(now2*0.005+d.phase) * shake;
+      ctx.fillRect(Math.round(x2), Math.round(y2), BLK+1, BLK+1);
+    });
+    ctx.globalAlpha = 1;
+  }
+  // orphan: morphT=0일 때도 표시
+  if (window._orphans && morphT === 0) {
+    window._orphans.forEach(function(d) {
+      ctx.fillRect(Math.round(d.fx), Math.round(d.fy), BLK+1, BLK+1);
+    });
+  }
 }
 animate();
 </script>
