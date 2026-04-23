@@ -64,7 +64,7 @@ const WORKS = [
     day: '6',
     date: '2026.04.23',
     title: '절약도 공감도 함께',
-    desc: '픽셀 헤드라인이 분해되어 스마일 사람들로 변태하고 함께 어울리는 타이포그래피.',
+    desc: '타이틀이 분해되어 동전으로 변하고, 어울리는 모습으로 "함께"를 시각화한 타이포그래피.',
     tags: ['Canvas', 'Pixel', 'Morphing'],
     ratio: '4 / 3',
     bgTheme: 'dark' as const,
