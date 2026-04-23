@@ -179,13 +179,10 @@ function initChars() {
       dotIdx++;
     }
   });
-  // 남은 도트는 랜덤 얼굴에 추가
+  // 남은 도트는 orphan으로 (모핑 중 fade out)
+  window._orphanDots = [];
   while (dotIdx < allDots.length) {
-    const f = FACES[dotIdx % FACES.length];
-    const d = allDots[dotIdx];
-    d.tx = (Math.random()-0.5) * 30; // 얼굴 근처 랜덤
-    d.ty = (Math.random()-0.5) * 30;
-    f.dots.push(d);
+    window._orphanDots.push(allDots[dotIdx]);
     dotIdx++;
   }
 }
@@ -275,22 +272,20 @@ function animate() {
     });
   });
 
-  // orphan 블록: fade out
-  if (window._orphans && ease > 0) {
-    ctx.globalAlpha = Math.max(0, 1 - ease);
-    var now2 = performance.now();
-    window._orphans.forEach(function(d) {
-      var x2 = d.fx + Math.sin(now2*0.007+d.phase) * shake;
-      var y2 = d.fy + Math.cos(now2*0.005+d.phase) * shake;
-      ctx.fillRect(Math.round(x2), Math.round(y2), BLK+1, BLK+1);
-    });
-    ctx.globalAlpha = 1;
-  }
-  // orphan: morphT=0일 때도 표시
-  if (window._orphans && morphT === 0) {
-    window._orphans.forEach(function(d) {
-      ctx.fillRect(Math.round(d.fx), Math.round(d.fy), BLK+1, BLK+1);
-    });
+  // orphan 블록: 모핑 중 fade out
+  if (window._orphanDots && window._orphanDots.length > 0) {
+    var orphanAlpha = Math.max(0, 1 - ease * 1.5);
+    if (orphanAlpha > 0) {
+      ctx.globalAlpha = orphanAlpha;
+      var now2 = performance.now();
+      for (var oi = 0; oi < window._orphanDots.length; oi++) {
+        var od = window._orphanDots[oi];
+        var ox2 = od.fx + Math.sin(now2*0.007+od.phase) * shake;
+        var oy2 = od.fy + Math.cos(now2*0.005+od.phase) * shake;
+        ctx.fillRect(Math.round(ox2), Math.round(oy2), BLK+1, BLK+1);
+      }
+      ctx.globalAlpha = 1;
+    }
   }
 }
 animate();
