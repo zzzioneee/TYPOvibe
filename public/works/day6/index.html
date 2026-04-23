@@ -185,19 +185,9 @@ function initChars() {
 
 // ─── 메인 루프 ───
 var ready = false;
-// 폰트가 확실히 로드될 때까지 대기
-function waitForFont(cb) {
-  var testCanvas = document.createElement('canvas');
-  var testCtx = testCanvas.getContext('2d');
-  testCtx.font = '150px "Galmuri9"';
-  var w1 = testCtx.measureText('절').width;
-  testCtx.font = '150px monospace';
-  var w2 = testCtx.measureText('절').width;
-  if (w1 !== w2) { cb(); return; }
-  setTimeout(function() { waitForFont(cb); }, 100);
-}
-document.fonts.ready.then(function() {
-  waitForFont(function() { initChars(); ready = true; });
+document.fonts.load('150px "Galmuri9"').then(function() {
+  initChars();
+  ready = true;
 });
 const t0 = performance.now();
 let circlePhase = 0; // 강강수월래용
