@@ -17,7 +17,7 @@ canvas { display:block; width:100%; height:100%; }
 </head>
 <body>
 <div class="wrap">
-<div class="paper"><a href="https://www.openads.co.kr/content/contentDetail?contsId=19285" target="_blank" rel="noopener" class="from-link">FROM</a><canvas id="canvas"></canvas></div>
+<div class="paper"><a href="https://some.co.kr/briefing/empathy-community-trend-analysis-2026?utm_source=openads&amp;utm_medium=community&amp;utm_campaign=mcpcontent" target="_blank" rel="noopener" class="from-link">FROM</a><canvas id="canvas"></canvas></div>
 </div>
 <script>
 const canvas = document.getElementById('canvas');
@@ -192,6 +192,80 @@ document.fonts.load('150px "Galmuri9"').then(function() {
 const t0 = performance.now();
 let circlePhase = 0; // 강강수월래용
 
+// ─── 사운드 (Web Audio API, 외부 파일 없음) ───
+let audioCtx = null;
+function getCtx() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch(e) { return null; }
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+// 사용자 상호작용 후에 audio unlock
+['click','keydown','pointerdown'].forEach(ev =>
+  window.addEventListener(ev, () => { getCtx(); }, { once: true })
+);
+
+// 단순 톤 한 음
+function beep(freq, dur, type = 'square', vol = 0.08, startOffset = 0) {
+  const ctx = getCtx();
+  if (!ctx) return;
+  const t = ctx.currentTime + startOffset;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(vol, t + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start(t);
+  osc.stop(t + dur + 0.02);
+}
+
+// 1) 둠칙둠칫: 낮은 비프 4번 점점 빨라지게
+function sfxBuildup() {
+  const gaps = [0, 0.28, 0.5, 0.68]; // 간격 점점 좁아짐
+  gaps.forEach((g, i) => beep(180 + i * 30, 0.12, 'square', 0.06, g));
+}
+
+// 2) 모핑 완료: 밝은 띵동 2음
+function sfxMorphDone() {
+  beep(880, 0.12, 'square', 0.08, 0);
+  beep(1320, 0.18, 'square', 0.08, 0.08);
+}
+
+// 3) 강강수월래 시작: 부드러운 종
+function sfxCircle() {
+  const ctx = getCtx();
+  if (!ctx) return;
+  // sine + 배음으로 종 느낌
+  [523.25, 783.99].forEach((f, i) => beep(f, 0.6, 'sine', 0.05, i * 0.05));
+}
+
+// 4) 왁자지껄 블립: 한 개 짧은 음 (랜덤 주파수)
+const CHAT_NOTES = [440, 494, 523, 587, 659, 698, 784, 880, 988, 1047]; // A4~C6 펜타토닉 근처
+function sfxChatter(vol = 0.035) {
+  const f = CHAT_NOTES[Math.floor(Math.random() * CHAT_NOTES.length)];
+  // "뽀롱" 느낌: 짧은 square 비프
+  beep(f, 0.05 + Math.random() * 0.08, 'square', vol, 0);
+}
+
+// 5) 강강수월래 베이스 드럼: 낮은 펄스
+function sfxBassTick(vol = 0.04) {
+  beep(110, 0.08, 'sine', vol, 0);
+}
+
+// 사운드 트리거 플래그 (중복 방지)
+let playedBuildup = false;
+let playedMorph = false;
+let lastCircleCycleTick = -1;
+
+// 왁자지껄 타이머 — requestAnimationFrame 안에서 시간 관리
+let nextChatterAt = 0;  // 다음 블립 재생 시각 (sec)
+let nextBassAt = 0;     // 다음 베이스 시각
+
 function animate() {
   requestAnimationFrame(animate);
   ctx.fillStyle = '#cbff94';
@@ -209,6 +283,8 @@ function animate() {
   } else if (elapsed < 2.5) {
     morphT = 0;
     shake = (elapsed - 1.5) * 5;
+    // 둠칙둠칫 진입 순간 1회 재생
+    if (!playedBuildup) { playedBuildup = true; sfxBuildup(); }
   } else if (elapsed < 4) {
     morphT = Math.min(1, (elapsed - 2.5) / 1.5);
     shake = 2 * (1 - morphT);
@@ -218,6 +294,30 @@ function animate() {
     // 밍글링 패턴: 돌아다니기 + 주기적으로 강강수월래
     const cycleT = (elapsed - 4) % 12; // 12초 주기
     circlePhase += 0.007;
+
+    // 모핑 완료 진입 1회 재생
+    if (!playedMorph) { playedMorph = true; sfxMorphDone(); }
+    // 강강수월래 시작 시점(cycleT가 4를 막 넘은 순간) 매 주기마다 1회
+    const cycleIdx = Math.floor((elapsed - 4) / 12);
+    if (cycleT > 4 && cycleT < 4.2 && lastCircleCycleTick !== cycleIdx) {
+      lastCircleCycleTick = cycleIdx;
+      sfxCircle();
+    }
+
+    // 왁자지껄 배경: 밍글링 땐 느슨하게, 강강수월래 땐 빠르고 베이스 추가
+    const inCircle = cycleT > 4 && cycleT < 8;
+    if (elapsed >= nextChatterAt) {
+      sfxChatter(inCircle ? 0.04 : 0.028);
+      // 다음 블립까지 간격
+      const gap = inCircle
+        ? 0.08 + Math.random() * 0.12   // 강강수월래: 촘촘
+        : 0.22 + Math.random() * 0.35;  // 밍글링: 느슨
+      nextChatterAt = elapsed + gap;
+    }
+    if (inCircle && elapsed >= nextBassAt) {
+      sfxBassTick(0.045);
+      nextBassAt = elapsed + 0.4; // 일정한 리듬
+    }
 
     FACES.forEach((f, i) => {
       if (cycleT > 4 && cycleT < 8) {
