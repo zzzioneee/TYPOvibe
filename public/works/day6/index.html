@@ -207,8 +207,11 @@ function getCtx() {
   window.addEventListener(ev, () => { getCtx(); }, { once: true })
 );
 
+// 썸네일 프리뷰 모드면 소리 재생 안 함
+const IS_THUMB = new URLSearchParams(location.search).has('thumb');
 // 단순 톤 한 음
 function beep(freq, dur, type = 'square', vol = 0.08, startOffset = 0) {
+  if (IS_THUMB) return;
   const ctx = getCtx();
   if (!ctx) return;
   const t = ctx.currentTime + startOffset;
