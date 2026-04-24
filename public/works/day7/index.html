@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 7: 종교계 AI 활용</title>
+<style>
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:100%; height:100%; overflow:hidden; background:#000; }
+#canvas { display:block; width:100%; height:100%; cursor:default; position:relative; z-index:2; }
+.bg-headline {
+  position:absolute; top:50%; left:50%;
+  transform:translate(-50%, -50%);
+  z-index:1;  /* canvas(2) 보다 뒤 */
+  font-family:'Pretendard',sans-serif;
+  font-weight:600;  /* SemiBold */
+  font-size:clamp(22px, 2.6vw, 42px);
+  line-height:1.45;
+  color:#fff;
+  text-align:center;
+  white-space:nowrap;
+  letter-spacing:-0.01em;
+  text-decoration:none;
+  pointer-events:auto;
+}
+.bg-headline:hover { text-decoration:underline; }
+.from-link {
+  position:absolute; top:24px; left:50%; transform:translateX(-50%);
+  font-family:'Pretendard',sans-serif; font-size:20px; font-weight:500;
+  color:#fff; text-decoration:none; z-index:10; mix-blend-mode:difference;
+}
+.headline {
+  position:absolute; bottom:28px; left:50%; transform:translateX(-50%);
+  font-family:'Pretendard',sans-serif; font-size:13px; font-weight:700;
+  color:#fff; z-index:10; letter-spacing:0.2em; pointer-events:none;
+  text-align:center; white-space:nowrap;
+}
+.label {
+  position:absolute; top:50%; transform:translateY(-50%);
+  font-family:'Pretendard',sans-serif; font-size:11px; font-weight:800;
+  color:#fff; z-index:10; letter-spacing:0.35em; pointer-events:none;
+  writing-mode:vertical-rl; mix-blend-mode:difference;
+}
+.label.left { left:20px; }
+.label.right { right:20px; }
+.loading {
+  display:none;
+}
+</style>
+</head>
+<body>
+<a href="https://newneek.co/@pizzastation/article/40070" target="_blank" rel="noopener" class="from-link">FROM</a>
+<a href="https://newneek.co/@pizzastation/article/40070" target="_blank" rel="noopener" class="bg-headline">
+  설교·상담까지 대신 해준다?<br>
+  종교계가 'AI 활용' 고민에 빠진 이유
+</a>
+<canvas id="canvas"></canvas>
+<div class="label left">BUDDHA · 般若心經</div>
+<div class="label right">JESUS · THE LORD'S PRAYER</div>
+
+<div class="loading" id="loading">LOADING...</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+
+// ═══════════════════════════════════════════════
+//   SCENE SETUP
+// ═══════════════════════════════════════════════
+const canvas = document.getElementById('canvas');
+const loadingEl = document.getElementById('loading');
+
+const scene = new THREE.Scene();
+// scene.background 설정 안 함 — canvas alpha로 뒤 요소가 비치게
+
+const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(0, 0, 5);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x000000, 0); // 투명 배경
+
+// ═══════════════════════════════════════════════
+//   NEON STATUE SHADER (단순화 — 부드러운 그라디언트 + rim)
+// ═══════════════════════════════════════════════
+
+const vertexShader = /* glsl */`
+  varying vec3 vNormal;
+  varying vec3 vViewDir;
+  varying vec3 vLocalPos;  // 모델 공간 좌표 (회전해도 그라디언트는 모델 기준)
+  void main() {
+    vLocalPos = position;
+    vNormal = normalize(normalMatrix * normal);
+    vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+    vViewDir = normalize(-mvPos.xyz);
+    gl_Position = projectionMatrix * mvPos;
+  }
+`;
+
+const fragmentShader = /* glsl */`
+  uniform float uTime;
+  uniform float uHover;
+  uniform vec3  uColorA;  // 아래 (cyan)
+  uniform vec3  uColorB;  // 중간 (magenta)
+  uniform vec3  uColorC;  // 위 (lime)
+  uniform vec2  uHeightRange; // (minY, maxY) 모델 공간
+
+  varying vec3 vNormal;
+  varying vec3 vViewDir;
+  varying vec3 vLocalPos;
+
+  void main() {
+    float nDotV = max(dot(vNormal, vViewDir), 0.0);
+    float rim = pow(1.0 - nDotV, 2.0);
+
+    // 높이별 부드러운 그라디언트 (3 stop)
+    float h = clamp((vLocalPos.y - uHeightRange.x) / (uHeightRange.y - uHeightRange.x), 0.0, 1.0);
+    vec3 grad;
+    if (h < 0.5) grad = mix(uColorA, uColorB, h * 2.0);
+    else         grad = mix(uColorB, uColorC, (h - 0.5) * 2.0);
+
+    // 시간에 따라 색 웨이브 아주 살짝
+    float wave = 0.5 + 0.5 * sin(uTime * 0.4 + h * 3.14159);
+    vec3 base = mix(grad, grad * 1.15, wave * 0.3);
+
+    // 기본 밝기 유지 (어두운 면도 완전히 안 죽게)
+    float body = 0.55 + 0.45 * nDotV;
+    base *= body;
+
+    // rim light — 외곽 네온 빛
+    vec3 rimCol = mix(uColorA, uColorC, 0.5 + 0.5 * sin(uTime * 0.8));
+    base += rimCol * rim * (0.9 + uHover * 0.5);
+
+    gl_FragColor = vec4(base, 1.0);
+  }
+`;
+
+function makeNeonMaterial() {
+  return new THREE.ShaderMaterial({
+    vertexShader, fragmentShader,
+    uniforms: {
+      uTime:        { value: 0 },
+      uHover:       { value: 0 },
+      uColorA:      { value: new THREE.Color(0x00d9ff) },  // cyan
+      uColorB:      { value: new THREE.Color(0xff2bd6) },  // magenta
+      uColorC:      { value: new THREE.Color(0xc8ff2e) },  // lime
+      uHeightRange: { value: new THREE.Vector2(0, 2) },
+    },
+    side: THREE.DoubleSide,
+  });
+}
+
+// ═══════════════════════════════════════════════
+//   LOAD STATUES
+// ═══════════════════════════════════════════════
+const loader = new GLTFLoader();
+const BASE = import.meta.url.replace(/[^/]+$/, '');
+
+let buddhaGroup = null, jesusGroup = null;
+const buddhaMat = makeNeonMaterial();
+const jesusMat  = makeNeonMaterial();
+const buddhaMeshList = [];
+const jesusMeshList = [];
+
+function addLoadedStatue(gltf, isBuddha) {
+  const root = gltf.scene;
+  root.traverse((o) => {
+    if (o.isMesh) {
+      o.material = isBuddha ? buddhaMat : jesusMat;
+    }
+  });
+
+  // ── 축 보정 (부처만) ──
+  // 부처 원본 GLB는 x축이 세로(size 2.49) / y축 1.18 / z축 0.59.
+  // 세로축(x)을 y로 올려야 함. 먼저 z축 -90도 회전 적용해보고,
+  // 만약 머리가 아래로 가면 180도 더 돌려서 보정.
+  if (isBuddha) {
+    // 1) z축 -90도 회전: x축 → -y축 (그래서 결과적으로 세웠지만 위아래 뒤집힐 수 있음)
+    const rot1 = new THREE.Matrix4().makeRotationZ(-Math.PI / 2);
+    root.traverse((o) => {
+      if (o.isMesh && o.geometry) {
+        o.geometry.applyMatrix4(rot1);
+        o.geometry.computeBoundingBox();
+      }
+    });
+
+    // 2) 머리가 위로 가는지 판별:
+    //    원본에서 x+쪽 (머리 or 발) 어느 쪽이 넓은지. 일반적으로 발 주변 연화대가 더 넓음.
+    //    회전 후 y- 쪽(== 원본 x+)의 xz 평면 단면이 더 넓으면 머리가 아래로 간 것.
+    let yMin = Infinity, yMax = -Infinity;
+    root.traverse((o) => {
+      if (o.isMesh && o.geometry && o.geometry.boundingBox) {
+        yMin = Math.min(yMin, o.geometry.boundingBox.min.y);
+        yMax = Math.max(yMax, o.geometry.boundingBox.max.y);
+      }
+    });
+    const yMid = (yMin + yMax) / 2;
+
+    // 상·하 반구의 xz 단면 넓이를 버텍스 샘플링으로 측정
+    let lowerMaxR = 0, upperMaxR = 0;
+    root.traverse((o) => {
+      if (o.isMesh && o.geometry) {
+        const pos = o.geometry.attributes.position.array;
+        for (let i = 0; i < pos.length; i += 3) {
+          const x = pos[i], y = pos[i + 1], z = pos[i + 2];
+          const r = Math.sqrt(x * x + z * z);
+          if (y < yMid) { if (r > lowerMaxR) lowerMaxR = r; }
+          else          { if (r > upperMaxR) upperMaxR = r; }
+        }
+      }
+    });
+    // 넓은 쪽이 발/연화대 — 그 쪽이 아래로 가야 함
+    // 만약 upper가 더 넓다면 머리가 아래로 뒤집힌 상태 → 한 번 더 180도 회전
+    if (upperMaxR > lowerMaxR) {
+      const rot2 = new THREE.Matrix4().makeRotationZ(Math.PI);
+      root.traverse((o) => {
+        if (o.isMesh && o.geometry) {
+          o.geometry.applyMatrix4(rot2);
+          o.geometry.computeBoundingBox();
+        }
+      });
+    }
+
+    root.traverse((o) => {
+      if (o.isMesh && o.geometry) {
+        o.geometry.computeVertexNormals();
+      }
+    });
+  }
+
+  // ── normalize: bbox 기준 크기 맞춤 + 중심 원점으로 ──
+  const inner = new THREE.Group();
+  inner.add(root);
+
+  let box = new THREE.Box3().setFromObject(inner);
+  const size = new THREE.Vector3(); box.getSize(size);
+  const targetH = 1.7;
+  const s = targetH / size.y;
+  inner.scale.setScalar(s);
+
+  box = new THREE.Box3().setFromObject(inner);
+  const center = new THREE.Vector3(); box.getCenter(center);
+  inner.position.x -= center.x;
+  inner.position.y -= center.y;
+  inner.position.z -= center.z;
+
+  // ── outer: 회전 + 화면 배치 ──
+  const outer = new THREE.Group();
+  outer.add(inner);
+  outer.position.y = 0.15;
+  outer.position.x = isBuddha ? -1.85 : 1.85;
+
+  scene.add(outer);
+  if (isBuddha) buddhaGroup = outer;
+  else jesusGroup = outer;
+
+  // raycast 대상 mesh 리스트 미리 수집 + bounding 갱신
+  const targetList = isBuddha ? buddhaMeshList : jesusMeshList;
+  targetList.length = 0;
+  outer.traverse((o) => {
+    if (o.isMesh && o.geometry) {
+      o.geometry.computeBoundingBox();
+      o.geometry.computeBoundingSphere();
+      targetList.push(o);
+    }
+  });
+
+  // 셰이더 uHeightRange — geometry 로컬 y 범위 (scale 전)
+  const mat = isBuddha ? buddhaMat : jesusMat;
+  let minY = Infinity, maxY = -Infinity;
+  root.traverse((o) => {
+    if (o.isMesh && o.geometry && o.geometry.boundingBox) {
+      minY = Math.min(minY, o.geometry.boundingBox.min.y);
+      maxY = Math.max(maxY, o.geometry.boundingBox.max.y);
+    }
+  });
+  if (minY !== Infinity) mat.uniforms.uHeightRange.value.set(minY, maxY);
+
+  checkAllLoaded();
+}
+
+let loadedCount = 0;
+function checkAllLoaded() {
+  loadedCount++;
+  if (loadedCount >= 2) loadingEl.style.display = 'none';
+}
+
+loader.load(BASE + 'buddha.glb',
+  (gltf) => addLoadedStatue(gltf, true),
+  undefined,
+  (err) => { console.error(err); loadingEl.textContent = 'BUDDHA LOAD FAILED'; }
+);
+loader.load(BASE + 'jesus.glb',
+  (gltf) => addLoadedStatue(gltf, false),
+  undefined,
+  (err) => { console.error(err); loadingEl.textContent = 'JESUS LOAD FAILED'; }
+);
+
+// ═══════════════════════════════════════════════
+//   POST-PROCESSING (은은하게)
+//   - Bloom: 네온 글로우
+//   - GlitchPass: 가로 픽셀 띠만, 약하게
+// ═══════════════════════════════════════════════
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+
+const bloom = new UnrealBloomPass(
+  new THREE.Vector2(window.innerWidth, window.innerHeight),
+  0.5,   // strength
+  0.6,   // radius
+  0.25   // threshold
+);
+composer.addPass(bloom);
+
+const glitchPass = new ShaderPass({
+  uniforms: {
+    tDiffuse: { value: null },
+    uTime:    { value: 0 },
+    uHoverL:  { value: 0 },
+    uHoverR:  { value: 0 },
+    uRes:     { value: new THREE.Vector2(1,1) },
+  },
+  vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform float uTime;
+    uniform float uHoverL;
+    uniform float uHoverR;
+    uniform vec2  uRes;
+    varying vec2 vUv;
+
+    float h11(float p){
+      p = fract(p * 0.3183099 + 0.71);
+      p *= p + 17.23;
+      return fract(p * (p + p));
+    }
+    float h21(vec2 p){
+      p = fract(p * vec2(123.34, 456.21));
+      p += dot(p, p + 45.32);
+      return fract(p.x * p.y);
+    }
+
+    // 8x8 Bayer matrix ordered dither
+    float bayer(vec2 p) {
+      int x = int(mod(p.x, 8.0));
+      int y = int(mod(p.y, 8.0));
+      int idx = x + y * 8;
+      // 8x8 bayer (0..63 → 0..1)
+      int b[64];
+      b[0]=0;  b[1]=32; b[2]=8;  b[3]=40; b[4]=2;  b[5]=34; b[6]=10; b[7]=42;
+      b[8]=48; b[9]=16; b[10]=56;b[11]=24;b[12]=50;b[13]=18;b[14]=58;b[15]=26;
+      b[16]=12;b[17]=44;b[18]=4; b[19]=36;b[20]=14;b[21]=46;b[22]=6; b[23]=38;
+      b[24]=60;b[25]=28;b[26]=52;b[27]=20;b[28]=62;b[29]=30;b[30]=54;b[31]=22;
+      b[32]=3; b[33]=35;b[34]=11;b[35]=43;b[36]=1; b[37]=33;b[38]=9; b[39]=41;
+      b[40]=51;b[41]=19;b[42]=59;b[43]=27;b[44]=49;b[45]=17;b[46]=57;b[47]=25;
+      b[48]=15;b[49]=47;b[50]=7; b[51]=39;b[52]=13;b[53]=45;b[54]=5; b[55]=37;
+      b[56]=63;b[57]=31;b[58]=55;b[59]=23;b[60]=61;b[61]=29;b[62]=53;b[63]=21;
+      return (float(b[idx]) + 0.5) / 64.0;
+    }
+
+    // 네온 팔레트 (밝기 0..1에 따라 색상 매핑)
+    vec3 neonPalette(float t, float hueShift) {
+      t = clamp(t, 0.0, 1.0);
+      // 구간별 네온 색
+      // 0.0~0.2: 검정
+      // 0.2~0.4: cyan
+      // 0.4~0.6: magenta
+      // 0.6~0.8: yellow
+      // 0.8~1.0: lime / white
+      float tt = fract(t + hueShift);
+      float a = tt * 5.0;
+      vec3 c;
+      if (a < 1.0)      c = mix(vec3(0.0), vec3(0.0, 0.9, 1.0), a);
+      else if (a < 2.0) c = mix(vec3(0.0, 0.9, 1.0), vec3(1.0, 0.15, 0.9), a - 1.0);
+      else if (a < 3.0) c = mix(vec3(1.0, 0.15, 0.9), vec3(1.0, 1.0, 0.15), a - 2.0);
+      else if (a < 4.0) c = mix(vec3(1.0, 1.0, 0.15), vec3(0.4, 1.0, 0.2), a - 3.0);
+      else              c = mix(vec3(0.4, 1.0, 0.2), vec3(1.0), a - 4.0);
+      return c;
+    }
+
+    void main(){
+      vec2 uv = vUv;
+      float hoverAmt = uv.x < 0.5 ? uHoverL : uHoverR;
+
+      // ── 1) 큰 픽셀 모자이크 (low-res downsample) ──
+      float pixSize = 3.5;
+      vec2 pixUV = floor(uv * uRes / pixSize) * pixSize / uRes;
+      vec4 src = texture2D(tDiffuse, pixUV);
+      float lum = dot(src.rgb, vec3(0.299, 0.587, 0.114));
+
+      // ── 2) Bayer dithering + 네온 팔레트 양자화 ──
+      vec2 pixelCoord = floor(gl_FragCoord.xy / pixSize);
+      float dt = bayer(pixelCoord);
+      float qLum = floor(lum * 5.0 + dt) / 5.0;
+      float hueShift = uTime * 0.05;
+      vec3 neonCol = neonPalette(qLum, hueShift);
+
+      // ── 3) 수직 번짐 — 조각상 색이 아래로 흘러내리는 잔상 ──
+      vec3 smear = vec3(0.0);
+      float smearAcc = 0.0;
+      const int N = 22;
+      for (int i = 1; i <= N; i++) {
+        float fi = float(i);
+        vec2 su = pixUV + vec2(0.0, fi * 0.006);
+        vec4 s = texture2D(tDiffuse, su);
+        float sl = dot(s.rgb, vec3(0.299, 0.587, 0.114));
+        if (sl < 0.04) continue;
+        float w = 1.0 - fi / float(N + 1);
+        float sql = floor(sl * 5.0 + dt) / 5.0;
+        vec3 sc = neonPalette(sql, hueShift + fi * 0.015);
+        smear += sc * w;
+        smearAcc += w;
+      }
+      if (smearAcc > 0.0) smear /= smearAcc;
+
+      // ── 4) 조각상 영역 마스크 ──
+      // - solid: 조각상 본체 위 픽셀
+      // - smearMask: 조각상은 아니지만 위쪽에 조각상 픽셀이 있는 곳 (스미어 영역)
+      float solid = smoothstep(0.05, 0.2, lum);
+      float smearMask = smearAcc > 0.0 ? 1.0 : 0.0;
+      float fgMask = max(solid, smearMask); // 조각상 or 스미어 잔상 영역
+
+      vec3 col;
+      float outA = 1.0;
+      if (fgMask < 0.01) {
+        // 완전 배경 — 투명하게 해서 뒤 HTML 텍스트가 비치도록
+        col = vec3(0.0);
+        outA = 0.0;
+      } else {
+        // 본체는 선명한 네온 팔레트 그대로, 스미어는 본체 바깥 영역에만 보조로
+        if (solid > 0.05) {
+          col = neonCol;
+        } else {
+          // 본체 아래쪽 스미어 잔상 (흐려도 괜찮음)
+          col = smear * 0.6;
+        }
+
+        // ── 5) 가로 찢김 — 조각상 위에만 ──
+        float rowIdx = floor(gl_FragCoord.y / 2.0);
+        float tearSeed = h11(rowIdx + floor(uTime * 8.0));
+        if (tearSeed > 0.88 && solid > 0.05) {
+          float tearShift = (h11(rowIdx * 3.17) - 0.5) * 0.04 * (0.5 + hoverAmt);
+          vec2 tuv = pixUV + vec2(tearShift, 0.0);
+          vec4 ts = texture2D(tDiffuse, tuv);
+          float tl = dot(ts.rgb, vec3(0.299, 0.587, 0.114));
+          if (tl > 0.04) {
+            float tql = floor(tl * 5.0 + dt) / 5.0;
+            vec3 tc = neonPalette(tql, hueShift + 0.25);
+            col = mix(col, tc, 0.6);
+          }
+        }
+
+        // ── 6) 스파클 픽셀 — 조각상 본체에만 ──
+        float sparkSeed = h21(pixelCoord + floor(uTime * 10.0));
+        if (sparkSeed > 0.992 - hoverAmt * 0.01 && solid > 0.2) {
+          col = sparkSeed > 0.996 ? vec3(1.0, 0.15, 0.9) : vec3(0.0, 1.0, 1.0);
+        }
+
+        // ── 7) 세로 라인 텍스처 (본체만) ──
+        if (solid > 0.05) {
+          float vline = step(0.5, fract(gl_FragCoord.x * 0.5));
+          col *= (0.92 + vline * 0.08);
+        }
+      }
+
+      gl_FragColor = vec4(col, outA);
+    }
+  `,
+});
+glitchPass.material.transparent = true;
+composer.addPass(glitchPass);
+
+// ═══════════════════════════════════════════════
+//   AUDIO — 실제 녹음된 낭독 파일 (m4a)
+//   say 커맨드로 macOS 한국어 voice 생성
+//   · 부처: Eddy (한국어), 반야심경
+//   · 예수: Yuna, 주기도문
+// ═══════════════════════════════════════════════
+const BASE_URL = import.meta.url.replace(/[^/]+$/, '');
+const buddhaAudio = new Audio(BASE_URL + 'buddha.m4a');
+const jesusAudio  = new Audio(BASE_URL + 'jesus.m4a');
+buddhaAudio.preload = 'auto';
+jesusAudio.preload  = 'auto';
+buddhaAudio.loop = true;  // 끝나면 처음부터 반복
+jesusAudio.loop  = true;
+
+let activeSide = null;
+
+function doSpeak(which) {
+  stopSpeaking();
+  activeSide = which;
+  const a = which === 'buddha' ? buddhaAudio : jesusAudio;
+  a.currentTime = 0;
+  const p = a.play();
+  if (p && p.catch) p.catch(err => console.warn('[audio] play failed', err));
+}
+
+function stopSpeaking() {
+  buddhaAudio.pause();
+  jesusAudio.pause();
+  buddhaAudio.currentTime = 0;
+  jesusAudio.currentTime = 0;
+  activeSide = null;
+}
+
+// ═══════════════════════════════════════════════
+//   CLICK — 토글 방식
+//   같은 쪽 재클릭 = 정지 / 다른 쪽 클릭 = 전환 / 조각상 밖 클릭 = 무시
+// ═══════════════════════════════════════════════
+
+// Three.js Raycaster — 실제 조각상 메시 적중 판정
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+
+function hitTestStatue(cx, cy) {
+  if (buddhaMeshList.length === 0 && jesusMeshList.length === 0) return null;
+
+  scene.updateMatrixWorld(true);
+
+  const rect = canvas.getBoundingClientRect();
+  const lx = cx - rect.left;
+  const ly = cy - rect.top;
+  ndc.x =  (lx / rect.width)  * 2 - 1;
+  ndc.y = -(ly / rect.height) * 2 + 1;
+  raycaster.setFromCamera(ndc, camera);
+
+  const bHits = raycaster.intersectObjects(buddhaMeshList, true);
+  const jHits = raycaster.intersectObjects(jesusMeshList, true);
+
+  if (bHits.length > 0 && jHits.length > 0) {
+    return bHits[0].distance < jHits[0].distance ? 'buddha' : 'jesus';
+  }
+  if (bHits.length > 0) return 'buddha';
+  if (jHits.length > 0) return 'jesus';
+  return null;
+}
+
+// mesh raycast 실패 시 — 조각상 대략 박스 안이면 잡아주기 (여유 영역)
+function fallbackBoxHit(cx, cy) {
+  const rect = canvas.getBoundingClientRect();
+  const lx = cx - rect.left;
+  const ly = cy - rect.top;
+  const w = rect.width, h = rect.height;
+  const bCx = w * 0.3, bCy = h * 0.52;
+  const jCx = w * 0.7, jCy = h * 0.52;
+  const halfW = w * 0.22, halfH = h * 0.42;
+  const inB = Math.abs(lx - bCx) < halfW && Math.abs(ly - bCy) < halfH;
+  const inJ = Math.abs(lx - jCx) < halfW && Math.abs(ly - jCy) < halfH;
+  if (inB && !inJ) return 'buddha';
+  if (inJ && !inB) return 'jesus';
+  if (inB && inJ)  return lx < w / 2 ? 'buddha' : 'jesus';
+  return null;
+}
+
+canvas.addEventListener('click', (e) => {
+  let side = hitTestStatue(e.clientX, e.clientY);
+  if (!side) side = fallbackBoxHit(e.clientX, e.clientY);
+  if (!side) return;
+
+  if (activeSide === side) {
+    stopSpeaking();
+  } else {
+    doSpeak(side);
+  }
+});
+
+// 커서 표시: 조각상 위에선 pointer, 밖에선 default
+canvas.addEventListener('mousemove', (e) => {
+  const side = hitTestStatue(e.clientX, e.clientY) || fallbackBoxHit(e.clientX, e.clientY);
+  canvas.style.cursor = side ? 'pointer' : 'default';
+});
+
+// ═══════════════════════════════════════════════
+//   LIGHTS (minimal — 거의 emissive shader라 보조용)
+// ═══════════════════════════════════════════════
+scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+const key = new THREE.DirectionalLight(0xffffff, 0.3);
+key.position.set(3, 4, 2);
+scene.add(key);
+
+// ═══════════════════════════════════════════════
+//   RESIZE
+// ═══════════════════════════════════════════════
+function onResize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h);
+  composer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  glitchPass.uniforms.uRes.value.set(w, h);
+}
+window.addEventListener('resize', onResize);
+onResize();
+
+// ═══════════════════════════════════════════════
+//   ANIMATE
+// ═══════════════════════════════════════════════
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+
+  const targetBH = activeSide === 'buddha' ? 1 : 0;
+  const targetJH = activeSide === 'jesus'  ? 1 : 0;
+  buddhaMat.uniforms.uHover.value += (targetBH - buddhaMat.uniforms.uHover.value) * 0.1;
+  jesusMat.uniforms.uHover.value  += (targetJH - jesusMat.uniforms.uHover.value)  * 0.1;
+  buddhaMat.uniforms.uTime.value = t;
+  jesusMat.uniforms.uTime.value  = t;
+
+  glitchPass.uniforms.uTime.value = t;
+  glitchPass.uniforms.uHoverL.value += (targetBH - glitchPass.uniforms.uHoverL.value) * 0.1;
+  glitchPass.uniforms.uHoverR.value += (targetJH - glitchPass.uniforms.uHoverR.value) * 0.1;
+
+  // 둘 다 정면 기준 Y축 회전, 속도 동일 같은 방향
+  if (buddhaGroup) buddhaGroup.rotation.y += 0.006;
+  if (jesusGroup)  jesusGroup.rotation.y  += 0.006;
+
+  composer.render();
+}
+animate();
+</script>
+</body>
+</html>

@@ -5,6 +5,7 @@ import Day003 from './works/day3'
 import Day004 from './works/day4'
 import Day005 from './works/day5'
 import Day006 from './works/day6'
+import Day007 from './works/day7'
 
 type View = 'home' | string
 
@@ -69,6 +70,16 @@ const WORKS = [
     ratio: '4 / 3',
     bgTheme: 'dark' as const,
   },
+  {
+    id: 'day7',
+    day: '7',
+    date: '2026.04.24',
+    title: '설교·상담까지 대신해주는 AI',
+    desc: '네온 글리치 효과의 부처와 예수 3D 조각상이 회전하고, 각 조각상을 클릭하면 경전을 낭독하는 인터랙티브 타이포그래피.',
+    tags: ['Three.js', 'Glitch', 'Audio'],
+    ratio: '4 / 3',
+    bgTheme: 'dark' as const,
+  },
 ]
 
 export default function App() {
@@ -125,6 +136,7 @@ export default function App() {
           {view === 'day4' && <Day004 />}
           {view === 'day5' && <Day005 />}
           {view === 'day6' && <Day006 />}
+          {view === 'day7' && <Day007 />}
         </main>
       </div>
     )
