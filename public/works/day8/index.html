@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 8: 소문의 낙원</title>
+<style>
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body {
+  width:100%; height:100%; overflow:hidden;
+  background:#000;
+  font-family:'Pretendard', sans-serif;
+  color:#fff;
+}
+#stage { position:relative; width:100%; height:100%; overflow:hidden; background:#000; }
+
+.mv-wrap { position:absolute; inset:-8%; overflow:hidden; z-index:1; background:#000; }
+.mv-wrap iframe {
+  position:absolute; top:50%; left:50%;
+  /* 세로/가로 둘 다 크게 확대: YouTube 상하 UI를 화면 밖으로 밀어냄 + displacement 여백 확보 */
+  width: calc(max(100vw, 100vh * 16 / 9) * 1.35);
+  height: calc(max(100vh, 100vw * 9 / 16) * 1.35);
+  transform: translate(-50%, -58%);
+  border:0; pointer-events:none;
+  filter: url(#shatter) blur(18px);
+}
+
+.mv-fx {
+  position:absolute; inset:0; z-index:2;
+  pointer-events:none;
+  /* 아래 iframe 픽셀을 블러 + 채도 조정 */
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  /* 살짝 몽환적 광택 */
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(140,180,255,0.08) 0%, rgba(140,180,255,0.0) 60%);
+}
+
+/* 필름 그레인 — 랜덤 흑백 노이즈 */
+.mv-dither {
+  position:absolute; inset:0; z-index:3;
+  pointer-events:none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='320'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 1 0'/><feComponentTransfer><feFuncA type='linear' slope='1.4' intercept='-0.35'/></feComponentTransfer></filter><rect width='100%25' height='100%25' filter='url(%23g)'/></svg>");
+  mix-blend-mode: overlay;
+  opacity: 0.55;
+}
+
+/* 스캔라인 — 아주 얇은 가로줄 */
+.mv-scan {
+  position:absolute; inset:0; z-index:3;
+  pointer-events:none;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(0,0,0,0.0) 0px,
+    rgba(0,0,0,0.0) 2px,
+    rgba(0,0,0,0.12) 2px,
+    rgba(0,0,0,0.12) 3px
+  );
+  mix-blend-mode: multiply;
+  opacity: 0.5;
+}
+
+/* 크로마틱 aberration 흉내 — 가장자리 RGB shift 느낌 */
+.mv-chroma {
+  position:absolute; inset:0; z-index:3;
+  pointer-events:none;
+  mix-blend-mode: screen;
+  backdrop-filter: blur(0.5px);
+  -webkit-backdrop-filter: blur(0.5px);
+  background:
+    radial-gradient(ellipse 80% 65% at 20% 30%, rgba(255,80,120,0.08) 0%, transparent 55%),
+    radial-gradient(ellipse 80% 65% at 80% 70%, rgba(80,200,255,0.08) 0%, transparent 55%);
+}
+/* 타이포 SVG 컨테이너 */
+.typo-wrap {
+  position:absolute; inset:0; z-index:4;
+  display:flex; align-items:center; justify-content:center;
+  pointer-events:none;
+  padding:4vh 6vw;
+}
+.typo-wrap svg {
+  width:auto; height:68%; max-width:72%;
+  filter: drop-shadow(0 4px 16px rgba(0,0,0,0.5));
+}
+
+.from-link {
+  position:absolute; top:22px; left:50%; transform:translateX(-50%);
+  font-family:'Pretendard',sans-serif; font-size:16px; font-weight:600;
+  color:#fff; text-decoration:none; z-index:20;
+  letter-spacing:0.1em; mix-blend-mode:difference;
+}
+.from-link:hover { text-decoration:underline; }
+
+.play-hint {
+  position:absolute; left:50%; bottom:28px; transform:translateX(-50%);
+  z-index:25;
+  font-family:'Pretendard', sans-serif; font-size:12px; font-weight:500;
+  color:#fff; opacity:0.6; letter-spacing:0.2em;
+  pointer-events:none; transition:opacity 0.4s;
+}
+.play-hint.hidden { opacity:0; }
+
+.unmute-btn {
+  position:absolute; inset:0; z-index:10;
+  background:transparent; border:none; cursor:pointer;
+}
+</style>
+</head>
+<body>
+<!-- 배경 쪼갬 효과용 SVG 필터 -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- 큰 블록 모자이크 + 일렁임 -->
+    <filter id="shatter" x="-10%" y="-10%" width="120%" height="120%">
+      <!-- 큰 스케일 노이즈로 덩어리 단위 쪼갬 -->
+      <feTurbulence type="fractalNoise" baseFrequency="0.008" numOctaves="2" seed="3" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="80" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+</svg>
+<div id="stage">
+  <div class="mv-wrap">
+    <iframe id="ytplayer"
+      src="https://www.youtube-nocookie.com/embed/D54StAZFUrc?autoplay=1&mute=1&controls=0&rel=0&modestbranding=1&playsinline=1&loop=1&playlist=D54StAZFUrc&start=0&enablejsapi=1"
+      allow="autoplay; encrypted-media; picture-in-picture"
+      allowfullscreen></iframe>
+  </div>
+  <div class="mv-fx"></div>
+  <div class="mv-dither"></div>
+  <div class="mv-scan"></div>
+  <div class="mv-chroma"></div>
+
+  <div class="typo-wrap" id="typoWrap"></div>
+
+  <a href="https://www.youtube.com/watch?v=D54StAZFUrc" target="_blank" rel="noopener" class="from-link">FROM</a>
+
+  <button class="unmute-btn" id="unmuteBtn" aria-label="소리 켜기"></button>
+  <div class="play-hint" id="playHint">CLICK TO UNMUTE</div>
+</div>
+
+<script src="day8.js"></script>
+</body>
+</html>

@@ -6,6 +6,7 @@ import Day004 from './works/day4'
 import Day005 from './works/day5'
 import Day006 from './works/day6'
 import Day007 from './works/day7'
+import Day008 from './works/day8'
 
 type View = 'home' | string
 
@@ -80,6 +81,16 @@ const WORKS = [
     ratio: '4 / 3',
     bgTheme: 'dark' as const,
   },
+  {
+    id: 'day8',
+    day: '8',
+    date: '2026.04.27',
+    title: '소문의 낙원',
+    desc: '실리카겔 뮤비 위로 덩굴처럼 피어나는 한 붓 그리기 레터링.',
+    tags: ['SVG', 'Lettering', 'YouTube'],
+    ratio: '4 / 3',
+    bgTheme: 'dark' as const,
+  },
 ]
 
 export default function App() {
@@ -137,6 +148,7 @@ export default function App() {
           {view === 'day5' && <Day005 />}
           {view === 'day6' && <Day006 />}
           {view === 'day7' && <Day007 />}
+          {view === 'day8' && <Day008 />}
         </main>
       </div>
     )
