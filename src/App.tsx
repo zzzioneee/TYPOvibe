@@ -247,10 +247,24 @@ export default function App() {
             gridTemplateColumns: 'repeat(3, 1fr)',
             gap: GRID_GAP,
           }}>
-            {[...WORKS].reverse().map(work => {
-              // 3:1 같은 가로형은 2컬럼 차지
-              const isWide = work.id === 'day2';
-              return (
+            {(() => {
+              const ordered = [...WORKS].reverse()
+              // 그리드에서 차지하는 총 칸 수 계산 (span 2 포함)
+              const totalCells = ordered.reduce((n, w) => n + (w.id === 'day2' ? 2 : 1), 0)
+              const cols = 3
+              const rem = totalCells % cols
+              const leadingEmpty = rem === 0 ? 0 : cols - rem
+              // 빈칸을 맨 앞에 삽입하면 가장 최근 작업(day7) 왼쪽이 비게 됨
+              const items: (typeof WORKS[0] | null)[] = [
+                ...Array(leadingEmpty).fill(null),
+                ...ordered,
+              ]
+              return items.map((work, idx) => {
+                if (!work) {
+                  return <div key={`empty-${idx}`} style={{ gridColumn: 'span 1' }} />
+                }
+                const isWide = work.id === 'day2';
+                return (
               <article
                 id={`thumb-${work.id}`}
                 key={work.id}
@@ -346,7 +360,8 @@ export default function App() {
                 </div>
               </article>
               )
-            })}
+            })
+            })()}
           </div>
         </main>
         </div>
