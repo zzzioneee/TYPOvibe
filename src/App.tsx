@@ -86,7 +86,7 @@ const WORKS = [
     day: '8',
     date: '2026.04.27',
     title: '소문의 낙원',
-    desc: '실리카겔 뮤비 위로 덩굴처럼 피어나는 한 붓 그리기 레터링.',
+    desc: '악동뮤지션 뮤비 위로 덩굴처럼 피어나는 한 붓 그리기 레터링.',
     tags: ['SVG', 'Lettering', 'YouTube'],
     ratio: '4 / 3',
     bgTheme: 'dark' as const,
