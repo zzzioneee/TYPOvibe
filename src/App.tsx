@@ -7,6 +7,7 @@ import Day005 from './works/day5'
 import Day006 from './works/day6'
 import Day007 from './works/day7'
 import Day008 from './works/day8'
+import Day009 from './works/day9'
 
 type View = 'home' | string
 
@@ -91,6 +92,16 @@ const WORKS = [
     ratio: '4 / 3',
     bgTheme: 'dark' as const,
   },
+  {
+    id: 'day9',
+    day: '9',
+    date: '2026.04.28',
+    title: '러브버그 출몰',
+    desc: 'LOVE+BUG 글자가 엉덩이를 붙이고 날아다니는 러브버그 쌍. 클릭하면 튕겨 떨어짐.',
+    tags: ['Canvas', 'Interactive', 'Typography'],
+    ratio: '4 / 3',
+    bgTheme: 'dark' as const,
+  },
 ]
 
 export default function App() {
@@ -149,6 +160,7 @@ export default function App() {
           {view === 'day6' && <Day006 />}
           {view === 'day7' && <Day007 />}
           {view === 'day8' && <Day008 />}
+          {view === 'day9' && <Day009 />}
         </main>
       </div>
     )

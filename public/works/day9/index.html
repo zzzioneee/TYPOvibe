@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 9: 러브버그 출몰</title>
+<style>
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body {
+  width:100%; height:100%; overflow:hidden;
+  background:#0076ff;
+  font-family:'Pretendard', sans-serif;
+  color:#fff;
+  user-select:none;
+}
+#stage { position:relative; width:100%; height:100%; overflow:hidden; background:#2d8f3a url('refer.jpg') center/cover no-repeat; cursor:crosshair; }
+
+/* 원본 이미지 위에 블러 더 얹기 — 배경을 더 뭉개는 오버레이 레이어 */
+.bg-blur {
+  position:absolute; inset:0; width:100%; height:100%;
+  background: inherit; /* 부모의 refer.jpg 배경을 상속 */
+  background-image: url('refer.jpg');
+  background-size: cover;
+  background-position: center;
+  filter: blur(18px);
+  transform: scale(1.1); /* 블러로 가장자리 투명해지는 거 방지 */
+  z-index: 0;
+  pointer-events: none;
+}
+canvas { position:absolute; inset:0; display:block; width:100%; height:100%; z-index:1; }
+
+/* 우상단 퇴치 카운터 */
+.counter {
+  position:absolute; top:24px; right:28px; z-index:10;
+  font-family:'Pretendard', sans-serif;
+  color:#fff;
+  text-align:right;
+  pointer-events:none;
+}
+.counter .label {
+  font-size:12px; font-weight:600; letter-spacing:0.25em;
+  opacity:0.8; margin-bottom:6px;
+}
+.counter .num {
+  font-size:72px; font-weight:900; line-height:0.9;
+  font-variant-numeric:tabular-nums;
+  text-shadow:0 3px 0 #0a2a80;
+}
+
+/* FROM 링크 */
+.from-link {
+  position:absolute; top:22px; left:50%; transform:translateX(-50%);
+  font-family:'Pretendard', sans-serif; font-size:16px; font-weight:600;
+  color:#fff; text-decoration:none; z-index:20;
+  letter-spacing:0.1em;
+}
+.from-link:hover { text-decoration:underline; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <!-- 블러 오버레이 (refer.jpg를 더 뭉개서 얹음) -->
+  <div class="bg-blur"></div>
+  <canvas id="canvas"></canvas>
+
+  <a href="https://newneek.co/@newneek/article/40266" target="_blank" rel="noopener" class="from-link">FROM</a>
+
+  <div class="counter">
+    <div class="label">퇴치한 러브버그</div>
+    <div class="num" id="count">0</div>
+  </div>
+</div>
+
+<script src="day9.js"></script>
+</body>
+</html>
