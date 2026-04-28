@@ -5,6 +5,134 @@
 // 클릭 시 LOVE는 위-왼쪽, BUG는 위-오른쪽으로 튕기며 낙하.
 (() => {
   console.log('[day9] start');
+
+  // ─── 사운드 (Web Audio API, 외부 파일 없음) ───
+  // 썸네일 프리뷰 모드면 소리 재생 안 함 (day6 동일 패턴)
+  const IS_THUMB = new URLSearchParams(location.search).has('thumb');
+  let audioCtx = null;
+  let hoverGain = null;      // 붕붕 배경음 볼륨 제어
+  let hoverOsc = null;
+  let hoverOsc2 = null;
+  let hoverNoise = null;
+
+  function getCtx() {
+    if (IS_THUMB) return null;
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch (e) { return null; }
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+  // 사용자 첫 상호작용 후 unlock
+  ['click', 'keydown', 'pointerdown'].forEach(ev =>
+    window.addEventListener(ev, () => { getCtx(); startHoverLoop(); }, { once: true })
+  );
+
+  // 붕붕 배경음 (항상 재생, 볼륨만 쌍 개수에 따라 조절)
+  function startHoverLoop() {
+    const ctx = getCtx();
+    if (!ctx || hoverGain) return;
+    hoverGain = ctx.createGain();
+    hoverGain.gain.value = 0; // 시작은 0
+    hoverGain.connect(ctx.destination);
+
+    // 두 개 겹친 낮은 사인 웨이브 + LFO 진동 + 화이트노이즈 필터링 = 벌레 날갯짓
+    hoverOsc = ctx.createOscillator();
+    hoverOsc.type = 'sawtooth';
+    hoverOsc.frequency.value = 90;
+    const oscGain = ctx.createGain();
+    oscGain.gain.value = 0.12;
+    hoverOsc.connect(oscGain).connect(hoverGain);
+
+    hoverOsc2 = ctx.createOscillator();
+    hoverOsc2.type = 'sine';
+    hoverOsc2.frequency.value = 180;
+    const oscGain2 = ctx.createGain();
+    oscGain2.gain.value = 0.05;
+    hoverOsc2.connect(oscGain2).connect(hoverGain);
+
+    // LFO: 주파수를 미세하게 떨어 "위이잉" 변조
+    const lfo = ctx.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.value = 7;
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 12;
+    lfo.connect(lfoGain).connect(hoverOsc.frequency);
+    const lfoGain2 = ctx.createGain();
+    lfoGain2.gain.value = 18;
+    lfo.connect(lfoGain2).connect(hoverOsc2.frequency);
+
+    // 화이트 노이즈 (약간) — "부스럭" 느낌
+    const bufSize = ctx.sampleRate * 2;
+    const noiseBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const data = noiseBuf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * 0.3;
+    hoverNoise = ctx.createBufferSource();
+    hoverNoise.buffer = noiseBuf;
+    hoverNoise.loop = true;
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = 'bandpass';
+    noiseFilter.frequency.value = 200;
+    noiseFilter.Q.value = 2;
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.value = 0.08;
+    hoverNoise.connect(noiseFilter).connect(noiseGain).connect(hoverGain);
+
+    hoverOsc.start();
+    hoverOsc2.start();
+    lfo.start();
+    hoverNoise.start();
+  }
+
+  // 쌍 개수에 따라 볼륨 부드럽게 조절
+  function updateHoverVolume(pairCount) {
+    const ctx = getCtx();
+    if (!ctx || !hoverGain) return;
+    // 쌍 0개 → 0, 4개 → 0.08 (최대)
+    const target = Math.min(0.08, pairCount * 0.02);
+    hoverGain.gain.linearRampToValueAtTime(target, ctx.currentTime + 0.3);
+  }
+
+  // 퇴치 소리 — 클릭 시 짧은 "퍽"
+  function playSwat() {
+    const ctx = getCtx();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+
+    // 1) 짧은 noise burst (퍽!)
+    const bufSize = ctx.sampleRate * 0.15;
+    const noiseBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const data = noiseBuf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * (1 - i / bufSize);
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuf;
+    const nFilter = ctx.createBiquadFilter();
+    nFilter.type = 'lowpass';
+    nFilter.frequency.value = 1800;
+    const nGain = ctx.createGain();
+    nGain.gain.setValueAtTime(0.35, t);
+    nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+    noise.connect(nFilter).connect(nGain).connect(ctx.destination);
+    noise.start(t);
+    noise.stop(t + 0.15);
+
+    // 2) 낮은 톤 descend (슈웅 떨어지는 느낌)
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(280, t);
+    osc.frequency.exponentialRampToValueAtTime(60, t + 0.18);
+    const oGain = ctx.createGain();
+    oGain.gain.setValueAtTime(0, t);
+    oGain.gain.linearRampToValueAtTime(0.12, t + 0.01);
+    oGain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    osc.connect(oGain).connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.22);
+  }
+
   const cv = document.getElementById('canvas');
   const ctx = cv.getContext('2d');
   const countEl = document.getElementById('count');
@@ -281,6 +409,7 @@
       const p = pairs[i];
       if (p.hitTest(mx, my)) {
         p.explode();
+        playSwat();
         killCount++;
         countEl.textContent = killCount;
         break;
@@ -304,6 +433,11 @@
     }
     ctx.clearRect(0, 0, W, H);
     for (const p of pairs) p.draw(ctx);
+
+    // 붕붕 배경음 볼륨: 날아다니는 쌍 개수에 비례
+    const flyingCount = pairs.filter(p => p.state === 'flying').length;
+    updateHoverVolume(flyingCount);
+
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);

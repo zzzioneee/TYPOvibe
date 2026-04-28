@@ -51,6 +51,13 @@
 - 그 위에 **`.bg-blur` 오버레이** — 같은 이미지를 `filter: blur(18px) + scale(1.1)`로 겹침
 - 이중 레이어로 **원본 톤은 유지하면서 더 뭉개진 몽환감**
 
+### 7. 사운드 (Web Audio API, 외부 파일 없음)
+- **붕붕 배경음**: sawtooth 90Hz + sine 180Hz + bandpass filtered noise 합성. LFO 7Hz로 ±12~18Hz 주파수 변조 → 벌레 날갯짓 "위이잉"
+- 볼륨은 **날아다니는 쌍 개수에 비례** (0~4쌍 → 0~0.08, linear ramp)
+- **퇴치 효과음**: noise burst(lowpass 1800Hz, 0.15s) + sine 280→60Hz exponential(0.18s) 겹침 → "퍽 슈웅"
+- 브라우저 자동재생 정책 대응: 첫 click/keydown/pointerdown 시 AudioContext unlock
+- 썸네일 프리뷰(`?thumb`)에서는 소리 안 나게 IS_THUMB 가드
+
 ---
 
 ## 기술 스택
@@ -60,6 +67,7 @@
 | Canvas 2D | 쌍 렌더링, 원형 글자 배치, 분해 파티클 |
 | requestAnimationFrame | 메인 루프 |
 | CSS background + blur | 풀밭 배경 이중 레이어 |
+| Web Audio API | 붕붕 배경음(oscillator+LFO+noise), 퇴치 퍽 소리 |
 
 ---
 
@@ -108,7 +116,6 @@ LOVE/BUG를 각 자소가 아니라 **알파벳 5x5 픽셀 패턴**으로 쪼개
 
 - **분해 파티클 개수 증가**: 지금은 LOVE 한 덩어리, BUG 한 덩어리로 2개만 튕겨나감. 각 원이 개별 파티클로 흩어지면 더 드라마틱할 듯
 - **그림자**: 배경이 풀밭인데 벌레 바로 밑에 그림자 없어 붕 떠 보임. 타원 반투명 shadow 추가하면 "풀밭 위 비행" 더 자연스러움
-- **소리 효과**: 붕붕 효과음 + 퇴치 시 "퍽" 효과음. day6의 Web Audio 패턴 재활용 가능
 - **카운터 UX**: 숫자만 커지는 것보다 "벌레 잡기" 게임적 요소(숫자 pop / 콤보) 얹으면 재미 ↑
 - **반응형**: viewBox/좌표가 화면 크기와 연동 안 되어 세로 화면에서 잘림 많음
 - **배경 블러 강도 조정 인터랙션**: 지금 고정 18px인데 사용자 설정 변경 가능하게 하면 이터레이션 편해졌을 듯
