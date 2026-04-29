@@ -8,6 +8,7 @@ import Day006 from './works/day6'
 import Day007 from './works/day7'
 import Day008 from './works/day8'
 import Day009 from './works/day9'
+import Day010 from './works/day10'
 
 type View = 'home' | string
 
@@ -102,6 +103,16 @@ const WORKS = [
     ratio: '4 / 3',
     bgTheme: 'dark' as const,
   },
+  {
+    id: 'day10',
+    day: '10',
+    date: '2026.04.29',
+    title: '파편이 맥락이 될 때',
+    desc: 'SNS처럼 스크롤되는 조각 피드. 카드를 누르면 디지털로 분해되고, 꾹 누르면 파편이 다시 붙습니다. 김윤식 작가 전시에서 출발한 물성 인터랙션.',
+    tags: ['Canvas', 'Interactive', 'Particle'],
+    ratio: '4 / 3',
+    bgTheme: 'light' as const,
+  },
 ]
 
 export default function App() {
@@ -161,6 +172,7 @@ export default function App() {
           {view === 'day7' && <Day007 />}
           {view === 'day8' && <Day008 />}
           {view === 'day9' && <Day009 />}
+          {view === 'day10' && <Day010 />}
         </main>
       </div>
     )

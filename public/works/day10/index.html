@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 10 — 파편이 맥락이 될 때</title>
+<style>
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body {
+  width:100%; height:100%;
+  background:#f0f0f0;
+  font-family:'Pretendard', sans-serif;
+  color:#111;
+  overflow:hidden;
+  user-select:none;
+  -webkit-user-select:none;
+}
+
+/* ───────── 1막: 피드 ───────── */
+#feed {
+  position:absolute; inset:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  -webkit-overflow-scrolling: touch;
+  background:
+    linear-gradient(rgba(122, 201, 255, 0.05) 1px, transparent 1px) 0 0 / 32px 32px,
+    linear-gradient(90deg, rgba(122, 201, 255, 0.05) 1px, transparent 1px) 0 0 / 32px 32px,
+    #f0f0f0;
+}
+#feed.hidden { display:none; }
+
+.feed-header {
+  position:sticky; top:0; z-index:5;
+  padding:14px 28px 10px;
+  background:rgba(240,240,240,0.92);
+  backdrop-filter:blur(8px);
+  border-bottom:1px solid rgba(0,0,0,0.08);
+  display:flex; justify-content:space-between; align-items:baseline;
+  gap:18px;
+}
+.feed-header .title {
+  font-family:'Pretendard'; font-size:14px; font-weight:800;
+  letter-spacing:-0.01em; color:#111;
+}
+.feed-header .subtitle {
+  font-family:'JetBrains Mono', monospace; font-size:10px;
+  letter-spacing:0.18em; color:#666; font-weight:500;
+}
+.feed-header .from {
+  font-family:'Pretendard'; font-size:11px; font-weight:600;
+  color:#666; text-decoration:none; padding-bottom:2px;
+  border-bottom:1.5px solid #666;
+  letter-spacing:0.12em;
+}
+.feed-header .from:hover { color:#111; border-color:#111; }
+
+.feed-hint {
+  position:sticky; top:0; z-index:4;
+  text-align:center; padding:8px;
+  font-family:'JetBrains Mono', monospace; font-size:10px; font-weight:500;
+  color:#999; letter-spacing:0.2em;
+  pointer-events:none;
+}
+
+.feed-list {
+  max-width:440px; margin:0 auto;
+  padding:16px 20px 200px;
+  display:flex; flex-direction:column; gap:16px;
+}
+
+.card {
+  background:#fff;
+  border:1.5px solid #111;
+  cursor:pointer;
+  transition: transform 0.35s cubic-bezier(0.2,0.8,0.2,1), box-shadow 0.35s;
+  display:flex; flex-direction:column;
+  position:relative;
+}
+.card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.08), 0 2px 0 #111;
+}
+.card .img-wrap {
+  width:100%; aspect-ratio:4/5; overflow:hidden;
+  background:#e5e5e5; position:relative;
+  display:flex; align-items:center; justify-content:center;
+}
+.card .img-wrap img {
+  width:100%; height:100%; object-fit:cover; display:block;
+  filter:contrast(1.02) saturate(0.9);
+}
+.card .img-wrap::after {
+  content:''; position:absolute; inset:0;
+  background:
+    linear-gradient(rgba(122, 201, 255, 0.12) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(90deg, rgba(122, 201, 255, 0.12) 1px, transparent 1px) 0 0 / 24px 24px;
+  opacity:0; transition:opacity 0.25s;
+  pointer-events:none;
+}
+.card:hover .img-wrap::after { opacity:1; }
+
+.card .meta {
+  padding:14px 16px 16px;
+  font-family:'JetBrains Mono', monospace;
+  font-size:10px; font-weight:500; color:#444;
+  letter-spacing:0.02em; line-height:1.5;
+}
+.card .meta .num {
+  color:#ff2d7e; font-weight:700; margin-right:8px;
+}
+.card .meta .artist {
+  font-family:'Pretendard'; font-size:13px; font-weight:700;
+  color:#111; margin-bottom:2px; letter-spacing:-0.01em;
+}
+.card .meta .work {
+  font-family:'Pretendard'; font-size:15px; font-weight:800;
+  color:#111; margin-bottom:10px; letter-spacing:-0.02em;
+  line-height:1.2;
+}
+.card .meta .data-row {
+  display:flex; justify-content:space-between;
+  padding:4px 0; border-top:1px dashed #bbb;
+  font-size:10px;
+}
+.card .meta .data-row .k { color:#999; letter-spacing:0.1em; }
+.card .meta .data-row .v { color:#111; font-weight:700; font-variant-numeric:tabular-nums; }
+.card .tag-digital {
+  position:absolute; top:8px; right:8px;
+  padding:3px 7px; background:#111; color:#2dff9a;
+  font-family:'JetBrains Mono', monospace; font-size:9px; font-weight:700;
+  letter-spacing:0.15em;
+}
+
+/* ───────── 2막 + 3막: 풀스크린 스테이지 ───────── */
+#stage {
+  position:absolute; inset:0;
+  background-color:#f0f0f0;
+  background-image:
+    radial-gradient(rgba(60, 110, 170, 0.25) 0.9px, transparent 1px),
+    linear-gradient(rgba(122, 201, 255, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(122, 201, 255, 0.12) 1px, transparent 1px);
+  background-size:20px 20px, 80px 80px, 80px 80px;
+  opacity:0; pointer-events:none;
+  transition: opacity 0.4s ease;
+  overflow:hidden;
+}
+#stage.active { opacity:1; pointer-events:auto; }
+#stage canvas { display:block; position:absolute; inset:0; }
+
+/* 닫기(back) */
+.back-btn {
+  position:absolute; top:24px; left:28px; z-index:30;
+  padding:8px 14px; background:#fff; border:1.5px solid #111;
+  font-family:'Pretendard'; font-size:12px; font-weight:700;
+  color:#111; cursor:pointer; letter-spacing:0.08em;
+}
+.back-btn:hover { background:#111; color:#fff; }
+
+/* 상태 라벨 */
+.state-badge {
+  position:absolute; top:24px; left:50%; transform:translateX(-50%);
+  z-index:20;
+  padding:6px 12px; background:rgba(255,255,255,0.8);
+  border:1.5px solid #333;
+  font-family:'JetBrains Mono', monospace;
+  font-size:11px; font-weight:700; color:#333;
+  letter-spacing:0.18em;
+  backdrop-filter:blur(6px);
+}
+.state-badge[data-state="DIGITIZING"] { color:#ff2d7e; border-color:#ff2d7e; }
+.state-badge[data-state="DISSOLVING"] { color:#ff2d7e; border-color:#ff2d7e; background:rgba(255, 45, 126, 0.06); }
+.state-badge[data-state="HOLDING"] { color:#2dff9a; border-color:#2dff9a; background:rgba(45, 255, 154, 0.08); }
+.state-badge[data-state="LOADING"]  { color:#666; border-color:#666; }
+
+/* 메타데이터 크레딧 - 우상단 */
+.stage-meta {
+  position:absolute; top:24px; right:28px; z-index:20;
+  text-align:right; pointer-events:none;
+  max-width:260px;
+}
+.stage-meta .artist {
+  font-family:'JetBrains Mono', monospace;
+  font-size:10px; font-weight:700; letter-spacing:0.2em;
+  color:#666; margin-bottom:4px;
+}
+.stage-meta .work {
+  font-family:'Pretendard'; font-size:17px; font-weight:800;
+  color:#111; letter-spacing:-0.015em; line-height:1.2;
+}
+.stage-meta .year {
+  font-family:'JetBrains Mono', monospace;
+  font-size:10px; font-weight:500; color:#888;
+  margin-top:4px; letter-spacing:0.1em;
+}
+
+/* 무게 카운터 - 우하단 */
+.mass {
+  position:absolute; bottom:32px; right:32px; z-index:20;
+  text-align:right; pointer-events:none;
+}
+.mass .label {
+  font-family:'JetBrains Mono', monospace;
+  font-size:10px; font-weight:700; letter-spacing:0.3em;
+  color:#888; margin-bottom:6px;
+}
+.mass .value {
+  font-family:'JetBrains Mono', monospace;
+  font-size:44px; font-weight:800; line-height:0.9;
+  font-variant-numeric:tabular-nums;
+  color:#111; letter-spacing:-0.02em;
+}
+.mass .value.low { color:#ff2d7e; }
+.mass .value.zero { color:#ff2d7e; opacity:0.5; }
+
+/* 가이드 - 좌하단 */
+.guide {
+  position:absolute; bottom:32px; left:32px; z-index:20;
+  font-family:'Pretendard';
+  font-size:13px; font-weight:500; color:#666;
+  pointer-events:none; max-width:260px; line-height:1.5;
+}
+.guide .key {
+  display:inline-block; padding:2px 7px;
+  border:1.5px solid #111; background:#fff;
+  font-family:'JetBrains Mono', monospace; font-size:10px; font-weight:700;
+  color:#111; margin-right:6px; letter-spacing:0.08em;
+}
+
+/* 메시지 - 하단 중앙 */
+#messages {
+  position:absolute; bottom:120px; left:50%; transform:translateX(-50%);
+  z-index:20; pointer-events:none;
+  display:flex; flex-direction:column; align-items:center; gap:10px;
+  max-width:540px; width:90%;
+}
+.msg {
+  font-family:'Pretendard'; font-size:16px; font-weight:700; color:#111;
+  letter-spacing:-0.01em;
+  opacity:0; transform:translateY(8px);
+  transition:opacity 1s ease, transform 1s ease;
+  text-shadow:0 0 12px rgba(240,240,240,0.95);
+  text-align:center;
+}
+.msg.show { opacity:1; transform:translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- 1막: 피드 -->
+<div id="feed">
+  <div class="feed-header">
+    <div>
+      <div class="title">파편이 맥락이 될 때</div>
+      <div class="subtitle">FRAGMENTS · AS · CONTEXT</div>
+    </div>
+    <a href="https://magazine.beattitude.kr/visual-portfolio/younsikkim/" target="_blank" rel="noopener" class="from">FROM · 비애티튜드</a>
+  </div>
+  <div class="feed-hint">↓ SCROLL · TAP A SCULPTURE ↓</div>
+  <div class="feed-list" id="feed-list"></div>
+</div>
+
+<!-- 2막+3막: 스테이지 -->
+<div id="stage">
+  <button class="back-btn" id="back-btn">← 피드로</button>
+  <div class="state-badge" id="state-badge" data-state="ENTERED">● 물질 / SOLID</div>
+  <div class="stage-meta" id="stage-meta">
+    <div class="artist"></div>
+    <div class="work"></div>
+    <div class="year"></div>
+  </div>
+  <div class="guide">
+    <span class="key">PRESS &amp; HOLD</span>
+    파편이 다시 붙습니다.<br>
+    손을 떼면 흩어집니다.
+  </div>
+  <div class="mass">
+    <div class="label">WEIGHT</div>
+    <div class="value" id="mass-value">— kg</div>
+  </div>
+  <div id="messages"></div>
+</div>
+
+<script type="module" src="./day10.js"></script>
+</body>
+</html>
