@@ -175,6 +175,37 @@ window.addEventListener('resize', resize);
 resize(); // 초기 셋업
 
 // ═══════════════════════════════════════════════════════════════
+// Duotone 변환 — 이미지를 두 색(shadow, highlight) 사이의 그라데이션으로 매핑
+// ═══════════════════════════════════════════════════════════════
+
+function applyDuotone(imgEl, shadowRGB, highlightRGB) {
+  const off = document.createElement('canvas');
+  // 텍스처 메모리 적당히
+  const MAX = 1024;
+  const ratio = imgEl.naturalWidth / imgEl.naturalHeight;
+  let w, h;
+  if (ratio > 1) { w = MAX; h = Math.round(MAX / ratio); }
+  else           { h = MAX; w = Math.round(MAX * ratio); }
+  off.width = w;
+  off.height = h;
+  const c = off.getContext('2d');
+  c.drawImage(imgEl, 0, 0, w, h);
+  const data = c.getImageData(0, 0, w, h);
+  const d = data.data;
+  for (let i = 0; i < d.length; i += 4) {
+    // 밝기 0..1
+    const lum = (0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2]) / 255;
+    // lum 을 5-pow 로 slight S-curve 줘서 contrast 올림
+    const t = Math.pow(lum, 0.9);
+    d[i]     = shadowRGB[0] + (highlightRGB[0] - shadowRGB[0]) * t;
+    d[i + 1] = shadowRGB[1] + (highlightRGB[1] - shadowRGB[1]) * t;
+    d[i + 2] = shadowRGB[2] + (highlightRGB[2] - shadowRGB[2]) * t;
+  }
+  c.putImageData(data, 0, 0);
+  return off;
+}
+
+// ═══════════════════════════════════════════════════════════════
 // Relief mesh 빌드 — 이미지를 3D displacement 로 변환
 // ═══════════════════════════════════════════════════════════════
 
@@ -247,45 +278,65 @@ function buildReliefMesh(imgEl) {
   originalPositions = new Float32Array(pos.array);
   displacedPositions = new Float32Array(pos.array);
 
-  // 텍스처
-  const tex = new THREE.Texture(imgEl);
-  tex.needsUpdate = true;
-  tex.colorSpace = THREE.SRGBColorSpace;
+  // ─── 두 가지 색온도 텍스처 ─────
+  // Warm duotone: 따뜻한 시작 상태 (데이터화 전 - 오렌지/크림 LED)
+  const warmCanvas = applyDuotone(imgEl, [58, 22, 8],   [255, 213, 160]); // 짙은 갈색 → 크림 오렌지
+  // Cool duotone: 차가운 완료 상태 (디지털화 후 - 청록/아이보리 기술도면)
+  const coolCanvas = applyDuotone(imgEl, [18, 30, 50],  [210, 225, 240]); // 딥 네이비 → 연한 시안-화이트
 
-  // Solid 재질 — 텍스처 + lambert (음영)
+  const warmTex = new THREE.CanvasTexture(warmCanvas);
+  const coolTex = new THREE.CanvasTexture(coolCanvas);
+  warmTex.colorSpace = THREE.SRGBColorSpace;
+  coolTex.colorSpace = THREE.SRGBColorSpace;
+
+  // Solid 재질 — warm 텍스처로 시작, DIGITIZING 동안 cool 로 크로스페이드
+  // MeshStandardMaterial 를 onBeforeCompile 로 후킹해서 두 텍스처 mix
   const solidMat = new THREE.MeshStandardMaterial({
-    map: tex,
-    roughness: 0.7,
-    metalness: 0.15,
+    map: warmTex,
+    roughness: 0.65,
+    metalness: 0.12,
     side: THREE.DoubleSide,
   });
+  solidMat.userData = {
+    uMix: { value: 0 }, // 0 = warm, 1 = cool
+    uCoolMap: { value: coolTex },
+  };
+  solidMat.onBeforeCompile = (shader) => {
+    shader.uniforms.uMix = solidMat.userData.uMix;
+    shader.uniforms.uCoolMap = solidMat.userData.uCoolMap;
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform float uMix;\nuniform sampler2D uCoolMap;')
+      .replace(
+        '#include <map_fragment>',
+        `
+          #ifdef USE_MAP
+            vec4 warmColor = texture2D( map, vMapUv );
+            vec4 coolColor = texture2D( uCoolMap, vMapUv );
+            vec4 sampledDiffuseColor = mix( warmColor, coolColor, uMix );
+            diffuseColor *= sampledDiffuseColor;
+          #endif
+        `
+      );
+  };
 
-  // Wireframe 재질 — 네온 시안
-  const wireMat = new THREE.MeshBasicMaterial({
-    color: 0x4ab8ff,
-    wireframe: true,
-    transparent: true,
-    opacity: 0,
-  });
-
+  // wireframe 은 제거 (v2 에선 색온도 전환만 사용)
   reliefMesh = new THREE.Mesh(geo, solidMat);
-  wireMesh = new THREE.Mesh(geo, wireMat); // 같은 geometry 공유 (wireframe overlay)
+  // wireMesh 는 null 처리 — 기존 코드 호환용 dummy group
+  wireMesh = null;
 
   meshGroup = new THREE.Group();
   meshGroup.add(reliefMesh);
-  meshGroup.add(wireMesh);
   scene.add(meshGroup);
 
   // 파티클 geometry — solid mesh vertex 와 같음, points 로 렌더
   const pGeo = geo.clone();
-  // 각 vertex 색상을 텍스처에서 샘플 (DISSOLVING 파편 색으로 쓸 것)
+  // 각 vertex 색상을 cool 텍스처에서 샘플 (DISSOLVING 파편 색 = 디지털화된 색감)
   const colors = new Float32Array(pGeo.attributes.position.count * 3);
-  // 이미지 픽셀 컬러 샘플 (저해상도)
   const colorCanvas = document.createElement('canvas');
   colorCanvas.width = hSamplesW;
   colorCanvas.height = hSamplesH;
   const cCtx = colorCanvas.getContext('2d');
-  cCtx.drawImage(imgEl, 0, 0, hSamplesW, hSamplesH);
+  cCtx.drawImage(coolCanvas, 0, 0, hSamplesW, hSamplesH);
   const cData = cCtx.getImageData(0, 0, hSamplesW, hSamplesH).data;
 
   for (let i = 0; i < pGeo.attributes.position.count; i++) {
@@ -504,41 +555,65 @@ function animate(now = 0) {
   if (!meshGroup) { renderer.render(scene, camera); return; }
 
   // ─── 상태 전이 ─────
+
+  // ease functions
+  const easeInOutCubic = (x) => x < 0.5 ? 4*x*x*x : 1 - Math.pow(-2*x+2, 3) / 2;
+
+  // 배경 warm/cool 전환 (stageEl 의 background-color 직접 컨트롤)
+  // 현재 상태의 '디지털화 진행도' 계산
+  let digiProg = 0;
+  if (state === STATE.ENTERED)    digiProg = 0;
+  else if (state === STATE.DIGITIZING) digiProg = easeInOutCubic(Math.min(1, stateTimer / 2.8));
+  else if (state === STATE.HOLDING) {
+    // 복원 중엔 HOLDING 측정치 반영 (뒤에서 restored 계산 — 여기선 대략 1)
+    digiProg = 1;
+  }
+  else digiProg = 1;
+  // warm: 크림 따뜻한 배경 (249, 240, 226), cool: 차가운 회색-화이트 (228, 234, 242)
+  const bgR = Math.round(249 + (228 - 249) * digiProg);
+  const bgG = Math.round(240 + (234 - 240) * digiProg);
+  const bgB = Math.round(226 + (242 - 226) * digiProg);
+  stageEl.style.backgroundColor = `rgb(${bgR}, ${bgG}, ${bgB})`;
+
   if (state === STATE.ENTERED) {
+    // warm 에서 안정
+    if (reliefMesh?.material?.userData?.uMix) {
+      reliefMesh.material.userData.uMix.value = 0;
+    }
     if (stateTimer >= 2.0) {
       state = STATE.DIGITIZING; stateTimer = 0; updateStateBadge();
     }
   } else if (state === STATE.DIGITIZING) {
     const dur = 2.8;
-    const prog = Math.min(1, stateTimer / dur);
-    // solid → wireframe 크로스페이드
-    if (reliefMesh) reliefMesh.material.opacity = 1;
-    if (reliefMesh) {
-      reliefMesh.material.transparent = true;
-      // solid 는 약간 어두워지면서 80% 까지 살아있음 (완전 투명 안 됨)
-      reliefMesh.material.opacity = 1 - prog * 0.4;
+    const prog = easeInOutCubic(Math.min(1, stateTimer / dur));
+    // warm → cool 색온도 shift
+    if (reliefMesh?.material?.userData?.uMix) {
+      reliefMesh.material.userData.uMix.value = prog;
     }
-    // wireframe 은 점점 선명해짐
-    if (wireMesh) wireMesh.material.opacity = prog * 0.85;
     if (stateTimer >= dur) {
       state = STATE.DISSOLVING; stateTimer = 0;
       updateStateBadge();
-      // 파티클 점점 드러나고 mesh 는 서서히 사라짐
     }
   } else if (state === STATE.DISSOLVING) {
     if (isHolding) {
       state = STATE.HOLDING; stateTimer = 0; updateStateBadge();
     } else {
+      // uMix = 1 유지 (완전 디지털화 상태)
+      if (reliefMesh?.material?.userData?.uMix) {
+        reliefMesh.material.userData.uMix.value = 1;
+      }
       const dissolveProgress = Math.min(1, stateTimer / 3);
-      if (reliefMesh) reliefMesh.material.opacity = Math.max(0, 0.6 - dissolveProgress * 0.6);
-      if (wireMesh) wireMesh.material.opacity = Math.max(0, 0.85 - dissolveProgress * 0.85);
+      if (reliefMesh) {
+        reliefMesh.material.transparent = true;
+        reliefMesh.material.opacity = Math.max(0, 1 - dissolveProgress);
+      }
       if (particleMesh) particleMesh.material.opacity = dissolveProgress;
 
-      // 파티클 확산 — DISSOLVING 진입 시 원위치에서 velocity 받음
+      // 파티클 확산
       if (particleMesh && displacedPositions && particleVelocities) {
         const pos = particleMesh.geometry.attributes.position;
         for (let i = 0; i < pos.count; i++) {
-          particleVelocities[i * 3 + 1] -= 0.8 * dt; // gravity
+          particleVelocities[i * 3 + 1] -= 0.8 * dt;
           pos.setX(i, pos.getX(i) + particleVelocities[i * 3]     * dt);
           pos.setY(i, pos.getY(i) + particleVelocities[i * 3 + 1] * dt);
           pos.setZ(i, pos.getZ(i) + particleVelocities[i * 3 + 2] * dt);
@@ -591,8 +666,13 @@ function animate(now = 0) {
       }
       // 복원되면 solid 다시 보이게
       const restored = Math.max(0, 1 - avg / 0.8);
-      if (reliefMesh) reliefMesh.material.opacity = restored * 0.9;
-      if (wireMesh) wireMesh.material.opacity = Math.max(0.3, restored * 0.8);
+      if (reliefMesh) {
+        reliefMesh.material.opacity = restored;
+        // 복원되는 동안 warm 쪽으로 살짝 돌아옴 (완전히 돌아오진 않음 — 0.3 까지)
+        if (reliefMesh.material.userData?.uMix) {
+          reliefMesh.material.userData.uMix.value = 1 - restored * 0.7;
+        }
+      }
       if (particleMesh) particleMesh.material.opacity = Math.max(0.15, 1 - restored * 0.7);
 
       mass = Math.min(massInitial, mass + massInitial * 0.17 * dt);
