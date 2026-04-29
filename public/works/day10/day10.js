@@ -248,28 +248,30 @@ function buildReliefMesh(imgEl) {
     planeW = planeH * aspect;
   }
 
-  const COLS = 140, ROWS = 140; // grid density
+  const COLS = 80, ROWS = 80; // voxel 스텝 뚜렷하게 보이도록 grid 거칠게
   const geo = new THREE.PlaneGeometry(planeW, planeH, COLS - 1, ROWS - 1);
 
-  const hSamplesW = 180;
-  const hSamplesH = Math.round(180 / aspect);
+  const hSamplesW = 120;
+  const hSamplesH = Math.round(120 / aspect);
   const heights = sampleHeightmap(imgEl, hSamplesW, hSamplesH);
 
   // displacement 적용 + 기준 위치 보관
   const pos = geo.attributes.position;
-  const displaceScale = 0.55; // 깊이감 강도
+  const displaceScale = 1.6; // voxel 스타일 — 깊이감 강하게
+  const BINS = 5;             // 밝기 5단계 양자화
 
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i);
     const y = pos.getY(i);
-    // UV 좌표 기반 heightmap 샘플링
     const u = (x / planeW) + 0.5;
     const v = 1 - ((y / planeH) + 0.5);
     const px = Math.max(0, Math.min(hSamplesW - 1, Math.floor(u * hSamplesW)));
     const py = Math.max(0, Math.min(hSamplesH - 1, Math.floor(v * hSamplesH)));
     const h = heights[py * hSamplesW + px];
-    // 밝을수록 앞(+z), 어두울수록 뒤(-z)
-    const z = (h - 0.3) * displaceScale;
+    // 5단계 step — 연속 아닌 계단식 (voxel 느낌)
+    const qBin = Math.min(BINS - 1, Math.floor(h * BINS));
+    const qH = qBin / (BINS - 1); // 0, 0.25, 0.5, 0.75, 1
+    const z = (qH - 0.3) * displaceScale;
     pos.setZ(i, z);
   }
   geo.computeVertexNormals();
@@ -290,15 +292,15 @@ function buildReliefMesh(imgEl) {
   coolTex.colorSpace = THREE.SRGBColorSpace;
 
   // Solid 재질 — warm 텍스처로 시작, DIGITIZING 동안 cool 로 크로스페이드
-  // MeshStandardMaterial 를 onBeforeCompile 로 후킹해서 두 텍스처 mix
   const solidMat = new THREE.MeshStandardMaterial({
     map: warmTex,
     roughness: 0.65,
     metalness: 0.12,
     side: THREE.DoubleSide,
+    flatShading: true, // voxel 스텝의 각 면마다 음영 뚜렷하게
   });
   solidMat.userData = {
-    uMix: { value: 0 }, // 0 = warm, 1 = cool
+    uMix: { value: 0 },
     uCoolMap: { value: coolTex },
   };
   solidMat.onBeforeCompile = (shader) => {
@@ -319,13 +321,20 @@ function buildReliefMesh(imgEl) {
       );
   };
 
-  // wireframe 은 제거 (v2 에선 색온도 전환만 사용)
   reliefMesh = new THREE.Mesh(geo, solidMat);
-  // wireMesh 는 null 처리 — 기존 코드 호환용 dummy group
-  wireMesh = null;
+
+  // 폴리곤 경계 라인 — DIGITIZING 이후 서서히 드러남 (얇은 검은 선)
+  const edgeGeo = new THREE.EdgesGeometry(geo, 15); // 15° threshold
+  const edgeMat = new THREE.LineBasicMaterial({
+    color: 0x1a2538,
+    transparent: true,
+    opacity: 0,
+  });
+  wireMesh = new THREE.LineSegments(edgeGeo, edgeMat);
 
   meshGroup = new THREE.Group();
   meshGroup.add(reliefMesh);
+  meshGroup.add(wireMesh);
   scene.add(meshGroup);
 
   // 파티클 geometry — solid mesh vertex 와 같음, points 로 렌더
@@ -375,6 +384,29 @@ function buildReliefMesh(imgEl) {
     particleVelocities[i * 3 + 1] = (oy / len) * spread + (Math.random() - 0.5) * 0.3 + 0.2;
     particleVelocities[i * 3 + 2] = (oz / len) * spread + (Math.random() - 0.5) * 0.3;
   }
+
+  // ─── 바운딩 박스 (CAD 뷰포트 느낌) ─────
+  geo.computeBoundingBox();
+  const bbox = geo.boundingBox;
+  const box = new THREE.Box3Helper(bbox, 0x1a2538);
+  box.material.transparent = true;
+  box.material.opacity = 0;
+  box.material.depthTest = false;
+  meshGroup.add(box);
+  // userData 로 box 참조 저장해서 animate 에서 opacity 제어
+  meshGroup.userData.box = box;
+
+  // ─── CAD 속성 패널 값 채우기 ─────
+  const verts = geo.attributes.position.count;
+  const faces = geo.index ? geo.index.count / 3 : Math.round(verts / 3);
+  const w = (bbox.max.x - bbox.min.x).toFixed(2);
+  const h = (bbox.max.y - bbox.min.y).toFixed(2);
+  const d = (bbox.max.z - bbox.min.z).toFixed(2);
+  document.getElementById('cad-object').textContent = `SCULPT_${currentSculpture.id}`;
+  document.getElementById('cad-vertices').textContent = verts.toLocaleString();
+  document.getElementById('cad-faces').textContent = faces.toLocaleString();
+  document.getElementById('cad-material').textContent = currentSculpture.material.toUpperCase().slice(0, 18);
+  document.getElementById('cad-bound').textContent = `${w}×${h}×${d}`;
 
   return { planeW, planeH };
 }
@@ -511,6 +543,11 @@ function updateStateBadge() {
   };
   stateBadge.textContent = labels[state] || state;
   stateBadge.dataset.state = state;
+  // CAD UI 표시 여부 — DIGITIZING 부터 활성
+  const digi = (state === STATE.DIGITIZING);
+  const digital = (state === STATE.DISSOLVING || state === STATE.HOLDING || state === STATE.GONE);
+  stageEl.classList.toggle('digitizing', digi);
+  stageEl.classList.toggle('digital', digital);
 }
 
 function updateMass() {
@@ -590,6 +627,14 @@ function animate(now = 0) {
     if (reliefMesh?.material?.userData?.uMix) {
       reliefMesh.material.userData.uMix.value = prog;
     }
+    // 폴리곤 경계 라인 — 서서히 드러남
+    if (wireMesh) {
+      wireMesh.material.opacity = prog * 0.6;
+    }
+    // 바운딩 박스도 서서히 드러남
+    if (meshGroup?.userData?.box) {
+      meshGroup.userData.box.material.opacity = prog * 0.5;
+    }
     if (stateTimer >= dur) {
       state = STATE.DISSOLVING; stateTimer = 0;
       updateStateBadge();
@@ -606,6 +651,13 @@ function animate(now = 0) {
       if (reliefMesh) {
         reliefMesh.material.transparent = true;
         reliefMesh.material.opacity = Math.max(0, 1 - dissolveProgress);
+      }
+      if (wireMesh) {
+        wireMesh.material.opacity = Math.max(0, 0.6 - dissolveProgress * 0.6);
+      }
+      // 바운딩 박스는 DISSOLVING 중엔 유지
+      if (meshGroup?.userData?.box) {
+        meshGroup.userData.box.material.opacity = Math.max(0, 0.5 - dissolveProgress * 0.3);
       }
       if (particleMesh) particleMesh.material.opacity = dissolveProgress;
 
@@ -668,10 +720,15 @@ function animate(now = 0) {
       const restored = Math.max(0, 1 - avg / 0.8);
       if (reliefMesh) {
         reliefMesh.material.opacity = restored;
-        // 복원되는 동안 warm 쪽으로 살짝 돌아옴 (완전히 돌아오진 않음 — 0.3 까지)
         if (reliefMesh.material.userData?.uMix) {
           reliefMesh.material.userData.uMix.value = 1 - restored * 0.7;
         }
+      }
+      if (wireMesh) {
+        wireMesh.material.opacity = restored * 0.5;
+      }
+      if (meshGroup?.userData?.box) {
+        meshGroup.userData.box.material.opacity = Math.max(0.2, restored * 0.5);
       }
       if (particleMesh) particleMesh.material.opacity = Math.max(0.15, 1 - restored * 0.7);
 
