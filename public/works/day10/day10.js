@@ -146,13 +146,17 @@ let massInitial = 0;
 let mouseNorm = { x: 0, y: 0 };  // parallax
 
 let reliefMesh = null;   // solid 재질 mesh
-let wireMesh = null;     // wireframe mesh
-let particleMesh = null; // DISSOLVING 단계 파편 point cloud
+let wireMesh = null;     // wireframe LineSegments (파편 대상)
 let meshGroup = null;    // 전체 묶음 (카메라 회전용)
 
-let originalPositions = null; // Float32Array, 원본 vertex 위치
-let displacedPositions = null; // Float32Array, displacement 적용된 위치
-let particleVelocities = null; // DISSOLVING velocity
+let originalPositions = null; // Float32Array, solid mesh 원본 vertex
+let displacedPositions = null; // (DISSOLVING 시 비교용)
+
+// edge 파편 데이터
+let edgeOriginalPositions = null; // wireGeo.position 의 원본 복사본
+let edgeVelocities = null;        // edge 당 1개 velocity (x,y,z)
+let edgeAngularVel = null;        // edge 당 회전 속도
+let edgeRotation = null;          // edge 당 현재 회전
 
 let messagesShown = new Set();
 const MESSAGES = [
@@ -323,10 +327,10 @@ function buildReliefMesh(imgEl) {
 
   reliefMesh = new THREE.Mesh(geo, solidMat);
 
-  // 폴리곤 경계 라인 — DIGITIZING 이후 서서히 드러남 (얇은 검은 선)
+  // 폴리곤 경계 라인 — DIGITIZING 이후 서서히 드러남 (짙은 네이비)
   const edgeGeo = new THREE.EdgesGeometry(geo, 15); // 15° threshold
   const edgeMat = new THREE.LineBasicMaterial({
-    color: 0x1a2538,
+    color: 0x0e1828,
     transparent: true,
     opacity: 0,
   });
@@ -337,52 +341,35 @@ function buildReliefMesh(imgEl) {
   meshGroup.add(wireMesh);
   scene.add(meshGroup);
 
-  // 파티클 geometry — solid mesh vertex 와 같음, points 로 렌더
-  const pGeo = geo.clone();
-  // 각 vertex 색상을 cool 텍스처에서 샘플 (DISSOLVING 파편 색 = 디지털화된 색감)
-  const colors = new Float32Array(pGeo.attributes.position.count * 3);
-  const colorCanvas = document.createElement('canvas');
-  colorCanvas.width = hSamplesW;
-  colorCanvas.height = hSamplesH;
-  const cCtx = colorCanvas.getContext('2d');
-  cCtx.drawImage(coolCanvas, 0, 0, hSamplesW, hSamplesH);
-  const cData = cCtx.getImageData(0, 0, hSamplesW, hSamplesH).data;
+  // ─── Edge 파편화 준비 ─────
+  // wireMesh 의 EdgesGeometry position attribute 를 파편 운동에 사용
+  // 각 edge = 두 vertex. 두 vertex 는 같은 velocity 로 움직여 선 형태 유지.
+  // edge 개수 = position.count / 2
+  const wireGeo = wireMesh.geometry;
+  const wirePos = wireGeo.attributes.position;
+  const edgeCount = wirePos.count / 2;
 
-  for (let i = 0; i < pGeo.attributes.position.count; i++) {
-    const x = pGeo.attributes.position.getX(i);
-    const y = pGeo.attributes.position.getY(i);
-    const u = (x / planeW) + 0.5;
-    const v = 1 - ((y / planeH) + 0.5);
-    const px = Math.max(0, Math.min(hSamplesW - 1, Math.floor(u * hSamplesW)));
-    const py = Math.max(0, Math.min(hSamplesH - 1, Math.floor(v * hSamplesH)));
-    const idx = (py * hSamplesW + px) * 4;
-    colors[i * 3]     = cData[idx]     / 255;
-    colors[i * 3 + 1] = cData[idx + 1] / 255;
-    colors[i * 3 + 2] = cData[idx + 2] / 255;
-  }
-  pGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  // edge 별 원위치 보관 (복원용)
+  edgeOriginalPositions = new Float32Array(wirePos.array);
+  // edge 별 velocity (edge 마다 하나의 velocity 로 두 vertex 동시에 이동)
+  edgeVelocities = new Float32Array(edgeCount * 3);
+  edgeAngularVel = new Float32Array(edgeCount);
+  edgeRotation  = new Float32Array(edgeCount);
 
-  const pMat = new THREE.PointsMaterial({
-    size: 0.025,
-    vertexColors: true,
-    sizeAttenuation: true,
-    transparent: true,
-    opacity: 0,
-  });
-  particleMesh = new THREE.Points(pGeo, pMat);
-  meshGroup.add(particleMesh);
-
-  // DISSOLVING velocity 준비
-  particleVelocities = new Float32Array(pGeo.attributes.position.count * 3);
-  for (let i = 0; i < pGeo.attributes.position.count; i++) {
-    const ox = pGeo.attributes.position.getX(i);
-    const oy = pGeo.attributes.position.getY(i);
-    const oz = pGeo.attributes.position.getZ(i);
-    const len = Math.hypot(ox, oy, oz) || 1;
-    const spread = 0.8 + Math.random() * 1.4;
-    particleVelocities[i * 3]     = (ox / len) * spread + (Math.random() - 0.5) * 0.3;
-    particleVelocities[i * 3 + 1] = (oy / len) * spread + (Math.random() - 0.5) * 0.3 + 0.2;
-    particleVelocities[i * 3 + 2] = (oz / len) * spread + (Math.random() - 0.5) * 0.3;
+  // 중심에서 멀어지는 방향으로 velocity 부여
+  for (let e = 0; e < edgeCount; e++) {
+    const ia = e * 2;
+    const ib = e * 2 + 1;
+    const ax = wirePos.getX(ia), ay = wirePos.getY(ia), az = wirePos.getZ(ia);
+    const bx = wirePos.getX(ib), by = wirePos.getY(ib), bz = wirePos.getZ(ib);
+    const mx = (ax + bx) / 2, my = (ay + by) / 2, mz = (az + bz) / 2;
+    const len = Math.hypot(mx, my, mz) || 1;
+    const spread = 0.6 + Math.random() * 1.2;
+    edgeVelocities[e * 3]     = (mx / len) * spread + (Math.random() - 0.5) * 0.4;
+    edgeVelocities[e * 3 + 1] = (my / len) * spread + (Math.random() - 0.5) * 0.4 + 0.15;
+    edgeVelocities[e * 3 + 2] = (mz / len) * spread + (Math.random() - 0.5) * 0.4;
+    edgeAngularVel[e] = (Math.random() - 0.5) * 3; // 회전 속도
+    edgeRotation[e] = 0;
   }
 
   // ─── 바운딩 박스 (CAD 뷰포트 느낌) ─────
@@ -461,6 +448,7 @@ function cleanupMeshes() {
       if (obj.geometry) obj.geometry.dispose();
       if (obj.material) {
         if (obj.material.map) obj.material.map.dispose();
+        if (obj.material.userData?.uCoolMap?.value) obj.material.userData.uCoolMap.value.dispose();
         obj.material.dispose();
       }
     });
@@ -468,10 +456,12 @@ function cleanupMeshes() {
   meshGroup = null;
   reliefMesh = null;
   wireMesh = null;
-  particleMesh = null;
   originalPositions = null;
   displacedPositions = null;
-  particleVelocities = null;
+  edgeOriginalPositions = null;
+  edgeVelocities = null;
+  edgeAngularVel = null;
+  edgeRotation = null;
 }
 
 function exitStage() {
@@ -627,9 +617,14 @@ function animate(now = 0) {
     if (reliefMesh?.material?.userData?.uMix) {
       reliefMesh.material.userData.uMix.value = prog;
     }
-    // 폴리곤 경계 라인 — 서서히 드러남
+    // solid 는 서서히 투명화 — DIGITIZING 후반부터 확실히 사라짐
+    if (reliefMesh) {
+      reliefMesh.material.transparent = true;
+      reliefMesh.material.opacity = 1 - prog * 0.85; // 100% → 15%
+    }
+    // 폴리곤 경계 라인 — 서서히 드러남, 끝에선 뼈대가 주인공
     if (wireMesh) {
-      wireMesh.material.opacity = prog * 0.6;
+      wireMesh.material.opacity = prog * 0.9;
     }
     // 바운딩 박스도 서서히 드러남
     if (meshGroup?.userData?.box) {
@@ -648,27 +643,41 @@ function animate(now = 0) {
         reliefMesh.material.userData.uMix.value = 1;
       }
       const dissolveProgress = Math.min(1, stateTimer / 3);
+      // solid 는 완전 투명
       if (reliefMesh) {
         reliefMesh.material.transparent = true;
-        reliefMesh.material.opacity = Math.max(0, 1 - dissolveProgress);
+        reliefMesh.material.opacity = 0;
       }
+      // wireframe edge 는 분해되면서 서서히 투명화
       if (wireMesh) {
-        wireMesh.material.opacity = Math.max(0, 0.6 - dissolveProgress * 0.6);
+        wireMesh.material.opacity = Math.max(0, 0.9 - dissolveProgress * 0.6);
       }
-      // 바운딩 박스는 DISSOLVING 중엔 유지
+      // 바운딩 박스도 서서히 사라짐
       if (meshGroup?.userData?.box) {
-        meshGroup.userData.box.material.opacity = Math.max(0, 0.5 - dissolveProgress * 0.3);
+        meshGroup.userData.box.material.opacity = Math.max(0, 0.5 - dissolveProgress * 0.5);
       }
-      if (particleMesh) particleMesh.material.opacity = dissolveProgress;
 
-      // 파티클 확산
-      if (particleMesh && displacedPositions && particleVelocities) {
-        const pos = particleMesh.geometry.attributes.position;
-        for (let i = 0; i < pos.count; i++) {
-          particleVelocities[i * 3 + 1] -= 0.8 * dt;
-          pos.setX(i, pos.getX(i) + particleVelocities[i * 3]     * dt);
-          pos.setY(i, pos.getY(i) + particleVelocities[i * 3 + 1] * dt);
-          pos.setZ(i, pos.getZ(i) + particleVelocities[i * 3 + 2] * dt);
+      // Edge 파편 운동 — 각 edge 의 두 vertex 를 같은 velocity 로 이동
+      if (wireMesh && edgeVelocities) {
+        const pos = wireMesh.geometry.attributes.position;
+        const edgeCount = pos.count / 2;
+        for (let e = 0; e < edgeCount; e++) {
+          // 중력
+          edgeVelocities[e * 3 + 1] -= 0.8 * dt;
+          // 회전 각도 업데이트
+          edgeRotation[e] += edgeAngularVel[e] * dt;
+          // 두 vertex 이동 + 회전 (edge 중점 기준)
+          const ia = e * 2, ib = e * 2 + 1;
+          // 중점 기준 회전은 단순화 — 실제로는 위치만 병진 이동시킴 (회전은 생략해도 케이블 파편 느낌 충분)
+          const dx = edgeVelocities[e * 3] * dt;
+          const dy = edgeVelocities[e * 3 + 1] * dt;
+          const dz = edgeVelocities[e * 3 + 2] * dt;
+          pos.setX(ia, pos.getX(ia) + dx);
+          pos.setY(ia, pos.getY(ia) + dy);
+          pos.setZ(ia, pos.getZ(ia) + dz);
+          pos.setX(ib, pos.getX(ib) + dx);
+          pos.setY(ib, pos.getY(ib) + dy);
+          pos.setZ(ib, pos.getZ(ib) + dz);
         }
         pos.needsUpdate = true;
       }
@@ -682,55 +691,63 @@ function animate(now = 0) {
     if (!isHolding) {
       state = STATE.DISSOLVING; stateTimer = 0; updateStateBadge();
     } else {
-      // 파티클 원위치로 수렴 (holdPoint 가까운 것부터)
-      if (particleMesh && displacedPositions) {
-        const pos = particleMesh.geometry.attributes.position;
-        // holdPoint 를 mesh 공간으로 변환 (단순화: 평면 크기 기준 2.0 범위)
+      // edge 파편 원위치로 수렴 (holdPoint 가까운 것부터)
+      if (wireMesh && edgeOriginalPositions) {
+        const pos = wireMesh.geometry.attributes.position;
+        const edgeCount = pos.count / 2;
         const hx = holdPointNorm.x * 2;
         const hy = holdPointNorm.y * 1.5;
 
         const basePull = 4.0 * dt;
-        for (let i = 0; i < pos.count; i++) {
-          const ox = displacedPositions[i * 3];
-          const oy = displacedPositions[i * 3 + 1];
-          const oz = displacedPositions[i * 3 + 2];
-          const d = Math.hypot(ox - hx, oy - hy);
-          const nearBoost = 1 + Math.max(0, (1.2 - d) / 1.2) * 2.5;
+        let avg = 0;
+        for (let e = 0; e < edgeCount; e++) {
+          const ia = e * 2, ib = e * 2 + 1;
+          const oax = edgeOriginalPositions[ia * 3];
+          const oay = edgeOriginalPositions[ia * 3 + 1];
+          const oaz = edgeOriginalPositions[ia * 3 + 2];
+          const obx = edgeOriginalPositions[ib * 3];
+          const oby = edgeOriginalPositions[ib * 3 + 1];
+          const obz = edgeOriginalPositions[ib * 3 + 2];
+          // edge 중점 계산 (holdPoint 근접도 기준)
+          const mx = (oax + obx) / 2;
+          const my = (oay + oby) / 2;
+          const distFromHold = Math.hypot(mx - hx, my - hy);
+          const nearBoost = 1 + Math.max(0, (1.2 - distFromHold) / 1.2) * 2.5;
           const pull = Math.min(basePull * nearBoost, 1);
-          pos.setX(i, pos.getX(i) + (ox - pos.getX(i)) * pull);
-          pos.setY(i, pos.getY(i) + (oy - pos.getY(i)) * pull);
-          pos.setZ(i, pos.getZ(i) + (oz - pos.getZ(i)) * pull);
-          particleVelocities[i * 3]     *= 0.85;
-          particleVelocities[i * 3 + 1] *= 0.85;
-          particleVelocities[i * 3 + 2] *= 0.85;
+
+          // 두 vertex 모두 원위치로 lerp
+          pos.setX(ia, pos.getX(ia) + (oax - pos.getX(ia)) * pull);
+          pos.setY(ia, pos.getY(ia) + (oay - pos.getY(ia)) * pull);
+          pos.setZ(ia, pos.getZ(ia) + (oaz - pos.getZ(ia)) * pull);
+          pos.setX(ib, pos.getX(ib) + (obx - pos.getX(ib)) * pull);
+          pos.setY(ib, pos.getY(ib) + (oby - pos.getY(ib)) * pull);
+          pos.setZ(ib, pos.getZ(ib) + (obz - pos.getZ(ib)) * pull);
+          // velocity 감쇠
+          edgeVelocities[e * 3]     *= 0.85;
+          edgeVelocities[e * 3 + 1] *= 0.85;
+          edgeVelocities[e * 3 + 2] *= 0.85;
+
+          // 복원도 누적
+          avg += Math.abs(pos.getX(ia) - oax) + Math.abs(pos.getY(ia) - oay);
         }
         pos.needsUpdate = true;
-      }
-      // 복원도 측정
-      let avg = 0;
-      if (particleMesh && displacedPositions) {
-        const pos = particleMesh.geometry.attributes.position;
-        for (let i = 0; i < pos.count; i++) {
-          avg += Math.abs(pos.getX(i) - displacedPositions[i * 3])
-               + Math.abs(pos.getY(i) - displacedPositions[i * 3 + 1]);
+        avg /= edgeCount;
+
+        // 복원도 기반 UI 업데이트
+        const restored = Math.max(0, 1 - avg / 0.8);
+        if (reliefMesh) {
+          reliefMesh.material.opacity = restored;
+          if (reliefMesh.material.userData?.uMix) {
+            reliefMesh.material.userData.uMix.value = 1 - restored * 0.7;
+          }
         }
-        avg /= pos.count;
-      }
-      // 복원되면 solid 다시 보이게
-      const restored = Math.max(0, 1 - avg / 0.8);
-      if (reliefMesh) {
-        reliefMesh.material.opacity = restored;
-        if (reliefMesh.material.userData?.uMix) {
-          reliefMesh.material.userData.uMix.value = 1 - restored * 0.7;
+        if (wireMesh) {
+          wireMesh.material.opacity = Math.max(0.35, 0.9 - restored * 0.4);
+        }
+        if (meshGroup?.userData?.box) {
+          meshGroup.userData.box.material.opacity = Math.max(0.2, restored * 0.5);
         }
       }
-      if (wireMesh) {
-        wireMesh.material.opacity = restored * 0.5;
-      }
-      if (meshGroup?.userData?.box) {
-        meshGroup.userData.box.material.opacity = Math.max(0.2, restored * 0.5);
-      }
-      if (particleMesh) particleMesh.material.opacity = Math.max(0.15, 1 - restored * 0.7);
 
       mass = Math.min(massInitial, mass + massInitial * 0.17 * dt);
     }
