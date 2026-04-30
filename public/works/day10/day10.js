@@ -1,7 +1,10 @@
 // Day 10 — 파편이 맥락이 될 때
 // 3D 뷰포트에서 조각 사진을 displacement relief 로 3D화 → 분해/복원 인터랙션
 
-import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+import * as THREE from 'https://esm.sh/three@0.160.0';
+import { Line2 } from 'https://esm.sh/three@0.160.0/examples/jsm/lines/Line2.js';
+import { LineMaterial } from 'https://esm.sh/three@0.160.0/examples/jsm/lines/LineMaterial.js';
+import { LineSegmentsGeometry } from 'https://esm.sh/three@0.160.0/examples/jsm/lines/LineSegmentsGeometry.js';
 
 const IS_THUMB = new URLSearchParams(location.search).has('thumb');
 
@@ -174,17 +177,20 @@ function resize() {
   renderer.setSize(w, h, false);
   renderer.domElement.style.width = w + 'px';
   renderer.domElement.style.height = h + 'px';
+  // Line2 는 resolution 필요
+  if (wireMesh?.material?.resolution) {
+    wireMesh.material.resolution.set(w, h);
+  }
 }
 window.addEventListener('resize', resize);
-resize(); // 초기 셋업
+resize();
 
 // ═══════════════════════════════════════════════════════════════
-// Duotone 변환 — 이미지를 두 색(shadow, highlight) 사이의 그라데이션으로 매핑
+// Duotone 변환 — 원본 warm 톤 (데이터화 전)
 // ═══════════════════════════════════════════════════════════════
 
 function applyDuotone(imgEl, shadowRGB, highlightRGB) {
   const off = document.createElement('canvas');
-  // 텍스처 메모리 적당히
   const MAX = 1024;
   const ratio = imgEl.naturalWidth / imgEl.naturalHeight;
   let w, h;
@@ -197,15 +203,79 @@ function applyDuotone(imgEl, shadowRGB, highlightRGB) {
   const data = c.getImageData(0, 0, w, h);
   const d = data.data;
   for (let i = 0; i < d.length; i += 4) {
-    // 밝기 0..1
     const lum = (0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2]) / 255;
-    // lum 을 5-pow 로 slight S-curve 줘서 contrast 올림
     const t = Math.pow(lum, 0.9);
     d[i]     = shadowRGB[0] + (highlightRGB[0] - shadowRGB[0]) * t;
     d[i + 1] = shadowRGB[1] + (highlightRGB[1] - shadowRGB[1]) * t;
     d[i + 2] = shadowRGB[2] + (highlightRGB[2] - shadowRGB[2]) * t;
   }
   c.putImageData(data, 0, 0);
+  return off;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CAD LED 패널 텍스처 생성 — 4단계 컬러코딩 flat 면 + LED dot grid overlay
+// (B: 면이 사진이 아닌 "LED 픽셀 격자" 로 보이게)
+// ═══════════════════════════════════════════════════════════════
+
+// CAD 컬러 팔레트 — 레퍼런스 기반, 밝은 배경에서도 선명하도록 채도/명도 조정
+const CAD_PALETTE = [
+  { r:  10, g:  18, b:  34 }, // shadow — 거의 검정에 가까운 네이비 (구조)
+  { r: 232, g:  24, b: 128 }, // low-mid — 진한 마젠타 (조명/신호)
+  { r: 232, g: 120, b:  32 }, // mid-high — 진한 오렌지 (LED 모듈)
+  { r:  48, g: 148, b: 220 }, // highlight — 진한 하늘색 (LED 패널)
+];
+
+function buildCADTexture(imgEl) {
+  const off = document.createElement('canvas');
+  const MAX = 1024;
+  const ratio = imgEl.naturalWidth / imgEl.naturalHeight;
+  let w, h;
+  if (ratio > 1) { w = MAX; h = Math.round(MAX / ratio); }
+  else           { h = MAX; w = Math.round(MAX * ratio); }
+  off.width = w;
+  off.height = h;
+  const c = off.getContext('2d');
+  c.drawImage(imgEl, 0, 0, w, h);
+  const data = c.getImageData(0, 0, w, h);
+  const d = data.data;
+  const bins = CAD_PALETTE.length;
+  // 1차: 밝기 양자화 → 컬러 팔레트 매핑
+  for (let i = 0; i < d.length; i += 4) {
+    const lum = (0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2]) / 255;
+    const bin = Math.min(bins - 1, Math.floor(lum * bins));
+    const p = CAD_PALETTE[bin];
+    d[i]     = p.r;
+    d[i + 1] = p.g;
+    d[i + 2] = p.b;
+  }
+  c.putImageData(data, 0, 0);
+
+  // 2차: LED dot grid overlay — 작은 검은 점 격자 덮어서 픽셀 질감
+  // 점 간격 6px, 점 크기 1.5px
+  const DOT_STEP = 6;
+  const DOT_R = 1.2;
+  c.fillStyle = 'rgba(10, 15, 25, 0.55)';
+  for (let y = DOT_STEP / 2; y < h; y += DOT_STEP) {
+    for (let x = DOT_STEP / 2; x < w; x += DOT_STEP) {
+      c.beginPath();
+      c.arc(x, y, DOT_R, 0, Math.PI * 2);
+      c.fill();
+    }
+  }
+  // 3차: 밝은 영역에만 격자 가로/세로 라인 추가 (LED 프레임 느낌)
+  // 단순화 — 전체에 옅은 그리드 라인 (매우 얇게)
+  c.strokeStyle = 'rgba(10, 15, 25, 0.35)';
+  c.lineWidth = 0.6;
+  c.beginPath();
+  for (let x = DOT_STEP; x < w; x += DOT_STEP * 4) {
+    c.moveTo(x, 0); c.lineTo(x, h);
+  }
+  for (let y = DOT_STEP; y < h; y += DOT_STEP * 4) {
+    c.moveTo(0, y); c.lineTo(w, y);
+  }
+  c.stroke();
+
   return off;
 }
 
@@ -285,10 +355,10 @@ function buildReliefMesh(imgEl) {
   displacedPositions = new Float32Array(pos.array);
 
   // ─── 두 가지 색온도 텍스처 ─────
-  // Warm duotone: 따뜻한 시작 상태 (데이터화 전 - 오렌지/크림 LED)
-  const warmCanvas = applyDuotone(imgEl, [58, 22, 8],   [255, 213, 160]); // 짙은 갈색 → 크림 오렌지
-  // Cool duotone: 차가운 완료 상태 (디지털화 후 - 청록/아이보리 기술도면)
-  const coolCanvas = applyDuotone(imgEl, [18, 30, 50],  [210, 225, 240]); // 딥 네이비 → 연한 시안-화이트
+  // Warm duotone: 따뜻한 시작 상태 (데이터화 전 - 오렌지/크림)
+  const warmCanvas = applyDuotone(imgEl, [58, 22, 8],   [255, 213, 160]);
+  // Cool CAD 텍스처: 완료 상태 (4단계 컬러코딩 + LED dot grid)
+  const coolCanvas = buildCADTexture(imgEl);
 
   const warmTex = new THREE.CanvasTexture(warmCanvas);
   const coolTex = new THREE.CanvasTexture(coolCanvas);
@@ -327,14 +397,64 @@ function buildReliefMesh(imgEl) {
 
   reliefMesh = new THREE.Mesh(geo, solidMat);
 
-  // 폴리곤 경계 라인 — DIGITIZING 이후 서서히 드러남 (짙은 네이비)
-  const edgeGeo = new THREE.EdgesGeometry(geo, 15); // 15° threshold
-  const edgeMat = new THREE.LineBasicMaterial({
-    color: 0x0e1828,
+  // 폴리곤 경계 라인 — DIGITIZING 이후 서서히 드러남
+  // A: 컬러 코딩 — 각 edge vertex 의 높이(z 값, displacement) 에 따라 색상 다르게
+  const edgeGeo = new THREE.EdgesGeometry(geo, 25);
+  const edgeVertexCount = edgeGeo.attributes.position.count;
+
+  // ─── Line2 로 변환 (두꺼운 선 렌더) ─────
+  // LineSegmentsGeometry 는 setPositions 에 flat 배열 받음 (이미 edgeGeo.position 과 호환)
+  const posArray = edgeGeo.attributes.position.array;
+
+  // z 값 min/max (컬러 코딩용)
+  let zMin = Infinity, zMax = -Infinity;
+  for (let i = 0; i < edgeVertexCount; i++) {
+    const z = edgeGeo.attributes.position.getZ(i);
+    if (z < zMin) zMin = z;
+    if (z > zMax) zMax = z;
+  }
+  const zRange = Math.max(0.0001, zMax - zMin);
+
+  // 컬러 배열 (edge 당 2 vertex 같은 색)
+  const colorArray = new Float32Array(edgeVertexCount * 3);
+  for (let i = 0; i < edgeVertexCount; i += 2) {
+    const z1 = edgeGeo.attributes.position.getZ(i);
+    const z2 = edgeGeo.attributes.position.getZ(i + 1);
+    const zAvg = (z1 + z2) / 2;
+    const t = (zAvg - zMin) / zRange;
+    const bin = Math.min(3, Math.floor(t * 4));
+    const p = CAD_PALETTE[bin];
+    const r = p.r / 255, g = p.g / 255, b = p.b / 255;
+    colorArray[i * 3]     = r;
+    colorArray[i * 3 + 1] = g;
+    colorArray[i * 3 + 2] = b;
+    colorArray[(i + 1) * 3]     = r;
+    colorArray[(i + 1) * 3 + 1] = g;
+    colorArray[(i + 1) * 3 + 2] = b;
+  }
+
+  const line2Geo = new LineSegmentsGeometry();
+  line2Geo.setPositions(posArray);
+  line2Geo.setColors(colorArray);
+
+  const line2Mat = new LineMaterial({
+    linewidth: 4.5,          // 픽셀 굵기 (조절 가능)
+    vertexColors: true,
     transparent: true,
     opacity: 0,
+    resolution: new THREE.Vector2(stageEl.clientWidth, stageEl.clientHeight),
+    worldUnits: false,       // pixel 단위
+    dashed: false,
+    alphaToCoverage: false,
   });
-  wireMesh = new THREE.LineSegments(edgeGeo, edgeMat);
+
+  wireMesh = new Line2(line2Geo, line2Mat);
+  wireMesh.computeLineDistances();
+
+  // edgeGeo 는 이제 파편 운동 레퍼런스로만 남고, 실제 렌더는 wireMesh (Line2)
+  // 파편 운동을 위해 LineSegmentsGeometry 의 내부 position 을 업데이트하는 API 가 제한적이라
+  // 원본 position 배열을 보관해두고 매 프레임 setPositions 로 갱신
+  wireMesh.userData.livePositions = new Float32Array(posArray);
 
   meshGroup = new THREE.Group();
   meshGroup.add(reliefMesh);
@@ -342,33 +462,29 @@ function buildReliefMesh(imgEl) {
   scene.add(meshGroup);
 
   // ─── Edge 파편화 준비 ─────
-  // wireMesh 의 EdgesGeometry position attribute 를 파편 운동에 사용
-  // 각 edge = 두 vertex. 두 vertex 는 같은 velocity 로 움직여 선 형태 유지.
-  // edge 개수 = position.count / 2
-  const wireGeo = wireMesh.geometry;
-  const wirePos = wireGeo.attributes.position;
-  const edgeCount = wirePos.count / 2;
+  // wireMesh 는 이제 Line2. 파편 운동은 livePositions 배열 직접 조작하고
+  // 매 프레임 line2Geo.setPositions(livePositions) 호출
+  const livePos = wireMesh.userData.livePositions;
+  const edgeCount = livePos.length / 6; // 각 edge = 2 vertex * 3 float
 
   // edge 별 원위치 보관 (복원용)
-  edgeOriginalPositions = new Float32Array(wirePos.array);
+  edgeOriginalPositions = new Float32Array(livePos);
   // edge 별 velocity (edge 마다 하나의 velocity 로 두 vertex 동시에 이동)
   edgeVelocities = new Float32Array(edgeCount * 3);
   edgeAngularVel = new Float32Array(edgeCount);
   edgeRotation  = new Float32Array(edgeCount);
 
-  // 중심에서 멀어지는 방향으로 velocity 부여
+  // 중심에서 멀어지는 방향으로 velocity 부여 — 천천히 부양
   for (let e = 0; e < edgeCount; e++) {
-    const ia = e * 2;
-    const ib = e * 2 + 1;
-    const ax = wirePos.getX(ia), ay = wirePos.getY(ia), az = wirePos.getZ(ia);
-    const bx = wirePos.getX(ib), by = wirePos.getY(ib), bz = wirePos.getZ(ib);
+    const ax = livePos[e * 6],     ay = livePos[e * 6 + 1], az = livePos[e * 6 + 2];
+    const bx = livePos[e * 6 + 3], by = livePos[e * 6 + 4], bz = livePos[e * 6 + 5];
     const mx = (ax + bx) / 2, my = (ay + by) / 2, mz = (az + bz) / 2;
     const len = Math.hypot(mx, my, mz) || 1;
-    const spread = 0.6 + Math.random() * 1.2;
-    edgeVelocities[e * 3]     = (mx / len) * spread + (Math.random() - 0.5) * 0.4;
-    edgeVelocities[e * 3 + 1] = (my / len) * spread + (Math.random() - 0.5) * 0.4 + 0.15;
-    edgeVelocities[e * 3 + 2] = (mz / len) * spread + (Math.random() - 0.5) * 0.4;
-    edgeAngularVel[e] = (Math.random() - 0.5) * 3; // 회전 속도
+    const spread = 0.22 + Math.random() * 0.45;
+    edgeVelocities[e * 3]     = (mx / len) * spread + (Math.random() - 0.5) * 0.15;
+    edgeVelocities[e * 3 + 1] = (my / len) * spread + (Math.random() - 0.5) * 0.15 + 0.08;
+    edgeVelocities[e * 3 + 2] = (mz / len) * spread + (Math.random() - 0.5) * 0.15;
+    edgeAngularVel[e] = (Math.random() - 0.5) * 1.5;
     edgeRotation[e] = 0;
   }
 
@@ -613,18 +729,18 @@ function animate(now = 0) {
   } else if (state === STATE.DIGITIZING) {
     const dur = 2.8;
     const prog = easeInOutCubic(Math.min(1, stateTimer / dur));
-    // warm → cool 색온도 shift
+    // warm → cool(CAD LED 면) 색온도 shift
     if (reliefMesh?.material?.userData?.uMix) {
       reliefMesh.material.userData.uMix.value = prog;
     }
-    // solid 는 서서히 투명화 — DIGITIZING 후반부터 확실히 사라짐
+    // solid (LED 면) 은 투명 안 되고 유지. 와이어프레임이 위에 얹힘
     if (reliefMesh) {
-      reliefMesh.material.transparent = true;
-      reliefMesh.material.opacity = 1 - prog * 0.85; // 100% → 15%
+      reliefMesh.material.transparent = false;
+      reliefMesh.material.opacity = 1;
     }
-    // 폴리곤 경계 라인 — 서서히 드러남, 끝에선 뼈대가 주인공
+    // 폴리곤 경계 라인 — 서서히 드러남
     if (wireMesh) {
-      wireMesh.material.opacity = prog * 0.9;
+      wireMesh.material.opacity = prog * 0.95;
     }
     // 바운딩 박스도 서서히 드러남
     if (meshGroup?.userData?.box) {
@@ -642,47 +758,42 @@ function animate(now = 0) {
       if (reliefMesh?.material?.userData?.uMix) {
         reliefMesh.material.userData.uMix.value = 1;
       }
-      const dissolveProgress = Math.min(1, stateTimer / 3);
-      // solid 는 완전 투명
+      const dissolveProgress = Math.min(1, stateTimer / 6); // 6초 기준 — 느리게
+      // solid (CAD LED 면) 도 천천히 투명화
       if (reliefMesh) {
         reliefMesh.material.transparent = true;
-        reliefMesh.material.opacity = 0;
+        reliefMesh.material.opacity = Math.max(0, 1 - dissolveProgress * 0.9);
       }
       // wireframe edge 는 분해되면서 서서히 투명화
       if (wireMesh) {
-        wireMesh.material.opacity = Math.max(0, 0.9 - dissolveProgress * 0.6);
+        wireMesh.material.opacity = Math.max(0.2, 0.95 - dissolveProgress * 0.5);
       }
       // 바운딩 박스도 서서히 사라짐
       if (meshGroup?.userData?.box) {
         meshGroup.userData.box.material.opacity = Math.max(0, 0.5 - dissolveProgress * 0.5);
       }
 
-      // Edge 파편 운동 — 각 edge 의 두 vertex 를 같은 velocity 로 이동
+      // Edge 파편 운동 — livePositions 직접 조작 후 setPositions 로 갱신
       if (wireMesh && edgeVelocities) {
-        const pos = wireMesh.geometry.attributes.position;
-        const edgeCount = pos.count / 2;
+        const livePos = wireMesh.userData.livePositions;
+        const edgeCount = livePos.length / 6;
         for (let e = 0; e < edgeCount; e++) {
-          // 중력
-          edgeVelocities[e * 3 + 1] -= 0.8 * dt;
-          // 회전 각도 업데이트
-          edgeRotation[e] += edgeAngularVel[e] * dt;
-          // 두 vertex 이동 + 회전 (edge 중점 기준)
-          const ia = e * 2, ib = e * 2 + 1;
-          // 중점 기준 회전은 단순화 — 실제로는 위치만 병진 이동시킴 (회전은 생략해도 케이블 파편 느낌 충분)
+          edgeVelocities[e * 3 + 1] -= 0.3 * dt; // 중력 약함
           const dx = edgeVelocities[e * 3] * dt;
           const dy = edgeVelocities[e * 3 + 1] * dt;
           const dz = edgeVelocities[e * 3 + 2] * dt;
-          pos.setX(ia, pos.getX(ia) + dx);
-          pos.setY(ia, pos.getY(ia) + dy);
-          pos.setZ(ia, pos.getZ(ia) + dz);
-          pos.setX(ib, pos.getX(ib) + dx);
-          pos.setY(ib, pos.getY(ib) + dy);
-          pos.setZ(ib, pos.getZ(ib) + dz);
+          // edge 당 2 vertex = 6 float
+          livePos[e * 6]     += dx;
+          livePos[e * 6 + 1] += dy;
+          livePos[e * 6 + 2] += dz;
+          livePos[e * 6 + 3] += dx;
+          livePos[e * 6 + 4] += dy;
+          livePos[e * 6 + 5] += dz;
         }
-        pos.needsUpdate = true;
+        wireMesh.geometry.setPositions(livePos);
       }
 
-      mass = Math.max(0, mass - massInitial * 0.13 * dt);
+      mass = Math.max(0, mass - massInitial * 0.06 * dt); // 절반으로 감소 → 15초 지속
       if (mass <= 0.0001) {
         state = STATE.GONE; stateTimer = 0; updateStateBadge();
       }
@@ -693,44 +804,44 @@ function animate(now = 0) {
     } else {
       // edge 파편 원위치로 수렴 (holdPoint 가까운 것부터)
       if (wireMesh && edgeOriginalPositions) {
-        const pos = wireMesh.geometry.attributes.position;
-        const edgeCount = pos.count / 2;
+        const livePos = wireMesh.userData.livePositions;
+        const edgeCount = livePos.length / 6;
         const hx = holdPointNorm.x * 2;
         const hy = holdPointNorm.y * 1.5;
 
         const basePull = 4.0 * dt;
         let avg = 0;
         for (let e = 0; e < edgeCount; e++) {
-          const ia = e * 2, ib = e * 2 + 1;
-          const oax = edgeOriginalPositions[ia * 3];
-          const oay = edgeOriginalPositions[ia * 3 + 1];
-          const oaz = edgeOriginalPositions[ia * 3 + 2];
-          const obx = edgeOriginalPositions[ib * 3];
-          const oby = edgeOriginalPositions[ib * 3 + 1];
-          const obz = edgeOriginalPositions[ib * 3 + 2];
-          // edge 중점 계산 (holdPoint 근접도 기준)
+          const i6 = e * 6;
+          const oax = edgeOriginalPositions[i6];
+          const oay = edgeOriginalPositions[i6 + 1];
+          const oaz = edgeOriginalPositions[i6 + 2];
+          const obx = edgeOriginalPositions[i6 + 3];
+          const oby = edgeOriginalPositions[i6 + 4];
+          const obz = edgeOriginalPositions[i6 + 5];
+          // edge 중점 (holdPoint 근접도 기준)
           const mx = (oax + obx) / 2;
           const my = (oay + oby) / 2;
           const distFromHold = Math.hypot(mx - hx, my - hy);
           const nearBoost = 1 + Math.max(0, (1.2 - distFromHold) / 1.2) * 2.5;
           const pull = Math.min(basePull * nearBoost, 1);
 
-          // 두 vertex 모두 원위치로 lerp
-          pos.setX(ia, pos.getX(ia) + (oax - pos.getX(ia)) * pull);
-          pos.setY(ia, pos.getY(ia) + (oay - pos.getY(ia)) * pull);
-          pos.setZ(ia, pos.getZ(ia) + (oaz - pos.getZ(ia)) * pull);
-          pos.setX(ib, pos.getX(ib) + (obx - pos.getX(ib)) * pull);
-          pos.setY(ib, pos.getY(ib) + (oby - pos.getY(ib)) * pull);
-          pos.setZ(ib, pos.getZ(ib) + (obz - pos.getZ(ib)) * pull);
+          // 두 vertex 를 원위치로 lerp
+          livePos[i6]     += (oax - livePos[i6])     * pull;
+          livePos[i6 + 1] += (oay - livePos[i6 + 1]) * pull;
+          livePos[i6 + 2] += (oaz - livePos[i6 + 2]) * pull;
+          livePos[i6 + 3] += (obx - livePos[i6 + 3]) * pull;
+          livePos[i6 + 4] += (oby - livePos[i6 + 4]) * pull;
+          livePos[i6 + 5] += (obz - livePos[i6 + 5]) * pull;
           // velocity 감쇠
           edgeVelocities[e * 3]     *= 0.85;
           edgeVelocities[e * 3 + 1] *= 0.85;
           edgeVelocities[e * 3 + 2] *= 0.85;
 
-          // 복원도 누적
-          avg += Math.abs(pos.getX(ia) - oax) + Math.abs(pos.getY(ia) - oay);
+          // 복원도 누적 (첫 vertex 기준)
+          avg += Math.abs(livePos[i6] - oax) + Math.abs(livePos[i6 + 1] - oay);
         }
-        pos.needsUpdate = true;
+        wireMesh.geometry.setPositions(livePos);
         avg /= edgeCount;
 
         // 복원도 기반 UI 업데이트
@@ -742,7 +853,7 @@ function animate(now = 0) {
           }
         }
         if (wireMesh) {
-          wireMesh.material.opacity = Math.max(0.35, 0.9 - restored * 0.4);
+          wireMesh.material.opacity = Math.max(0.35, 0.95 - restored * 0.3);
         }
         if (meshGroup?.userData?.box) {
           meshGroup.userData.box.material.opacity = Math.max(0.2, restored * 0.5);
