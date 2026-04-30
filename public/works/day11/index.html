@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 11 — 차이나 쇼크 2.0</title>
+<style>
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body {
+  width:100%; height:100%; overflow:hidden;
+  background:#000;
+  display:flex; justify-content:center; align-items:center;
+  font-family:'Pretendard', sans-serif;
+}
+.wrap {
+  position:relative; width:100%; height:100%;
+  display:flex; justify-content:center; align-items:center;
+}
+.artboard {
+  position:relative;
+  width:auto; height:92vh; aspect-ratio:3/4;
+  background:#fff;
+  box-shadow:0 4px 40px rgba(0,0,0,0.5);
+  overflow:hidden;
+  cursor:crosshair;
+}
+canvas { display:block; width:100%; height:100%; }
+
+/* 상단 FROM 링크 */
+.from-wrap {
+  position:absolute; top:8px; left:50%; transform:translateX(-50%);
+  z-index:10;
+}
+.from-link {
+  font-family:'Pretendard',sans-serif; font-size:13px; font-weight:600;
+  color:rgba(255,255,255,0.5); text-decoration:none;
+  letter-spacing:0.15em;
+}
+
+/* 우하단 크레딧 */
+.credit {
+  position:absolute; bottom:12px; right:20px; z-index:10;
+  font-family:'Pretendard',sans-serif; font-size:11px;
+  color:rgba(255,255,255,0.5);
+  text-align:right; line-height:1.5;
+  letter-spacing:0.08em;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="from-wrap">
+    <a href="https://newneek.co/@newneek/article/40314" target="_blank" rel="noopener" class="from-link">FROM</a>
+  </div>
+  <div class="artboard">
+    <canvas id="canvas"></canvas>
+  </div>
+  <div class="credit">CHINA SHOCK 2.0 — Newneek<br>260430</div>
+</div>
+<script src="day11.js"></script>
+</body>
+</html>

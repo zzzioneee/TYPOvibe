@@ -9,6 +9,7 @@ import Day007 from './works/day7'
 import Day008 from './works/day8'
 import Day009 from './works/day9'
 import Day010 from './works/day10'
+import Day011 from './works/day11'
 
 type View = 'home' | string
 
@@ -113,6 +114,16 @@ const WORKS = [
     ratio: '4 / 3',
     bgTheme: 'light' as const,
   },
+  {
+    id: 'day11',
+    day: '11',
+    date: '2026.04.30',
+    title: '차이나 쇼크 2.0',
+    desc: '오성홍기가 100개 세로 스트립으로 분해되어 사인파로 펄럭이고, 같은 변위가 뒷면 대형 타이포에도 적용되어 함께 휘어집니다. 마우스로 국기를 더 흔들 수 있어요.',
+    tags: ['Canvas', 'Wave', 'Displacement'],
+    ratio: '4 / 3',
+    bgTheme: 'dark' as const,
+  },
 ]
 
 export default function App() {
@@ -173,6 +184,7 @@ export default function App() {
           {view === 'day8' && <Day008 />}
           {view === 'day9' && <Day009 />}
           {view === 'day10' && <Day010 />}
+          {view === 'day11' && <Day011 />}
         </main>
       </div>
     )
