@@ -138,6 +138,29 @@ const rim = new THREE.DirectionalLight(0xaaccff, 0.4);
 rim.position.set(-3, 1, -2);
 scene.add(rim);
 
+// ─── CAD 뷰포트 배경 격자 — 바닥/벽 3면 ─────
+(function buildViewportGrids() {
+  const gridSize = 12;
+  const gridDiv = 24;
+  const gridColorMajor = 0xcfd6e0;
+  const gridColorMinor = 0xe6eaf0;
+
+  // 바닥 (Y = -3)
+  const gridFloor = new THREE.GridHelper(gridSize, gridDiv, gridColorMajor, gridColorMinor);
+  gridFloor.position.y = -3;
+  gridFloor.material.opacity = 0.55;
+  gridFloor.material.transparent = true;
+  scene.add(gridFloor);
+
+  // 뒷벽 (Z = -4) — GridHelper 를 90도 회전
+  const gridBack = new THREE.GridHelper(gridSize, gridDiv, gridColorMajor, gridColorMinor);
+  gridBack.rotation.x = Math.PI / 2;
+  gridBack.position.z = -4;
+  gridBack.material.opacity = 0.4;
+  gridBack.material.transparent = true;
+  scene.add(gridBack);
+})();
+
 // ─── 전역 상태 ───
 let currentSculpture = null;
 let state = STATE.LOADING;
@@ -218,13 +241,21 @@ function applyDuotone(imgEl, shadowRGB, highlightRGB) {
 // (B: 면이 사진이 아닌 "LED 픽셀 격자" 로 보이게)
 // ═══════════════════════════════════════════════════════════════
 
-// CAD 컬러 팔레트 — 레퍼런스 기반, 밝은 배경에서도 선명하도록 채도/명도 조정
+// CAD 컬러 팔레트 — RGB 비비드 / 기능 코딩
+// 밝기 구간별로 다른 "역할" 부여 (원본 색과 무관하게 CAD 렌더처럼 재분류)
 const CAD_PALETTE = [
-  { r:  10, g:  18, b:  34 }, // shadow — 거의 검정에 가까운 네이비 (구조)
-  { r: 232, g:  24, b: 128 }, // low-mid — 진한 마젠타 (조명/신호)
-  { r: 232, g: 120, b:  32 }, // mid-high — 진한 오렌지 (LED 모듈)
-  { r:  48, g: 148, b: 220 }, // highlight — 진한 하늘색 (LED 패널)
+  { r:  17, g:  17, b:  17 }, // shadow — 순수 검정 (트러스/프레임)
+  { r:   0, g: 214, b:  94 }, // low-mid — 비비드 그린 (케이블)
+  { r: 255, g: 107, b:   0 }, // mid-high — 비비드 오렌지 (LED 모듈)
+  { r:  61, g: 174, b: 221 }, // highlight — 비비드 시안 (LED 패널)
 ];
+// 조명/신호 컬러 (케이블용)
+const CAD_ACCENT = {
+  magenta: { r: 255, g:   0, b: 128 },
+  green:   { r:   0, g: 214, b:  94 },
+  cyan:    { r:  61, g: 174, b: 221 },
+  yellow:  { r: 255, g: 220, b:  20 },
+};
 
 function buildCADTexture(imgEl) {
   const off = document.createElement('canvas');
@@ -277,6 +308,95 @@ function buildCADTexture(imgEl) {
   c.stroke();
 
   return off;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CAD 주변 오브제 — 트러스, 케이블, LED 패널 (조각 옆에 배치)
+// ═══════════════════════════════════════════════════════════════
+
+function buildCADSurroundings(planeW, planeH) {
+  const group = new THREE.Group();
+
+  // ─── 1. 조각 뒤 트러스 격자 ─────
+  // 큰 사각 프레임 + 내부 교차 bracing
+  const trussMat = new THREE.LineBasicMaterial({
+    color: 0x111111,
+    transparent: true,
+    opacity: 0,
+  });
+  const trussSize = Math.max(planeW, planeH) * 1.6;
+  const trussZ = -0.9; // 조각 뒤
+  const trussPoints = [];
+  // 외곽 프레임
+  const hx = trussSize / 2, hy = trussSize * 0.6 / 2;
+  trussPoints.push(-hx, -hy, trussZ, hx, -hy, trussZ);
+  trussPoints.push(hx, -hy, trussZ,  hx,  hy, trussZ);
+  trussPoints.push(hx,  hy, trussZ, -hx,  hy, trussZ);
+  trussPoints.push(-hx,  hy, trussZ, -hx, -hy, trussZ);
+  // 내부 교차선 (X pattern)
+  trussPoints.push(-hx, -hy, trussZ, hx,  hy, trussZ);
+  trussPoints.push(-hx,  hy, trussZ, hx, -hy, trussZ);
+  // 수평 3등분
+  const yStep = (2 * hy) / 3;
+  for (let i = 1; i < 3; i++) {
+    const y = -hy + yStep * i;
+    trussPoints.push(-hx, y, trussZ, hx, y, trussZ);
+  }
+  // 수직 4등분
+  const xStep = (2 * hx) / 4;
+  for (let i = 1; i < 4; i++) {
+    const x = -hx + xStep * i;
+    trussPoints.push(x, -hy, trussZ, x, hy, trussZ);
+  }
+  const trussGeo = new THREE.BufferGeometry();
+  trussGeo.setAttribute('position', new THREE.Float32BufferAttribute(trussPoints, 3));
+  const truss = new THREE.LineSegments(trussGeo, trussMat);
+  group.add(truss);
+  group.userData.truss = truss;
+
+  // ─── 2. 화면 가장자리 LED 패널 사각 격자 ─────
+  // 조각 좌우 상단에 작은 패널 2개 (기울어져 배치)
+  const panelMat = new THREE.LineBasicMaterial({
+    color: 0x3daedd,
+    transparent: true,
+    opacity: 0,
+  });
+  const panels = new THREE.Group();
+  const panelConfigs = [
+    { x: -planeW * 1.1, y:  planeH * 0.9,  z: -0.4, rotZ: -0.25, w: planeW * 0.55, h: planeH * 0.45 },
+    { x:  planeW * 1.15, y:  planeH * 0.8,  z: -0.4, rotZ:  0.2,  w: planeW * 0.5,  h: planeH * 0.4 },
+    { x:  planeW * 1.05, y: -planeH * 0.9,  z: -0.4, rotZ:  0.15, w: planeW * 0.45, h: planeH * 0.4 },
+  ];
+  for (const pc of panelConfigs) {
+    const panelPoints = [];
+    const ghx = pc.w / 2, ghy = pc.h / 2;
+    // 외곽
+    panelPoints.push(-ghx, -ghy, 0, ghx, -ghy, 0);
+    panelPoints.push(ghx, -ghy, 0, ghx, ghy, 0);
+    panelPoints.push(ghx, ghy, 0, -ghx, ghy, 0);
+    panelPoints.push(-ghx, ghy, 0, -ghx, -ghy, 0);
+    // 내부 격자 — 8x6
+    const gw = 8, gh = 6;
+    const gxs = pc.w / gw, gys = pc.h / gh;
+    for (let i = 1; i < gw; i++) {
+      const x = -ghx + gxs * i;
+      panelPoints.push(x, -ghy, 0, x, ghy, 0);
+    }
+    for (let j = 1; j < gh; j++) {
+      const y = -ghy + gys * j;
+      panelPoints.push(-ghx, y, 0, ghx, y, 0);
+    }
+    const panelGeo = new THREE.BufferGeometry();
+    panelGeo.setAttribute('position', new THREE.Float32BufferAttribute(panelPoints, 3));
+    const panel = new THREE.LineSegments(panelGeo, panelMat.clone());
+    panel.position.set(pc.x, pc.y, pc.z);
+    panel.rotation.z = pc.rotZ;
+    panels.add(panel);
+  }
+  group.add(panels);
+  group.userData.panels = panels;
+
+  return group;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -438,12 +558,12 @@ function buildReliefMesh(imgEl) {
   line2Geo.setColors(colorArray);
 
   const line2Mat = new LineMaterial({
-    linewidth: 4.5,          // 픽셀 굵기 (조절 가능)
+    linewidth: 2.8,          // 픽셀 굵기 — 묵직하지만 조각 디테일 유지
     vertexColors: true,
     transparent: true,
     opacity: 0,
     resolution: new THREE.Vector2(stageEl.clientWidth, stageEl.clientHeight),
-    worldUnits: false,       // pixel 단위
+    worldUnits: false,
     dashed: false,
     alphaToCoverage: false,
   });
@@ -491,13 +611,43 @@ function buildReliefMesh(imgEl) {
   // ─── 바운딩 박스 (CAD 뷰포트 느낌) ─────
   geo.computeBoundingBox();
   const bbox = geo.boundingBox;
-  const box = new THREE.Box3Helper(bbox, 0x1a2538);
+  const box = new THREE.Box3Helper(bbox, 0x111111);
   box.material.transparent = true;
   box.material.opacity = 0;
   box.material.depthTest = false;
   meshGroup.add(box);
   // userData 로 box 참조 저장해서 animate 에서 opacity 제어
   meshGroup.userData.box = box;
+
+  // ─── 치수선 (dimension lines) ─────
+  // 바운딩 박스 하단 + 좌측에 치수선 그리기
+  const dimGroup = new THREE.Group();
+  const dimMat = new THREE.LineBasicMaterial({ color: 0xff0080, transparent: true, opacity: 0 });
+  // 가로 치수 — 하단 extent
+  const dimY = bbox.min.y - 0.12;
+  const dimPts = [
+    bbox.min.x, dimY - 0.04, 0,   bbox.min.x, dimY + 0.04, 0,  // 좌측 end tick
+    bbox.max.x, dimY - 0.04, 0,   bbox.max.x, dimY + 0.04, 0,  // 우측 end tick
+    bbox.min.x, dimY, 0,           bbox.max.x, dimY, 0,          // 가로 메인선
+  ];
+  // 세로 치수 — 좌측 extent
+  const dimX = bbox.min.x - 0.12;
+  dimPts.push(
+    dimX - 0.04, bbox.min.y, 0,   dimX + 0.04, bbox.min.y, 0,
+    dimX - 0.04, bbox.max.y, 0,   dimX + 0.04, bbox.max.y, 0,
+    dimX, bbox.min.y, 0,           dimX, bbox.max.y, 0
+  );
+  const dimGeo = new THREE.BufferGeometry();
+  dimGeo.setAttribute('position', new THREE.Float32BufferAttribute(dimPts, 3));
+  const dimLines = new THREE.LineSegments(dimGeo, dimMat);
+  dimGroup.add(dimLines);
+  meshGroup.add(dimGroup);
+  meshGroup.userData.dimensions = dimGroup;
+
+  // ─── CAD 주변 오브제 (트러스, 케이블, LED 패널) ─────
+  const cadGroup = buildCADSurroundings(planeW, planeH);
+  meshGroup.add(cadGroup);
+  meshGroup.userData.cadGroup = cadGroup;
 
   // ─── CAD 속성 패널 값 채우기 ─────
   const verts = geo.attributes.position.count;
@@ -510,6 +660,8 @@ function buildReliefMesh(imgEl) {
   document.getElementById('cad-faces').textContent = faces.toLocaleString();
   document.getElementById('cad-material').textContent = currentSculpture.material.toUpperCase().slice(0, 18);
   document.getElementById('cad-bound').textContent = `${w}×${h}×${d}`;
+  const treeSculpt = document.getElementById('tree-sculpt');
+  if (treeSculpt) treeSculpt.textContent = `SCULPTURE_${currentSculpture.id}`;
 
   return { planeW, planeH };
 }
@@ -733,18 +885,38 @@ function animate(now = 0) {
     if (reliefMesh?.material?.userData?.uMix) {
       reliefMesh.material.userData.uMix.value = prog;
     }
-    // solid (LED 면) 은 투명 안 되고 유지. 와이어프레임이 위에 얹힘
+    // solid (LED 면) 은 투명 안 되고 유지
     if (reliefMesh) {
       reliefMesh.material.transparent = false;
       reliefMesh.material.opacity = 1;
     }
-    // 폴리곤 경계 라인 — 서서히 드러남
+    // wireframe edge — 서서히 드러남
     if (wireMesh) {
       wireMesh.material.opacity = prog * 0.95;
     }
-    // 바운딩 박스도 서서히 드러남
+    // 바운딩 박스 — 서서히 드러남
     if (meshGroup?.userData?.box) {
       meshGroup.userData.box.material.opacity = prog * 0.5;
+    }
+    // 치수선 — 서서히 드러남
+    if (meshGroup?.userData?.dimensions) {
+      meshGroup.userData.dimensions.traverse(o => {
+        if (o.isLineSegments) o.material.opacity = prog * 0.7;
+      });
+    }
+    // CAD 주변 오브제 — 서서히 드러남
+    const cadGroup = meshGroup?.userData?.cadGroup;
+    if (cadGroup) {
+      // truss
+      if (cadGroup.userData.truss) {
+        cadGroup.userData.truss.material.opacity = prog * 0.55;
+      }
+      // panels
+      if (cadGroup.userData.panels) {
+        cadGroup.userData.panels.traverse(obj => {
+          if (obj.isLineSegments) obj.material.opacity = prog * 0.7;
+        });
+      }
     }
     if (stateTimer >= dur) {
       state = STATE.DISSOLVING; stateTimer = 0;
@@ -771,6 +943,25 @@ function animate(now = 0) {
       // 바운딩 박스도 서서히 사라짐
       if (meshGroup?.userData?.box) {
         meshGroup.userData.box.material.opacity = Math.max(0, 0.5 - dissolveProgress * 0.5);
+      }
+      // 치수선도 같이 사라짐
+      if (meshGroup?.userData?.dimensions) {
+        meshGroup.userData.dimensions.traverse(o => {
+          if (o.isLineSegments) o.material.opacity = Math.max(0, 0.7 - dissolveProgress * 0.7);
+        });
+      }
+      // CAD 주변 오브제도 같이 사라짐 (느리게)
+      const cadGroup2 = meshGroup?.userData?.cadGroup;
+      if (cadGroup2) {
+        const fade = Math.max(0, 1 - dissolveProgress * 0.7);
+        if (cadGroup2.userData.truss) {
+          cadGroup2.userData.truss.material.opacity = 0.55 * fade;
+        }
+        if (cadGroup2.userData.panels) {
+          cadGroup2.userData.panels.traverse(obj => {
+            if (obj.isLineSegments) obj.material.opacity = 0.7 * fade;
+          });
+        }
       }
 
       // Edge 파편 운동 — livePositions 직접 조작 후 setPositions 로 갱신

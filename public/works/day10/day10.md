@@ -17,8 +17,8 @@ FROM · [비애티튜드 『파편이 맥락이 될 때』](https://magazine.bea
 ## 3막 구조
 
 - **1막 — FEED**: SNS 피드처럼 세로 스크롤되는 조각 10점. 무한 루프. 작가·작품·재질·무게가 냉정한 미술관 도록 스타일로 표시됨. 디지털 태그 `0g · DIGITAL` 이 우상단에 박혀있어 "이 묵직한 청동/대리석이 화면 안에서는 0g으로 소비됨" 대비 환기
-- **2막 — DIGITIZING → DISSOLVING**: 카드를 누르면 풀스크린으로 조각 확대. 1.2초 정적 → 2.5초간 CAD 스캔라인 + 하늘색 와이어프레임 격자가 덮임 → 핑크 네온 점멸 → 수백 개의 이미지 파편으로 분해, 중력 받아 화면 밖으로 떨어져 나감. 무게는 실시간으로 줄어듦
-- **3막 — HOLDING**: DISSOLVING 중에 화면을 꾹 누르면 파편들이 중심으로 당겨져 원본 이미지 복원. 손을 떼면 다시 분해. 무게 카운터가 누르는 동안 회복 ↔ 떼는 순간 감소
+- **2막 — ENTERED → DIGITIZING**: 카드를 누르면 풀스크린으로 조각 등장. voxel displacement 로 3D 부조 생성 → 2초 정적 → 2.8초간 warm 듀오톤 → cool CAD LED 면으로 전환. 동시에 CAD 뷰포트 UI (트러스 격자, LED 패널, 치수선, 좌표축, 오브젝트 트리, 속성 패널) 전부 페이드인
+- **3막 — DISSOLVING ↔ HOLDING**: 디지털화 완료 후 조각의 각 edge 가 두꺼운 컬러 라인 파편으로 해체되어 천천히 흩어짐. 약 15초 동안 무게 3.2kg → 0g. 꾹 누르면 근처 파편부터 원위치로 수렴 (HOLDING), 손을 떼면 다시 분해
 
 ## 10점 큐레이션
 
@@ -41,39 +41,81 @@ FROM · [비애티튜드 『파편이 맥락이 될 때』](https://magazine.bea
 
 ## 기술
 
-- **Vanilla JS + Canvas 2D** — Three.js 없이 실제 이미지 픽셀을 격자로 자른 파편 운동
-- **이미지 파편화**: `drawImage` 의 source crop(sx, sy, sw, sh) 으로 원본 이미지를 셀(28px × 28px)로 나눠 각각 개별 particle 운동. 원점(ox, oy) 기억해두고 HOLDING 때 lerp으로 당김
-- **상태머신**: `ENTERED → DIGITIZING → DISSOLVING ⇄ HOLDING ⇄ GONE`
-- **무한 스크롤 피드**: 10개 × 3번 반복 복제, `scroll` 이벤트로 상/하단 경계 오면 가운데로 점프. lockScroll 플래그로 재귀 방지
-- **썸네일 차단**: `?thumb` 쿼리로 홈 iframe 프리뷰 감지 → 스테이지 진입 막고 피드만 정적 표시
+### 렌더링
+- **Three.js (0.160.0, esm.sh CDN)** — WebGL 3D 뷰포트
+- **Voxel displacement** — 이미지 밝기를 5단계 step 으로 양자화해 PlaneGeometry(80×80) 각 vertex 를 z축으로 밀어 3D 부조 생성
+- **Duotone 텍스처 2종** (`applyDuotone` + `buildCADTexture`) — warm (짙은 갈색 → 크림 오렌지) / cool CAD (4색 양자화 + LED dot grid + 격자 라인)
+- **Shader crossfade** — `MeshStandardMaterial.onBeforeCompile` 로 fragment shader 후킹, `uMix` uniform 으로 두 텍스처 blend
 
-## 삽질 / 교훈
+### CAD 뷰포트 구성
+- **주변 오브제**: 조각 뒤 트러스 격자 (3등분 × 4등분 + X bracing), 좌우 LED 패널 격자 3개 (비비드 시안)
+- **바운딩 박스** (`Box3Helper`) + **치수선** (가로/세로 extent 에 비비드 마젠타 tick)
+- **뷰포트 바닥/뒷벽 원근 격자** (`GridHelper` 두 개, 12 사이즈 × 24 분할)
+- **오버레이 UI**: 좌측 `SCENE HIERARCHY` 트리 (Scene > Sculpture > Environment), 우측 `PROPERTIES` 패널 (Vertices/Faces/Material/Bound 실시간 값), 좌하단 좌표축 gnomon (X/Y/Z), 화면 중앙 크로스헤어
 
-### 이미지 수집: Wikimedia 저작권 벽이 생각보다 큼
-초기 라인업으로 Serra, Giacometti, Noguchi, Kiefer 같은 현대 조각가를 골랐는데 **생존 또는 최근 사망 작가 전원이 저작권 살아있음**. 조사에 꽤 시간 썼는데 결국 확보 가능한 건 2점 정도. 그래서 방향 전환 → PD 확실한 고대/근대 조각으로 재큐레이션. 결과적으로 "지금 컨템포러리 조각이 0g으로 소비됨" 보다 "시간을 견뎌온 무거운 물질이 한 화면 스와이프로 휘발됨" 이 되어서 메시지 톤은 오히려 살아남. 현대 → 고대로 후퇴한 게 아니라, 대비 각도가 바뀐 것뿐.
+### 분해 (DISSOLVING)
+- **Line2 모듈** (`three/examples/jsm/lines`) — 픽셀 단위 굵기 지원 와이어프레임 (2.8px). 기본 `LineBasicMaterial` 의 linewidth 는 대부분 브라우저에서 1px 로 고정되어 Line2 로 교체
+- **EdgesGeometry(25°)** 로 edge 만 추출 → 중요한 edge 만 남아 파편이 또렷이 보임
+- **Edge 파편 운동**: 각 edge 의 두 vertex 가 같은 velocity 로 이동 (선 형태 유지), 중심에서 바깥 방향으로 0.22~0.67 속도 + 중력 0.3 (부양감)
+- **livePositions Float32Array** 직접 조작 후 매 프레임 `geometry.setPositions()` 호출
+
+### 컬러 코딩
+- **CAD_PALETTE** — 비비드 RGB:
+  - 네이비 (shadow) `#111111` — 구조 (트러스)
+  - 그린 `#00D65E` — 케이블 액센트
+  - 오렌지 `#FF6B00` — LED 모듈
+  - 시안 `#3DAEDD` — LED 패널
+- wireframe edge 는 각 edge 의 z 값(displacement 높이)에 따라 4색 중 하나 배정 (vertex color)
+
+### 배경 색온도
+- ENTERED → DIGITIZING 구간 `rgb(249,240,226)` (크림) → `rgb(228,234,242)` (차가운 회색) 로 실시간 보간
+
+## 삽질 기록 (v1 → v8)
+
+### v1: 3D relief mesh + wireframe overlay
+첫 시도. Three.js Relief mesh 생성, 크기/resize 이슈 해결, CAD UI 기반 잡음.
+
+### v2: warm→cool 듀오톤 색온도 shift
+"사진이 CAD 로 전환되는 매끄러움" 원한다 해서 스캔라인/wireframe 빼고 색온도만 이동. 너무 심심해졌음.
+
+### v3: Voxel displacement + CAD UI
+부조감 강화 + 바운딩 박스/gnomon/속성 패널 추가. 하지만 파편이 점(Points)으로 흩어지는 게 "CAD 느낌" 과 안 맞음.
+
+### v4: Points → LineSegments edge 파편
+점 폐기. EdgesGeometry 기반 선 파편으로 교체. 하지만 "그냥 라인으로만 전환" 이라는 피드백.
+
+### v5: LED dot pattern + 4색 컬러 코딩
+CAD 텍스처에 LED dot grid 추가, edge 에 vertex color 부여.
+
+### v6: 분해 속도 완화
+"분해가 금변한다" 피드백. velocity/중력/무게감소율 모두 2~3배 완만하게 조정.
+
+### v7: Line2 두꺼운 edge + 팔레트 비비드화
+`LineBasicMaterial.linewidth` 가 브라우저에서 1px 고정이라 Line2 로 교체, 4.5px 굵기.
+
+### v8: CAD 주변 오브제 + 오브젝트 트리
+트러스/LED 패널/원근 격자/Scene Hierarchy 트리 추가. 케이블 튜브는 과하다 해서 제거, edge 두께 4.5 → 2.8 로 낮춤.
+
+## 핵심 교훈
+
+### "CAD 느낌" 은 단일 변환이 아닌 다층 합성
+- Voxel + Duotone + Wireframe + 주변 오브제 + UI 오버레이. 하나만 넣으면 부족하고, 넷 이상 겹쳐야 "디지털 렌더 프로그램 안" 체감 완성됨
 
 ### Wikimedia 이미지 URL: 파일명 MD5 해시 패턴
-`https://upload.wikimedia.org/wikipedia/commons/{h[0]}/{h[0..1]}/{filename}` 규칙. 파일명의 MD5 첫 두 자리가 디렉토리. 파이썬 한 줄로 계산:
-```python
-hashlib.md5(name.encode()).hexdigest()[:2]
-```
+`https://upload.wikimedia.org/wikipedia/commons/{h[0]}/{h[0..1]}/{filename}` 규칙. 파일명의 MD5 첫 두 자리가 디렉토리. `curl` 연타 시 HTTP 429 걸리므로 `sleep 3` 필수.
 
-### Rate limit 429
-`curl` 연타로 10장 받으면 HTTP 429 걸림. `sleep 3` 간격 두고 순차 다운. User-Agent 도 브라우저 흉내.
+### Three.js Line2 모듈은 esm.sh 로 로드
+`unpkg.com` 직접 로드 시 내부 `import 'three'` bare specifier 를 못 찾아 에러. esm.sh 는 자동 resolve 해서 jsm 모듈도 문제없이 동작.
 
-### sips 로 일괄 리사이즈
-macOS 내장 `sips --resampleHeightWidthMax 1600 -s formatOptions 85` 로 10장 합계 43MB → 5MB. 편함.
+### LineBasicMaterial.linewidth 는 1px 고정
+모든 WebGL 구현에서 지원 안 됨. 두꺼운 선 필요하면 무조건 `Line2` (`LineSegmentsGeometry` + `LineMaterial` + `computeLineDistances`). `resolution` uniform 도 resize 마다 업데이트 필수.
 
-### 파편화 파티클 개수 vs 성능
-이미지를 28px × 28px 셀로 나누면 대략 400~700개 파편. drawImage를 400번 호출해도 60fps 유지됨 (Canvas 2D 생각보다 잘 버팀). 단 파편마다 `save/rotate/restore` 넣으면 개수 많을 때 체감됨. 지금은 28px 사이즈로 적당한 타협.
-
-### 무한 스크롤 경계 재귀 방지
-`scroll` 이벤트에서 `scrollTop` 를 수정하면 또 `scroll` 이벤트가 발생. `lockScroll` 플래그로 한 프레임 막아서 재귀 차단. `requestAnimationFrame` 안에서 해제.
+### 컬러는 밝기 기반이 아니라 역할 기반
+초기에 "원본 밝기에 해당하는 단일 듀오톤 팔레트" 로 양자화했으나, CAD 렌더의 본질은 "원본 색과 무관하게 기능별 색 재분류". 팔레트 교체하면서 디지털화 체감 확 살아남.
 
 ## 다음에 다시 한다면
 
-- **2막 전환을 더 드라마틱하게**: 지금은 스캔라인 + 격자 + 점멸인데, 글리치/RGB split/ chromatic aberration 넣으면 "디지털화 당하는" 느낌 더 강해질 것
-- **파편 모양**: 격자 셀이 아니라 Voronoi 셀로 자르면 깨진 유리/세라믹 느낌 더 살아남. 지금은 "픽셀 블록 파편" 이라 약간 게임 이펙트스러움
-- **사운드**: 입체감 없음. Day 9 Web Audio 패턴 참고해서, 디지털화될 때 글리치 노이즈, 분해될 때 세라믹 깨지는 소리 (noise burst + downward sweep), 복원될 때 유리가 맞춰지는 벨 같은 소리 넣으면 인상 남을 듯
-- **첫 진입 튜토리얼**: 처음 들어온 사용자는 "꾹 누르라는 게 뭐 어디를 누르라는 거지?" 할 수 있음. 첫 방문 때 카드 위에 짧은 툴팁 또는 스테이지 진입 직후 "여기를 누르세요" 안내 표시 필요
-- **마우스 커서 무게 반영**: HOLDING 중에 커서 주변에 파편이 더 빨리 당겨지게 (현재는 중심 원점으로만 lerp). "손이 닿는 곳부터 복구됨" 느낌
+- **조각 이미지 region segmentation** — 하나의 plane 이 아니라 얼굴/몸통/팔 등 독립 mesh 로 분리해서 exploded view 구현. 지금은 "2D 사진의 depth map" 수준이라 3D 구조감 제한적
+- **사운드** — Day 9 Web Audio 패턴 재사용. DIGITIZING 시 전자 beep, DISSOLVING 시 가벼운 glass tinkle, HOLDING 시 안정 low hum
+- **첫 진입 튜토리얼** — press & hold 를 어디에 해야 하는지 불명확. DISSOLVING 진입 직후 3초간 "HOLD HERE" 안내 필요
+- **뷰포트 원근감 강화** — 지금 GridHelper 두 개로 바닥/뒷벽만 있어서 "공간감" 약함. 좌우 벽 + 천장 격자까지 넣으면 진짜 CAD 소프트웨어 3D 뷰포트
