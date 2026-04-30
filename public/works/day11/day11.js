@@ -1,65 +1,57 @@
-// Day 11 — 차이나 쇼크 2.0
-// 오성홍기가 100개 세로 스트립으로 분해되어 사인파로 펄럭이고,
-// 같은 변위가 뒤에 있는 텍스트("차이나/쇼크/2.0")에도 적용되어 함께 휘어짐.
-// 스트립 경계 LED glow + 가로 스캔라인 + 마우스 파동 인터랙션.
+// Day 11 — 차이나 쇼크 2.0 (v3)
+// A4 1:1.414 아트보드 + 국기/텍스트 합성 텍스처를 세로 스트립 48개로 분할.
+// 큰 셀(10px) 디더링으로 국기 형상을 유지하되 다색 픽셀 모자이크.
+// 스트립-텍스트 교차 지점 글리치. 성능: 전부 오프스크린 프리렌더 + drawImage.
 
 const IS_THUMB = new URLSearchParams(location.search).has('thumb');
 
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 
-// 내부 해상도 고정 (day5 와 동일 규격 3:4)
+// A4 1:1.414
 const W = canvas.width = 709;
-const H = canvas.height = 946;
+const H = canvas.height = 1003;
 
 // ═══════════════════════════════════════════════════════════════
-// 오성홍기 원본 캔버스 (offscreen) — 비율 3:2
+// 1. 국기 디더링 텍스처 (offscreen) — 크게 그려서 셀이 선명
 // ═══════════════════════════════════════════════════════════════
 
 const FLAG_W = 900;
 const FLAG_H = 600;
+const CELL = 10; // 디더링 셀 크기
+
 const flagCanvas = document.createElement('canvas');
 flagCanvas.width = FLAG_W;
 flagCanvas.height = FLAG_H;
 const fctx = flagCanvas.getContext('2d');
 
-function drawStar(cx, cy, radius, rotation, color) {
-  // 5-pointed star
-  fctx.beginPath();
+function drawStar(c, cx, cy, radius, rotation, color) {
+  c.beginPath();
   for (let i = 0; i < 10; i++) {
     const ang = rotation + (i * Math.PI) / 5;
-    const r = i % 2 === 0 ? radius : radius * 0.381966; // golden ratio 기반 내부 반지름
+    const r = i % 2 === 0 ? radius : radius * 0.381966;
     const x = cx + Math.cos(ang - Math.PI / 2) * r;
     const y = cy + Math.sin(ang - Math.PI / 2) * r;
-    if (i === 0) fctx.moveTo(x, y);
-    else fctx.lineTo(x, y);
+    if (i === 0) c.moveTo(x, y);
+    else c.lineTo(x, y);
   }
-  fctx.closePath();
-  fctx.fillStyle = color;
-  fctx.fill();
+  c.closePath();
+  c.fillStyle = color;
+  c.fill();
 }
 
-function buildFlag() {
-  // 배경 빨강
+// 베이스: 깨끗한 국기 먼저 그림
+function buildBaseFlag() {
   fctx.fillStyle = '#EE1C25';
   fctx.fillRect(0, 0, FLAG_W, FLAG_H);
 
-  // 오성홍기 공식 규격: flag 3:2, 좌상단에 별 배치
-  // flag 를 30×20 그리드로 보면:
-  //   대별: 중심 (5, 5), 반지름 3
-  //   소별1: 중심 (10, 2), 반지름 1
-  //   소별2: 중심 (12, 4), 반지름 1
-  //   소별3: 중심 (12, 7), 반지름 1
-  //   소별4: 중심 (10, 9), 반지름 1
   const cell = FLAG_W / 30;
   const yellow = '#FFFF00';
-
   const bigR = cell * 3;
   const bigCX = cell * 5;
   const bigCY = cell * 5;
-  drawStar(bigCX, bigCY, bigR, 0, yellow);
+  drawStar(fctx, bigCX, bigCY, bigR, 0, yellow);
 
-  // 소별 4개 — 대별 중심을 향해 회전
   const smallR = cell * 1;
   const smalls = [
     { cx: cell * 10, cy: cell * 2 },
@@ -68,57 +60,82 @@ function buildFlag() {
     { cx: cell * 10, cy: cell * 9 },
   ];
   for (const s of smalls) {
-    // 각 소별은 한 꼭지점이 대별 중심을 향하도록
     const angToBig = Math.atan2(bigCY - s.cy, bigCX - s.cx);
-    // 기본 별은 "위쪽 꼭지점"이 12시 방향. 대별을 향하려면 rotation = angToBig + π/2
-    const rot = angToBig + Math.PI / 2;
-    drawStar(s.cx, s.cy, smallR, rot, yellow);
+    drawStar(fctx, s.cx, s.cy, smallR, angToBig + Math.PI / 2, yellow);
   }
 }
-buildFlag();
+buildBaseFlag();
+
+// 디더링: 10px 셀로 국기를 다시 그리되 각 셀 색을 살짝 변형
+// 디더 팔레트 — 파스텔 포인트 (비비드 + 파스텔 섞임)
+const RED_DITHER = [
+  '#EE1C25', '#EE1C25', '#EE1C25', '#EE1C25', // 기본 빨강 (빈도 높음)
+  '#F14158', '#D6152A', '#FF4A56', '#C40E20',
+  '#FF6B80', '#E63E5C', // 핑크 포인트
+  '#FF9A9A', // 연 pastel
+];
+const YELLOW_DITHER = [
+  '#FFFF00', '#FFFF00', '#FFFF00',
+  '#FFE63A', '#FFD83D',
+  '#FFF68A', '#FFD100',
+];
+
+function ditherFlag() {
+  // 원본 픽셀 데이터 읽고, 각 CELL 단위로 다수결 색 결정 후 팔레트 랜덤 tint
+  const imgData = fctx.getImageData(0, 0, FLAG_W, FLAG_H);
+  const src = imgData.data;
+
+  // 새 캔버스에 디더링된 결과 그리기
+  const dCanvas = document.createElement('canvas');
+  dCanvas.width = FLAG_W;
+  dCanvas.height = FLAG_H;
+  const dctx = dCanvas.getContext('2d');
+
+  for (let y = 0; y < FLAG_H; y += CELL) {
+    for (let x = 0; x < FLAG_W; x += CELL) {
+      // 이 셀 중심 픽셀 색 확인
+      const cx = Math.min(FLAG_W - 1, x + CELL / 2);
+      const cy = Math.min(FLAG_H - 1, y + CELL / 2);
+      const idx = (cy * FLAG_W + cx) * 4;
+      const r = src[idx], g = src[idx + 1], b = src[idx + 2];
+      // 노랑 영역 (R+G > 400, B < 100) 인지
+      const isYellow = r > 200 && g > 200 && b < 100;
+      const palette = isYellow ? YELLOW_DITHER : RED_DITHER;
+      const color = palette[Math.floor(Math.random() * palette.length)];
+      dctx.fillStyle = color;
+      dctx.fillRect(x, y, CELL, CELL);
+    }
+  }
+  // 최종 flagCanvas 에 디더링 결과 복사
+  fctx.clearRect(0, 0, FLAG_W, FLAG_H);
+  fctx.drawImage(dCanvas, 0, 0);
+}
+ditherFlag();
 
 // ═══════════════════════════════════════════════════════════════
-// 펄럭임 파라미터
+// 2. 텍스트 합성 텍스처
 // ═══════════════════════════════════════════════════════════════
 
-const STRIPS = 100;           // 국기 세로 스트립 개수
-const FLAG_DIAG_ANGLE = -8 * Math.PI / 180; // 국기 대각선 기울기 (위로 -8도)
-// 아트보드 기준 국기 렌더 위치/크기
-// 국기는 아트보드를 전부 가려야 하므로 대각선 가려도 커버되도록 큼직하게
-const FLAG_RENDER_W = W * 1.4;  // 아트보드 가로 대비 1.4배
-const FLAG_RENDER_H = FLAG_RENDER_W * (FLAG_H / FLAG_W); // 3:2 비율 유지
+const STRIPS = 48;
+const FLAG_DIAG_ANGLE = -8 * Math.PI / 180;
+const FLAG_RENDER_W = W * 1.45;
+const FLAG_RENDER_H = FLAG_RENDER_W * (FLAG_H / FLAG_W);
 const FLAG_OFFSET_X = (W - FLAG_RENDER_W) / 2;
 const FLAG_OFFSET_Y = (H - FLAG_RENDER_H) / 2;
 
-// Sine wave 펄럭임
-const WAVE_CONFIGS = [
-  { amp: 22, freq: 0.035, speed: 1.4,  phase: 0 },
-  { amp: 12, freq: 0.08,  speed: 2.1,  phase: 1.3 },
-  { amp:  6, freq: 0.14,  speed: 2.8,  phase: 2.7 },
-];
-const NOISE_AMP = 4; // 각 스트립별 랜덤 오프셋
-
-// 스트립별 베이스 노이즈 (한 번만 계산)
-const baseNoise = new Float32Array(STRIPS);
-for (let i = 0; i < STRIPS; i++) {
-  baseNoise[i] = (Math.random() - 0.5) * 2;
-}
-
-// ═══════════════════════════════════════════════════════════════
-// 텍스트 설정
-// ═══════════════════════════════════════════════════════════════
-
 const TEXT_LINES = ['차이나', '쇼크', '2.0'];
-const TEXT_SIZE = 170;        // px (709 wide 아트보드 기준)
-const TEXT_LINE_HEIGHT = 150; // 줄 간격
-const TEXT_X = 48;            // 좌 패딩
-const TEXT_Y_START = 160;     // 첫 줄 baseline
+const SUBTITLE = 'CHINA SHOCK 2.0';
+const TEXT_SIZE = 170;
+const TEXT_LINE_HEIGHT = 155;
+const TEXT_X = 48;
+const TEXT_Y_START = 200;
 
-// 텍스트를 미리 오프스크린 canvas 에 렌더 (변위 적용용)
+// 아트보드에 선명히 깔릴 텍스트 (국기 밑)
 const textCanvas = document.createElement('canvas');
 textCanvas.width = W;
 textCanvas.height = H;
 const tctx = textCanvas.getContext('2d');
+
 function renderText() {
   tctx.clearRect(0, 0, W, H);
   tctx.fillStyle = '#000';
@@ -130,17 +147,62 @@ function renderText() {
     tctx.fillText(line, TEXT_X, y);
     y += TEXT_LINE_HEIGHT;
   }
+  // 서브타이틀
+  tctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+  tctx.font = `500 16px Pretendard, sans-serif`;
+  tctx.fillText(SUBTITLE, TEXT_X, y - 40);
 }
+
+// 합성 텍스처 — flag 원본 좌표계에서 텍스트를 얹음
+const compositeCanvas = document.createElement('canvas');
+compositeCanvas.width = FLAG_W;
+compositeCanvas.height = FLAG_H;
+const cctx = compositeCanvas.getContext('2d');
+
+function renderComposite() {
+  // 합성이지만 텍스트는 제외 — 국기만 (텍스트는 아트보드에 선명히 깔릴 것)
+  cctx.clearRect(0, 0, FLAG_W, FLAG_H);
+  cctx.drawImage(flagCanvas, 0, 0);
+}
+
 renderText();
+renderComposite();
 
-// Pretendard 웹폰트 로드 후 재렌더
 if (document.fonts && document.fonts.ready) {
-  document.fonts.ready.then(() => renderText());
+  document.fonts.ready.then(() => {
+    renderText();
+    renderComposite();
+  });
+}
+
+// 텍스트 히트맵 — 글리치용
+function isTextArea(artboardX, artboardY) {
+  if (artboardX < TEXT_X - 10 || artboardX > TEXT_X + 540) return false;
+  const yMin = TEXT_Y_START - TEXT_SIZE + 30;
+  const yMax = TEXT_Y_START + TEXT_LINE_HEIGHT * 2 + 30;
+  return artboardY > yMin && artboardY < yMax;
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 마우스 인터랙션
+// 3. 펄럭임 / 마우스
 // ═══════════════════════════════════════════════════════════════
+
+const WAVE_CONFIGS = [
+  { amp: 58, freq: 0.075, speed: 1.2, phase: 0 },
+  { amp: 30, freq: 0.16,  speed: 1.9, phase: 1.3 },
+  { amp: 14, freq: 0.32,  speed: 2.6, phase: 2.7 },
+];
+const NOISE_AMP = 8;
+const baseNoise = new Float32Array(STRIPS);
+for (let i = 0; i < STRIPS; i++) baseNoise[i] = (Math.random() - 0.5) * 2;
+
+// 스트립별 개성 — 수평 shake / 세로 scale 변동
+const stripShakeSeed = new Float32Array(STRIPS);
+const stripScaleSeed = new Float32Array(STRIPS);
+for (let i = 0; i < STRIPS; i++) {
+  stripShakeSeed[i] = Math.random();
+  stripScaleSeed[i] = Math.random();
+}
 
 let mouseX = 0, mouseY = 0;
 let mouseActive = false;
@@ -152,42 +214,37 @@ canvas.addEventListener('pointermove', (e) => {
 });
 canvas.addEventListener('pointerleave', () => { mouseActive = false; });
 
-// ═══════════════════════════════════════════════════════════════
-// 메인 루프
-// ═══════════════════════════════════════════════════════════════
-
-// 스트립별 현재 변위값 저장 — 텍스트 렌더 시 재사용
 const stripDisplacement = new Float32Array(STRIPS);
 
 function computeStripDisplacement(stripIdx, t) {
-  // stripIdx 0~STRIPS-1
   let dy = 0;
   for (const w of WAVE_CONFIGS) {
     dy += Math.sin(stripIdx * w.freq + t * w.speed + w.phase) * w.amp;
   }
   dy += baseNoise[stripIdx] * NOISE_AMP;
 
-  // 마우스 영향 — 커서 근처에 추가 파장
   if (mouseActive) {
     const stripX = FLAG_OFFSET_X + (stripIdx / STRIPS) * FLAG_RENDER_W;
-    // flag 대각선 변환 전 근사 — stripX 중심 기준 mouse 거리
     const dist = Math.abs(stripX - mouseX);
-    const infl = Math.max(0, 1 - dist / 250); // 250px 반경
+    const infl = Math.max(0, 1 - dist / 300);
     if (infl > 0) {
-      dy += Math.sin(stripIdx * 0.3 + t * 6) * 24 * infl;
+      dy += Math.sin(stripIdx * 0.4 + t * 5.5) * 36 * infl;
     }
   }
-
   return dy;
 }
 
+// ═══════════════════════════════════════════════════════════════
+// 4. 렌더
+// ═══════════════════════════════════════════════════════════════
+
 function drawFlagStrips(t) {
-  // 국기를 대각선으로 회전시킨 좌표계에서 100개 스트립으로 분할
   const stripW = FLAG_RENDER_W / STRIPS;
   const srcStripW = FLAG_W / STRIPS;
+  const GAP = 5.0; // 스트립 사이 넓은 틈 — 흩날리는 느낌
+  const drawW = stripW - GAP; // 실제 그려지는 스트립 너비 (GAP 만큼 줄여서 사이가 벌어짐)
 
   ctx.save();
-  // 아트보드 중심을 기준으로 대각선 회전
   ctx.translate(W / 2, H / 2);
   ctx.rotate(FLAG_DIAG_ANGLE);
   ctx.translate(-W / 2, -H / 2);
@@ -196,21 +253,106 @@ function drawFlagStrips(t) {
     const dy = computeStripDisplacement(i, t);
     stripDisplacement[i] = dy;
 
-    const dx = FLAG_OFFSET_X + i * stripW;
-    const dyTop = FLAG_OFFSET_Y + dy;
+    // 스트립별 수평 shake (좌우 살짝 흔들) + 세로 scale (찢어진 종이처럼 높이 달라짐)
+    const shakeAmt = Math.sin(t * 1.3 + stripShakeSeed[i] * Math.PI * 2) * 3;
+    const scaleVar = 1 + (stripScaleSeed[i] - 0.5) * 0.08 + Math.sin(t * 0.8 + i * 0.3) * 0.04;
 
-    // 원본 flag canvas 에서 해당 strip 복사
-    ctx.drawImage(
-      flagCanvas,
-      i * srcStripW, 0, srcStripW, FLAG_H,
-      dx, dyTop, stripW + 0.8, FLAG_RENDER_H
-    );
+    const dx = FLAG_OFFSET_X + i * stripW + shakeAmt;
+    const stripH = FLAG_RENDER_H * scaleVar;
+    const dyTop = FLAG_OFFSET_Y + dy - (stripH - FLAG_RENDER_H) / 2;
+
+    const stripCenterX = dx + stripW / 2;
+    const stripCenterY = dyTop + stripH / 2;
+    const crossesText = isTextArea(stripCenterX, stripCenterY);
+
+    const prevDy = i > 0 ? stripDisplacement[i - 1] : dy;
+    const delta = dy - prevDy;
+
+    if (crossesText) {
+      const splitAmt = 2 + Math.abs(Math.sin(t * 2 + i)) * 3;
+
+      ctx.save();
+      ctx.globalAlpha = 0.8;
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.filter = 'saturate(1.6) hue-rotate(-8deg)';
+      ctx.drawImage(
+        compositeCanvas,
+        i * srcStripW, 0, srcStripW, FLAG_H,
+        dx - splitAmt, dyTop, drawW, stripH
+      );
+      ctx.restore();
+
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      ctx.globalCompositeOperation = 'screen';
+      ctx.filter = 'saturate(1.3) hue-rotate(190deg)';
+      ctx.drawImage(
+        compositeCanvas,
+        i * srcStripW, 0, srcStripW, FLAG_H,
+        dx + splitAmt, dyTop, drawW, stripH
+      );
+      ctx.restore();
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.drawImage(
+        compositeCanvas,
+        i * srcStripW, 0, srcStripW, FLAG_H,
+        dx, dyTop, drawW, stripH
+      );
+      ctx.restore();
+
+      const glitchRoll = Math.sin(t * 3 + i * 0.9);
+      if (glitchRoll > 0.7) {
+        const fallAmt = 4 + glitchRoll * 14;
+        ctx.save();
+        ctx.globalAlpha = 0.45;
+        ctx.drawImage(
+          compositeCanvas,
+          i * srcStripW, 0, srcStripW, FLAG_H,
+          dx + (Math.random() - 0.5) * 3, dyTop + fallAmt, drawW, stripH
+        );
+        ctx.restore();
+      }
+    } else {
+      ctx.drawImage(
+        compositeCanvas,
+        i * srcStripW, 0, srcStripW, FLAG_H,
+        dx, dyTop, drawW, stripH
+      );
+    }
+
+    // 스트립 상/하단 페이드 — 날리는 느낌
+    const fadeH = stripH * 0.1;
+    // 상단 페이드
+    const gradTop = ctx.createLinearGradient(0, dyTop, 0, dyTop + fadeH);
+    gradTop.addColorStop(0, 'rgba(255,255,255,1)');
+    gradTop.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = gradTop;
+    ctx.fillRect(dx, dyTop, drawW, fadeH);
+    // 하단 페이드
+    const gradBot = ctx.createLinearGradient(0, dyTop + stripH - fadeH, 0, dyTop + stripH);
+    gradBot.addColorStop(0, 'rgba(255,255,255,0)');
+    gradBot.addColorStop(1, 'rgba(255,255,255,1)');
+    ctx.fillStyle = gradBot;
+    ctx.fillRect(dx, dyTop + stripH - fadeH, drawW, fadeH);
+
+    // 종이 말림 엣지 하이라이트/섀도우
+    if (Math.abs(delta) > 1.5) {
+      const lightIntensity = Math.min(0.4, Math.abs(delta) / 60);
+      if (delta > 0) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${lightIntensity})`;
+        ctx.fillRect(dx, dyTop, 1.5, stripH);
+      } else {
+        ctx.fillStyle = `rgba(0, 0, 0, ${lightIntensity * 0.6})`;
+        ctx.fillRect(dx, dyTop, 1.5, stripH);
+      }
+    }
   }
   ctx.restore();
 }
 
-function drawStripEdgeGlow(t) {
-  // 스트립 경계에 빨강→노랑 그라데이션 LED glow
+function drawStripEdgeGlow() {
   const stripW = FLAG_RENDER_W / STRIPS;
 
   ctx.save();
@@ -218,122 +360,68 @@ function drawStripEdgeGlow(t) {
   ctx.rotate(FLAG_DIAG_ANGLE);
   ctx.translate(-W / 2, -H / 2);
 
-  ctx.globalCompositeOperation = 'lighter'; // additive blend
+  ctx.globalCompositeOperation = 'lighter';
 
   for (let i = 1; i < STRIPS; i++) {
     const dy1 = stripDisplacement[i - 1];
     const dy2 = stripDisplacement[i];
     const dy = (dy1 + dy2) / 2;
-
     const x = FLAG_OFFSET_X + i * stripW;
     const y0 = FLAG_OFFSET_Y + dy;
     const y1 = FLAG_OFFSET_Y + dy + FLAG_RENDER_H;
-
-    // 변위 차이에 비례한 glow 강도
-    const delta = Math.min(1, Math.abs(dy2 - dy1) / 8);
-    if (delta < 0.05) continue;
+    const delta = Math.min(1, Math.abs(dy2 - dy1) / 14);
+    if (delta < 0.1) continue;
 
     const grad = ctx.createLinearGradient(x, y0, x, y1);
-    grad.addColorStop(0,    `rgba(255, 50, 50, ${0.2 * delta})`);
-    grad.addColorStop(0.5,  `rgba(255, 220, 50, ${0.55 * delta})`);
-    grad.addColorStop(1,    `rgba(255, 50, 50, ${0.2 * delta})`);
+    grad.addColorStop(0,   `rgba(255, 80, 80, ${0.15 * delta})`);
+    grad.addColorStop(0.5, `rgba(255, 220, 50, ${0.45 * delta})`);
+    grad.addColorStop(1,   `rgba(255, 80, 80, ${0.15 * delta})`);
     ctx.strokeStyle = grad;
-    ctx.lineWidth = 1.4 + delta * 1.6;
+    ctx.lineWidth = 1.2 + delta * 1.5;
     ctx.beginPath();
     ctx.moveTo(x, y0);
     ctx.lineTo(x, y1);
     ctx.stroke();
   }
-
   ctx.globalCompositeOperation = 'source-over';
   ctx.restore();
 }
 
-function drawText(t) {
-  // 텍스트를 스트립별 변위값으로 휘어서 렌더
-  // 기법: textCanvas 를 세로 띠로 잘라서 각 x 위치에 해당하는 strip 의 dy 를 적용
-  // 텍스트 영역이 실제로는 아트보드 전체에 고르게 퍼지진 않지만
-  // flag 가 대각선이라 계산 단순화: textCanvas 의 x 좌표를 flag 스트립 인덱스로 매핑
-
-  const sliceW = 4; // 4px 띠로 잘라 변위 적용 (100 스트립보다 세분화)
-
-  for (let sx = 0; sx < W; sx += sliceW) {
-    // 이 sliceX 가 어느 flag strip 에 해당하는지
-    // sliceX → flag 좌표계 회전 역변환
-    const cx = sx + sliceW / 2;
-    // 아트보드 중심 기준 대각선 역회전
-    const dxFromCenter = cx - W / 2;
-    // flag stripIdx: flag 좌표계에서 stripW 간격
-    // 단순화: flag 가 아트보드 전체를 덮고 대각선이 작으니 x 직접 매핑
-    const flagX = (sx - FLAG_OFFSET_X) / FLAG_RENDER_W; // 0~1
-    const stripIdx = Math.max(0, Math.min(STRIPS - 1, Math.floor(flagX * STRIPS)));
-    const dy = stripDisplacement[stripIdx] * 0.7; // 텍스트는 70% 로 약하게 (국기보다 덜 휨)
-
-    ctx.drawImage(
-      textCanvas,
-      sx, 0, sliceW, H,
-      sx, dy, sliceW, H
-    );
-  }
-}
-
 function drawScanlines() {
-  // 가로 스캔라인 오버레이 — 2px 주기
   ctx.save();
-  ctx.globalAlpha = 0.08;
+  ctx.globalAlpha = 0.07;
   ctx.fillStyle = '#000';
-  for (let y = 0; y < H; y += 3) {
-    ctx.fillRect(0, y, W, 1);
-  }
+  for (let y = 0; y < H; y += 3) ctx.fillRect(0, y, W, 1);
   ctx.restore();
 }
 
 function drawVignette() {
-  // 약한 비네트 — 가장자리 어둡게
   const g = ctx.createRadialGradient(W/2, H/2, W*0.3, W/2, H/2, W*0.7);
   g.addColorStop(0, 'rgba(0,0,0,0)');
-  g.addColorStop(1, 'rgba(0,0,0,0.25)');
+  g.addColorStop(1, 'rgba(0,0,0,0.18)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
 }
 
-let lastTime = 0;
-function animate(now = 0) {
-  requestAnimationFrame(animate);
-  const t = now / 1000;
-
-  // 아트보드 배경 (흰색 유지 — 텍스트가 검정이라 대비)
+function draw(t) {
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, W, H);
-
-  // 1. 텍스트 (먼저 — 국기보다 뒤에)
-  drawText(t);
-
-  // 2. 국기 스트립 (텍스트 위로 덮음)
+  // 텍스트 선명히 깔림 (국기 밑)
+  ctx.drawImage(textCanvas, 0, 0);
+  // 국기 스트립이 위로 덮으며 흩날림
   drawFlagStrips(t);
-
-  // 3. 스트립 경계 LED glow
-  drawStripEdgeGlow(t);
-
-  // 4. 스캔라인 오버레이
+  drawStripEdgeGlow();
   drawScanlines();
-
-  // 5. 비네트
   drawVignette();
 }
 
-// 썸네일 모드: 1프레임만 그리고 정적 표시
+function animate(now = 0) {
+  requestAnimationFrame(animate);
+  draw(now / 1000);
+}
+
 if (IS_THUMB) {
-  // 초기 프레임 한 번만
-  requestAnimationFrame(() => {
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(0, 0, W, H);
-    drawText(0);
-    drawFlagStrips(0.3);
-    drawStripEdgeGlow(0.3);
-    drawScanlines();
-    drawVignette();
-  });
+  requestAnimationFrame(() => draw(0.3));
 } else {
   animate();
 }
