@@ -138,19 +138,59 @@ canvas.addEventListener('pointermove', e => {
 });
 canvas.addEventListener('pointerleave', () => mA = false);
 
+// B: 클릭 찢기 — 클릭 위치에서 스트립이 좌우로 갈라짐
+let tearX = -1;       // 찢기 x 위치 (캔버스 좌표). -1 = 비활성
+let tearTime = 0;     // 찢기 시작 시간
+let tearDuration = 2.5; // 찢기 지속 시간 (초)
+let tearMaxGap = 0;   // 최대 벌어짐 (화면 비례)
+
+canvas.addEventListener('pointerdown', e => {
+  tearX = e.clientX * (W / window.innerWidth);
+  tearTime = performance.now() / 1000;
+  tearMaxGap = W * 0.08; // 화면 8% 만큼 벌어짐
+});
+
+function getTearOffset(stripCenterX, t) {
+  if (tearX < 0) return 0;
+  const elapsed = t - tearTime;
+  if (elapsed > tearDuration) { tearX = -1; return 0; }
+  // 열렸다 닫히는 곡선: 빠르게 열리고 천천히 닫힘
+  const openPhase = Math.min(1, elapsed / 0.3); // 0.3초 만에 열림
+  const closePhase = Math.max(0, (elapsed - 0.3) / (tearDuration - 0.3)); // 나머지 시간에 닫힘
+  const gapAmount = tearMaxGap * openPhase * (1 - closePhase * closePhase);
+
+  // 찢기 위치에서 거리에 따라 좌우로 밀림
+  const dist = stripCenterX - tearX;
+  const influence = Math.max(0, 1 - Math.abs(dist) / (W * 0.25));
+  if (influence <= 0) return 0;
+  // 왼쪽 스트립은 왼쪽으로, 오른쪽은 오른쪽으로
+  const direction = dist < 0 ? -1 : 1;
+  return direction * gapAmount * influence;
+}
+
 function calcDy(i, t, flagRW) {
-  // 진폭을 화면 크기 비례로
   const baseAmp = flagRW * 0.055;
   let dy = 0;
   dy += Math.sin(i*0.08 + t*1.1) * baseAmp;
   dy += Math.sin(i*0.18 + t*1.8 + 1.3) * baseAmp * 0.5;
   dy += Math.sin(i*0.35 + t*2.5 + 2.7) * baseAmp * 0.22;
   dy += bNoise[i] * NOISE;
+
+  // C: 마우스 바람 — 커서 근처 스트립이 크게 들춰짐
   if (mA) {
     const flagOX = W * 0.3;
     const sx = flagOX + (i/STRIPS)*flagRW;
-    const inf = Math.max(0, 1 - Math.abs(sx - mX)/(flagRW*0.3));
-    if (inf > 0) dy += Math.sin(i*0.4 + t*5.5) * baseAmp * 0.65 * inf;
+    const dist = Math.abs(sx - mX);
+    const radius = flagRW * 0.2; // 영향 반경
+    const inf = Math.max(0, 1 - dist / radius);
+    if (inf > 0) {
+      // 강한 Y 변위 — 커서 근처 스트립이 위로 들림
+      dy += inf * baseAmp * 1.8 * Math.sin(t * 4 + i * 0.5);
+      // 추가: 커서 위/아래에 따라 방향
+      const flagOY = (H - flagRW * (FLAG_H/FLAG_W)) / 2;
+      const flagCY = flagOY + flagRW * (FLAG_H/FLAG_W) / 2;
+      dy += inf * (mY < flagCY ? -1 : 1) * baseAmp * 0.6;
+    }
   }
   return dy;
 }
@@ -190,11 +230,13 @@ function drawStrips(t) {
   for (let i = 0; i < STRIPS; i++) {
     const dy = calcDy(i, t, flagRW);
     const baseDx = flagOX + i * sW;
+    // B: 찢기 오프셋
+    const tearOff = getTearOffset(baseDx + sW/2, t);
 
     for (let s = 0; s < SLICES; s++) {
       const y01 = s / SLICES;
       const sliceXOff = calcSliceXOff(i, s, t);
-      const dx = baseDx + sliceXOff;
+      const dx = baseDx + sliceXOff + tearOff;
       const sliceY = flagOY + dy + s * sliceH;
 
       // 하단 분해
@@ -326,9 +368,10 @@ function drawStripsToMask(t) {
   for (let i = 0; i < STRIPS; i++) {
     const dy = calcDy(i, t, flagRW);
     const baseDx = flagOX + i * sW;
+    const tearOff = getTearOffset(baseDx + sW/2, t);
     for (let s = 0; s < SLICES; s++) {
       const sliceXOff = calcSliceXOff(i, s, t);
-      const dx = baseDx + sliceXOff;
+      const dx = baseDx + sliceXOff + tearOff;
       const sliceY = flagOY + dy + s * sliceH;
       let extraFall = 0;
       const y01 = s / SLICES;
