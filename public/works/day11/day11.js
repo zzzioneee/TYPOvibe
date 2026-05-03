@@ -445,7 +445,10 @@ if (document.fonts?.ready) {
 }
 
 if (IS_THUMB) {
-  requestAnimationFrame(() => draw(0.3));
+  // 썸네일에서도 애니메이션 돌림 (국기 펄럭임이 핵심이라)
+  // 마우스 인터랙션만 차단
+  canvas.style.pointerEvents = 'none';
+  animate();
 } else {
   animate();
 }
