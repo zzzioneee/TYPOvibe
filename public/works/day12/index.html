@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Day 12 — Met Gala: Fashion Is Art</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Pretendard', sans-serif;
+    }
+    /* 마네킹 배경 레이어 */
+    #bg-canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      z-index: 0;
+    }
+    /* Three.js 꽃 레이어 — 투명 배경 */
+    #container {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      z-index: 1;
+      pointer-events: none;
+    }
+    #container canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+    .from-wrap {
+      position: fixed; top: 24px; left: 50%;
+      transform: translateX(-50%); z-index: 100;
+    }
+    .from-link {
+      font-size: 20px; font-weight: 500;
+      color: rgba(255,255,255,0.5);
+      text-decoration: none; letter-spacing: 0.15em;
+    }
+    /* THE MET GALA 타이틀 — 마네킹 뒤, 꽃 앞 사이 */
+    #title-wrap {
+      position: fixed;
+      top: 8%;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: -1;
+      text-align: center;
+      pointer-events: none;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    #title-the {
+      display: block;
+      font-family: 'Baskerville', 'Libre Baskerville', 'Georgia', serif;
+      font-weight: 400;
+      font-size: clamp(18px, 3.5vw, 52px);
+      color: #fff;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.05em;
+    }
+    #title-metgala {
+      display: block;
+      font-family: 'Baskerville', 'Libre Baskerville', 'Georgia', serif;
+      font-weight: 400;
+      font-size: clamp(60px, 12.5vw, 200px);
+      color: #fff;
+      letter-spacing: 0.04em;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="bg-canvas"></canvas>
+  <div id="title-wrap">
+    <span id="title-the">THE</span>
+    <span id="title-metgala">MET GALA</span>
+  </div>
+  <div id="container"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="./day12.js"></script>
+</body>
+</html>
