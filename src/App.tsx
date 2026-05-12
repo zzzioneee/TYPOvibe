@@ -10,10 +10,32 @@ import Day008 from './works/day8'
 import Day009 from './works/day9'
 import Day010 from './works/day10'
 import Day011 from './works/day11'
+import Day012 from './works/day12'
+import Day013 from './works/day13'
 
 type View = 'home' | string
 
 const WORKS = [
+  {
+    id: 'day13',
+    day: '13',
+    date: '2026.05.12',
+    title: '너겟 공룡',
+    desc: '너겟과 감자튀김으로 만든 공룡. Speed·Dance·Roar 슬라이더로 움직임을 조절하는 인터랙티브 3D 씬.',
+    tags: ['Three.js', 'Interactive', '3D'],
+    ratio: '4 / 3',
+    bgTheme: 'dark' as const,
+  },
+  {
+    id: 'day12',
+    day: '12',
+    date: '2026.05.11',
+    title: 'Met Gala: Fashion Is Art',
+    desc: '마네킹 위에 고전 유화 5점의 꽃이 드레스처럼 피어나고 지는 제너레이티브 아트. 모네, 반 고흐, 클림트, 호쿠사이, 몬드리안.',
+    tags: ['Canvas', 'Generative', 'Particle'],
+    ratio: '4 / 3',
+    bgTheme: 'dark' as const,
+  },
   {
     id: 'day1',
     day: '1',
@@ -185,6 +207,8 @@ export default function App() {
           {view === 'day9' && <Day009 />}
           {view === 'day10' && <Day010 />}
           {view === 'day11' && <Day011 />}
+          {view === 'day12' && <Day012 />}
+          {view === 'day13' && <Day013 />}
         </main>
       </div>
     )
