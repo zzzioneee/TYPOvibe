@@ -74,7 +74,9 @@ function buildMask() {
   bgCanvas.style.width  = W + 'px';
   bgCanvas.style.height = H + 'px';
   bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+  bgCtx.filter = 'drop-shadow(0px 8px 32px rgba(0,0,0,0.85))';
   bgCtx.drawImage(mannequinImg, mx, my, mW, mH);
+  bgCtx.filter = 'none';
 }
 
 // 마네킹 몸 위인지 (expandPx: 경계 확장 픽셀)
