@@ -127,6 +127,16 @@ const WORKS = [
     bgTheme: 'dark' as const,
   },
   {
+    id: 'day12',
+    day: '12',
+    date: '2026.05.11',
+    title: 'Met Gala: Fashion Is Art',
+    desc: '마네킹 위에 고전 유화 5점의 꽃이 드레스처럼 피어나고 지는 제너레이티브 아트. 모네, 반 고흐, 클림트, 보티첼리, 뭉크.',
+    tags: ['Three.js', 'Generative', 'Particle'],
+    ratio: '4 / 3',
+    bgTheme: 'dark' as const,
+  },
+  {
     id: 'day13',
     day: '13',
     date: '2026.05.12',
