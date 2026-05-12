@@ -17,26 +17,6 @@ type View = 'home' | string
 
 const WORKS = [
   {
-    id: 'day13',
-    day: '13',
-    date: '2026.05.12',
-    title: '너겟 공룡',
-    desc: '너겟과 감자튀김으로 만든 공룡. Speed·Dance·Roar 슬라이더로 움직임을 조절하는 인터랙티브 3D 씬.',
-    tags: ['Three.js', 'Interactive', '3D'],
-    ratio: '4 / 3',
-    bgTheme: 'dark' as const,
-  },
-  {
-    id: 'day12',
-    day: '12',
-    date: '2026.05.11',
-    title: 'Met Gala: Fashion Is Art',
-    desc: '마네킹 위에 고전 유화 5점의 꽃이 드레스처럼 피어나고 지는 제너레이티브 아트. 모네, 반 고흐, 클림트, 호쿠사이, 몬드리안.',
-    tags: ['Canvas', 'Generative', 'Particle'],
-    ratio: '4 / 3',
-    bgTheme: 'dark' as const,
-  },
-  {
     id: 'day1',
     day: '1',
     date: '2026.04.16',
@@ -143,6 +123,16 @@ const WORKS = [
     title: '차이나 쇼크 2.0',
     desc: '오성홍기가 세로 스트립으로 쪼개져 텍스트 위를 펄럭이며 덮는 인터랙티브 타이포그래피. 클릭하면 국기가 찢어지고 텍스트가 드러남.',
     tags: ['Canvas', 'Wave', 'Displacement'],
+    ratio: '4 / 3',
+    bgTheme: 'dark' as const,
+  },
+  {
+    id: 'day13',
+    day: '13',
+    date: '2026.05.12',
+    title: '너겟 공룡',
+    desc: '너겟과 감자튀김으로 만든 공룡. Speed·Dance·Roar 슬라이더로 움직임을 조절하는 인터랙티브 3D 씬.',
+    tags: ['Three.js', 'Interactive', '3D'],
     ratio: '4 / 3',
     bgTheme: 'dark' as const,
   },
