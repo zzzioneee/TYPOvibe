@@ -1,6 +1,6 @@
 # Day 16 — Wait, is it summer already?
 
-**날짜**: 2026.05.14  
+**날짜**: 2026.05.15  
 **태그**: Canvas, Particle, Simplex Noise, Pixel Art, Interactive
 
 ## 개요

@@ -151,7 +151,7 @@ const WORKS = [
   {
     id: 'day15',
     day: '15',
-    date: '2026.05.13',
+    date: '2026.05.14',
     title: 'Metaball Typography',
     desc: '8개 글자가 물방울처럼 합쳐지고 분리되는 SVG goo 필터 타이포그래피.',
     tags: ['SVG Filter', 'Interactive', 'Typo'],
@@ -161,7 +161,7 @@ const WORKS = [
   {
     id: 'day16',
     day: '16',
-    date: '2026.05.14',
+    date: '2026.05.15',
     title: 'Wait, is it summer already?',
     desc: '마우스가 지나가면 픽셀 텍스트가 흩어지고, 손을 떼면 조용히 복귀하는 여름 하늘.',
     tags: ['Canvas', 'Particle', 'Simplex Noise'],
