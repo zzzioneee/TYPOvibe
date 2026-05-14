@@ -317,11 +317,11 @@ export default function App() {
                     fontWeight: 400,
                     color: '#111',
                     cursor: 'pointer',
-                    transition: 'font-weight 0.2s',
+                    transition: 'font-weight 0.2s, font-size 0.2s',
                     wordBreak: 'keep-all',
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.fontWeight = '700'; }}
-                  onMouseLeave={e => { e.currentTarget.style.fontWeight = '400'; }}
+                  onMouseEnter={e => { e.currentTarget.style.fontWeight = '700'; e.currentTarget.style.fontSize = '18px'; }}
+                  onMouseLeave={e => { e.currentTarget.style.fontWeight = '400'; e.currentTarget.style.fontSize = '16px'; }}
                 >
                   {item.title}
                 </li>
