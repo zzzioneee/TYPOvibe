@@ -12,6 +12,7 @@ import Day010 from './works/day10'
 import Day011 from './works/day11'
 import Day012 from './works/day12'
 import Day013 from './works/day13'
+import Day016 from './works/day16'
 
 type View = 'home' | string
 
@@ -146,6 +147,16 @@ const WORKS = [
     ratio: '4 / 3',
     bgTheme: 'dark' as const,
   },
+  {
+    id: 'day16',
+    day: '16',
+    date: '2026.05.14',
+    title: 'Wait, is it summer already?',
+    desc: '마우스가 지나가면 픽셀 텍스트가 Simplex Noise로 흩어지고, 손을 떼면 조용히 복귀하는 여름 하늘 인터랙티브.',
+    tags: ['Canvas', 'Particle', 'Simplex Noise'],
+    ratio: '4 / 3',
+    bgTheme: 'light' as const,
+  },
 ]
 
 export default function App() {
@@ -209,6 +220,7 @@ export default function App() {
           {view === 'day11' && <Day011 />}
           {view === 'day12' && <Day012 />}
           {view === 'day13' && <Day013 />}
+          {view === 'day16' && <Day016 />}
         </main>
       </div>
     )
