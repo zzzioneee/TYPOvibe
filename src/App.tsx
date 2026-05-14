@@ -154,7 +154,7 @@ const WORKS = [
     date: '2026.05.13',
     title: 'Metaball Typography',
     desc: '8개 글자가 물방울처럼 합쳐지고 분리되는 SVG goo 필터 타이포그래피.',
-    tags: ['SVG Filter', 'Interactive', 'Typography'],
+    tags: ['SVG Filter', 'Interactive', 'Typo'],
     ratio: '4 / 3',
     bgTheme: 'dark' as const,
   },
