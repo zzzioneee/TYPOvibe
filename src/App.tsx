@@ -12,6 +12,7 @@ import Day010 from './works/day10'
 import Day011 from './works/day11'
 import Day012 from './works/day12'
 import Day013 from './works/day13'
+import Day015 from './works/day15'
 import Day016 from './works/day16'
 
 type View = 'home' | string
@@ -148,6 +149,16 @@ const WORKS = [
     bgTheme: 'dark' as const,
   },
   {
+    id: 'day15',
+    day: '15',
+    date: '2026.05.13',
+    title: 'Metaball Typography',
+    desc: '8개 글자가 물방울처럼 합쳐지고 분리되는 SVG goo 필터 타이포그래피.',
+    tags: ['SVG Filter', 'Interactive', 'Typography'],
+    ratio: '4 / 3',
+    bgTheme: 'dark' as const,
+  },
+  {
     id: 'day16',
     day: '16',
     date: '2026.05.14',
@@ -220,6 +231,7 @@ export default function App() {
           {view === 'day11' && <Day011 />}
           {view === 'day12' && <Day012 />}
           {view === 'day13' && <Day013 />}
+          {view === 'day15' && <Day015 />}
           {view === 'day16' && <Day016 />}
         </main>
       </div>

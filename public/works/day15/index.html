@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Day 15: Metaball Typography</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; }
+
+#scene {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+#goo-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.letter {
+  position: absolute;
+  font-family: "Arial Black", "Helvetica Neue", sans-serif;
+  font-weight: 900;
+  line-height: 1;
+  will-change: transform;
+  user-select: none;
+  transform: translate(-50%, -50%);
+}
+
+.controls {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 280px;
+  background: rgba(0,0,0,0.88);
+  border-radius: 12px;
+  padding: 20px;
+  color: #fff;
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 13px;
+  backdrop-filter: blur(10px);
+  z-index: 100;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+}
+.controls.hidden { display: none; }
+.controls h3 { font-size: 14px; margin-bottom: 14px; font-weight: 600; }
+.control-group { margin-bottom: 12px; }
+.control-group label { display: flex; justify-content: space-between; margin-bottom: 4px; opacity: 0.7; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+.control-group input[type="range"] { width: 100%; height: 4px; -webkit-appearance: none; background: rgba(255,255,255,0.2); border-radius: 2px; outline: none; }
+.control-group input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #fff; cursor: pointer; }
+.control-group select { width: 100%; padding: 6px 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: #fff; font-size: 13px; outline: none; }
+.control-group select option { background: #222; }
+.control-group button { width: 100%; padding: 6px 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: #fff; font-size: 12px; cursor: pointer; transition: all 0.2s; }
+.control-group button:hover { background: rgba(255,255,255,0.2); }
+.toggle-btn { position: fixed; top: 20px; right: 20px; z-index: 101; width: 36px; height: 36px; border-radius: 50%; background: rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.3); color: #fff; font-size: 16px; cursor: pointer; display: none; align-items: center; justify-content: center; }
+.toggle-btn.show { display: flex; }
+</style>
+</head>
+<body>
+
+<svg style="position:absolute;width:0;height:0">
+  <defs>
+    <filter id="goo">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="30" result="blur" />
+      <feColorMatrix in="blur" type="matrix"
+        values="1 0 0 0 0
+                0 1 0 0 0
+                0 0 1 0 0
+                0 0 0 18 -9" result="goo" />
+    </filter>
+  </defs>
+</svg>
+
+<div id="scene">
+  <div id="goo-layer"></div>
+</div>
+
+<button class="toggle-btn" id="toggleBtn">⚙</button>
+<div class="controls" id="controls">
+  <h3>METABALL TYPO</h3>
+  <div class="control-group">
+    <label><span>Font Size</span><span id="sizeVal">30</span></label>
+    <input type="range" id="size" min="15" max="60" step="1" value="30">
+  </div>
+  <div class="control-group">
+    <label><span>Blur (Merge)</span><span id="blurVal">30</span></label>
+    <input type="range" id="blur" min="5" max="60" step="1" value="30">
+  </div>
+  <div class="control-group">
+    <label><span>Threshold</span><span id="threshVal">18</span></label>
+    <input type="range" id="thresh" min="5" max="50" step="1" value="18">
+  </div>
+  <div class="control-group">
+    <label><span>Speed</span><span id="speedVal">1.95</span></label>
+    <input type="range" id="speed" min="0" max="5" step="0.05" value="1.95">
+  </div>
+  <div class="control-group">
+    <label><span>Overlap</span><span id="overlapVal">0.85</span></label>
+    <input type="range" id="overlap" min="0.2" max="1.2" step="0.05" value="0.85">
+  </div>
+  <div class="control-group">
+    <label><span>Movement</span><span id="moveVal">130</span></label>
+    <input type="range" id="move" min="0" max="200" step="5" value="130">
+  </div>
+  <div class="control-group">
+    <label><span>Background</span></label>
+    <select id="bgSelect">
+      <option value="#ffffff" selected>White</option>
+      <option value="#3d6b4f">Green</option>
+      <option value="#1a1a1a">Dark</option>
+      <option value="#cc00cc">Magenta</option>
+      <option value="#1a5fff">Blue</option>
+      <option value="#f0f0f0">Light Gray</option>
+    </select>
+  </div>
+  <div class="control-group">
+    <label><span>Color</span></label>
+    <button id="randomColorBtn">Random</button>
+  </div>
+</div>
+
+<script>
+const isThumb = window.location.search.includes('thumb');
+const TEXT = 'METABALL';
+const COLORS = ['#ff2040','#00dd22','#2266ff','#ffdd00','#ff55aa','#ff8800','#4444ff','#00ccdd'];
+
+let currentColors = [...COLORS];
+
+function randomHSL() {
+  const h = Math.floor(Math.random() * 360);
+  const s = 60 + Math.floor(Math.random() * 40);
+  const l = 45 + Math.floor(Math.random() * 25);
+  return `hsl(${h}, ${s}%, ${l}%)`;
+}
+
+function randomPattern() {
+  const type = Math.floor(Math.random() * 5);
+  const c1 = randomHSL(), c2 = randomHSL(), c3 = randomHSL();
+  const size = 10 + Math.floor(Math.random() * 30);
+
+  switch (type) {
+    case 0: // solid color
+      return { bg: c1, color: c1 };
+    case 1: // checkerboard
+      return {
+        bg: `repeating-conic-gradient(${c1} 0% 25%, ${c2} 0% 50%) 0 0 / ${size}px ${size}px`,
+        color: 'transparent'
+      };
+    case 2: // stripes
+      const angle = [0, 45, 90, 135][Math.floor(Math.random() * 4)];
+      const sw = 4 + Math.floor(Math.random() * 12);
+      return {
+        bg: `repeating-linear-gradient(${angle}deg, ${c1} 0px ${sw}px, ${c2} ${sw}px ${sw * 2}px)`,
+        color: 'transparent'
+      };
+    case 3: // gradient
+      return {
+        bg: `linear-gradient(${Math.floor(Math.random() * 360)}deg, ${c1}, ${c2}, ${c3})`,
+        color: 'transparent'
+      };
+    case 4: // grid
+      const gs = 8 + Math.floor(Math.random() * 15);
+      return {
+        bg: `repeating-linear-gradient(0deg, ${c1} 0px ${gs}px, ${c2} ${gs}px ${gs * 2}px), repeating-linear-gradient(90deg, ${c3}88 0px ${gs}px, transparent ${gs}px ${gs * 2}px)`,
+        color: 'transparent'
+      };
+    default:
+      return { bg: c1, color: c1 };
+  }
+}
+
+function randomizeColors() {
+  const usePattern = Math.random() > 0.4; // 60% chance of pattern
+
+  letterEls.forEach((el, i) => {
+    if (usePattern) {
+      const pat = randomPattern();
+      if (pat.color === 'transparent') {
+        el.style.background = pat.bg;
+        el.style.backgroundClip = 'text';
+        el.style.webkitBackgroundClip = 'text';
+        el.style.color = 'transparent';
+      } else {
+        el.style.background = 'none';
+        el.style.backgroundClip = 'unset';
+        el.style.webkitBackgroundClip = 'unset';
+        el.style.color = pat.color;
+      }
+    } else {
+      const c = randomHSL();
+      el.style.background = 'none';
+      el.style.backgroundClip = 'unset';
+      el.style.webkitBackgroundClip = 'unset';
+      el.style.color = c;
+    }
+    currentColors[i] = el.style.color;
+  });
+}
+
+function applyColors() {
+  letterEls.forEach((el, i) => {
+    el.style.background = 'none';
+    el.style.backgroundClip = 'unset';
+    el.style.webkitBackgroundClip = 'unset';
+    el.style.color = currentColors[i % currentColors.length];
+  });
+}
+
+const params = {
+  size: 30,
+  blur: 30,
+  thresh: 18,
+  speed: 1.95,
+  overlap: 0.85,
+  move: 130,
+  bg: '#ffffff',
+};
+
+const gooLayer = document.getElementById('goo-layer');
+const scene = document.getElementById('scene');
+
+const letterEls = [];
+for (let i = 0; i < TEXT.length; i++) {
+  const el = document.createElement('div');
+  el.className = 'letter';
+  el.textContent = TEXT[i];
+  el.style.color = currentColors[i];
+  gooLayer.appendChild(el);
+  letterEls.push(el);
+}
+
+function applyState() {
+  scene.style.background = params.bg;
+  document.body.style.background = params.bg;
+  gooLayer.style.filter = 'url(#goo)';
+
+  const filterEl = document.getElementById('goo');
+  if (filterEl) {
+    const blurEl = filterEl.querySelector('feGaussianBlur');
+    if (blurEl) blurEl.setAttribute('stdDeviation', params.blur);
+    const matrixEl = filterEl.querySelector('feColorMatrix[type="matrix"]');
+    if (matrixEl) {
+      const offset = Math.round(params.thresh * 0.5);
+      matrixEl.setAttribute('values',
+        `1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 ${params.thresh} -${offset}`);
+    }
+  }
+
+  applyColors();
+}
+
+const sliderIds = ['size','blur','thresh','speed','overlap','move'];
+const valIds = ['sizeVal','blurVal','threshVal','speedVal','overlapVal','moveVal'];
+sliderIds.forEach((id, i) => {
+  document.getElementById(id).addEventListener('input', e => {
+    params[id] = parseFloat(e.target.value);
+    document.getElementById(valIds[i]).textContent = e.target.value;
+    applyState();
+  });
+});
+document.getElementById('bgSelect').addEventListener('change', e => {
+  params.bg = e.target.value;
+  applyState();
+});
+document.getElementById('toggleBtn').addEventListener('click', () => {
+  document.getElementById('controls').classList.toggle('hidden');
+  document.getElementById('toggleBtn').classList.toggle('show',
+    document.getElementById('controls').classList.contains('hidden'));
+});
+document.getElementById('randomColorBtn').addEventListener('click', () => {
+  letterEls.forEach((el, i) => {
+    const c = randomHSL();
+    el.style.color = c;
+    currentColors[i] = c;
+  });
+});
+if (isThumb) document.getElementById('controls').classList.add('hidden');
+
+const baseLayout = [
+  { rx: -0.25, ry: -0.22, rot: -12 },
+  { rx:  0.08, ry: -0.28, rot: 6 },
+  { rx:  0.30, ry: -0.15, rot: -4 },
+  { rx: -0.35, ry:  0.10, rot: 15 },
+  { rx: -0.05, ry:  0.05, rot: -8 },
+  { rx:  0.25, ry:  0.15, rot: 10 },
+  { rx: -0.20, ry:  0.30, rot: -6 },
+  { rx:  0.15, ry:  0.32, rot: 3 },
+];
+
+function animate(time) {
+  const t = time * 0.001 * params.speed;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const fontSize = w * params.size / 100;
+
+  letterEls.forEach((el, i) => {
+    const layout = baseLayout[i];
+    const cx = w * 0.5 + layout.rx * w * params.overlap;
+    const cy = h * 0.5 + layout.ry * h * params.overlap;
+
+    const moveAmt = params.move;
+    const angle = i * 1.5 + t * 0.5;
+    const ox = Math.cos(angle) * moveAmt * (0.7 + 0.3 * Math.sin(t * 0.2 + i));
+    const oy = Math.sin(angle * 0.7 + i * 0.6) * moveAmt * 0.6;
+
+    const rotAnim = Math.sin(t * 0.25 + i * 1.2) * 6;
+    const rot = layout.rot + rotAnim;
+
+    el.style.left = (cx + ox) + 'px';
+    el.style.top = (cy + oy) + 'px';
+    el.style.fontSize = fontSize + 'px';
+    el.style.transform = `translate(-50%, -50%) rotate(${rot}deg)`;
+  });
+
+  requestAnimationFrame(animate);
+}
+
+applyState();
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
