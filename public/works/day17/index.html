@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Day 17 — REDRED / GREENGREEN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@900&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #fff; }
+canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const IS_THUMB = new URLSearchParams(location.search).has('thumb');
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+const RED   = '#ff0000';
+const GREEN = '#11b300';
+const FONT  = "'Barlow Condensed', 'Arial Narrow', sans-serif";
+const FW    = 900;
+
+let W, H, dpr;
+function resize() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  ctx.scale(dpr, dpr);
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ── 씬 파라미터 ──
+const LINES = [
+  { text: 'REDRED',     color: RED,    dir:  1 },
+  { text: 'GREENGREEN', color: GREEN,  dir: -1 },
+];
+
+const CYCLE    = 3600;  // 전체 루프 ms
+const IN_DUR   = 900;   // 등장 구간
+const OUT_DUR  = 700;   // 퇴장 구간
+const HOLD_DUR = CYCLE - IN_DUR - OUT_DUR; // 슬라이드 구간
+const STAGGER  = 70;    // 글자 간 딜레이 ms
+const SLIDE_V  = IS_THUMB ? 60 : 110; // px/s
+
+function getFontSize() {
+  return Math.round(Math.min(W, H) * (IS_THUMB ? 0.20 : 0.25));
+}
+
+function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+function easeInCubic(t)  { return Math.pow(t, 3); }
+
+let startTime = null;
+
+function draw(now) {
+  if (!startTime) startTime = now;
+  const t = (now - startTime) % CYCLE;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, H);
+
+  const fs = getFontSize();
+  const lineH = fs * 1.08;
+  const totalH = lineH * LINES.length;
+  const baseY = (H - totalH) / 2 + fs * 0.88;
+
+  ctx.font = `${FW} ${fs}px ${FONT}`;
+  ctx.textBaseline = 'alphabetic';
+
+  LINES.forEach((line, li) => {
+    const lineY = baseY + li * lineH;
+    const lineW = ctx.measureText(line.text).width;
+    const startX = (W - lineW) / 2;
+
+    // ── 슬라이드 구간: 무한 스크롤 ──
+    if (t >= IN_DUR && t < IN_DUR + HOLD_DUR) {
+      const elapsed = (t - IN_DUR) / 1000; // seconds
+      const raw = line.dir * elapsed * SLIDE_V;
+      // wrap: lineW 단위로 반복
+      const wrap = ((raw % lineW) + lineW) % lineW;
+      const ox = line.dir > 0 ? wrap : -wrap;
+
+      ctx.save();
+      ctx.fillStyle = line.color;
+      ctx.globalAlpha = 1;
+      ctx.filter = 'none';
+      // 3벌 그려서 끊김 없이
+      for (let c = -1; c <= 1; c++) {
+        const dx = startX + ox + c * lineW;
+        if (dx + lineW < -lineW || dx > W + lineW) continue;
+        ctx.fillText(line.text, dx, lineY);
+      }
+      ctx.restore();
+      return;
+    }
+
+    // ── 등장 / 퇴장: 글자별 stagger ──
+    const chars = line.text.split('');
+    const nChars = chars.length;
+
+    // 글자별 x 위치 미리 계산
+    const charXs = [];
+    let cx = startX;
+    chars.forEach(ch => {
+      charXs.push(cx);
+      cx += ctx.measureText(ch).width;
+    });
+
+    chars.forEach((ch, ci) => {
+      let alpha = 0, offsetY = 0, blurPx = 0;
+
+      if (t < IN_DUR) {
+        // 등장: 위에서 아래로, blur 걷힘
+        const delay = ci * STAGGER;
+        const localT = t - delay;
+        if (localT <= 0) return;
+        const prog = easeOutCubic(Math.min(localT / (IN_DUR - delay), 1));
+        alpha   = prog;
+        offsetY = (1 - prog) * fs * -1.4;
+        blurPx  = (1 - prog) * 14;
+      } else {
+        // 퇴장: 아래로, blur 증가
+        const delay = (nChars - 1 - ci) * STAGGER;
+        const localT = (t - IN_DUR - HOLD_DUR) - delay;
+        if (localT < 0) { alpha = 1; }
+        else {
+          const prog = easeInCubic(Math.min(localT / (OUT_DUR - delay), 1));
+          alpha   = 1 - prog;
+          offsetY = prog * fs * 1.2;
+          blurPx  = prog * 12;
+        }
+      }
+
+      if (alpha <= 0.01) return;
+
+      ctx.save();
+      ctx.fillStyle = line.color;
+      ctx.globalAlpha = Math.min(1, alpha);
+      ctx.filter = blurPx > 0.5 ? `blur(${blurPx.toFixed(1)}px)` : 'none';
+      ctx.fillText(ch, charXs[ci], lineY + offsetY);
+      ctx.restore();
+    });
+  });
+
+  requestAnimationFrame(draw);
+}
+
+document.fonts.ready.then(() => {
+  document.fonts.load(`${FW} 32px ${FONT}`).then(() => {
+    requestAnimationFrame(draw);
+  });
+});
+</script>
+</body>
+</html>

@@ -14,6 +14,7 @@ import Day012 from './works/day12'
 import Day013 from './works/day13'
 import Day015 from './works/day15'
 import Day016 from './works/day16'
+import Day017 from './works/day17'
 
 type View = 'home' | string
 
@@ -168,6 +169,16 @@ const WORKS = [
     ratio: '4 / 3',
     bgTheme: 'light' as const,
   },
+  {
+    id: 'day17',
+    day: '17',
+    date: '2026.05.18',
+    title: 'REDRED / GREENGREEN',
+    desc: '두 줄이 서로 반대 방향으로 무한 슬라이드. 글자별 stagger + blur로 등장·퇴장.',
+    tags: ['Canvas', 'Motion', 'Stagger'],
+    ratio: '4 / 3',
+    bgTheme: 'light' as const,
+  },
 ]
 
 export default function App() {
@@ -233,6 +244,7 @@ export default function App() {
           {view === 'day13' && <Day013 />}
           {view === 'day15' && <Day015 />}
           {view === 'day16' && <Day016 />}
+          {view === 'day17' && <Day017 />}
         </main>
       </div>
     )
