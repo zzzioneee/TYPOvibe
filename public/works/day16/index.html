@@ -22,9 +22,23 @@
     canvas {
       display: block;
     }
+    .from-wrap {
+      position: fixed; top: 24px; left: 50%;
+      transform: translateX(-50%); z-index: 100;
+    }
+    .from-link {
+      font-family: 'Pretendard', sans-serif;
+      font-size: 20px; font-weight: 500;
+      color: rgba(255,255,255,0.6);
+      text-decoration: none; letter-spacing: 0.15em;
+    }
+    .from-link:hover { color: rgba(255,255,255,0.9); }
   </style>
 </head>
 <body>
+  <div class="from-wrap">
+    <a href="https://newneek.co/@newneek/article/40556?utm_source=newsletter&utm_medium=daily&utm_campaign=260514&utm_content=40556" target="_blank" rel="noopener" class="from-link">FROM</a>
+  </div>
   <canvas id="c"></canvas>
   <script src="day16.js"></script>
 </body>
