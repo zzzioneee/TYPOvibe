@@ -12,6 +12,7 @@ import Day010 from './works/day10'
 import Day011 from './works/day11'
 import Day012 from './works/day12'
 import Day013 from './works/day13'
+import Day014 from './works/day14'
 import Day015 from './works/day15'
 import Day016 from './works/day16'
 
@@ -149,6 +150,16 @@ const WORKS = [
     bgTheme: 'dark' as const,
   },
   {
+    id: 'day14',
+    day: '14',
+    date: '2026.05.12',
+    title: '1만 명의 가상 한국인',
+    desc: '엔비디아 Nemotron 데이터셋에서 영감받은 SVG 아바타 제너레이터. 가로 스크롤로 탐색.',
+    tags: ['SVG', 'Generative', 'Interactive'],
+    ratio: '4 / 3',
+    bgTheme: 'light' as const,
+  },
+  {
     id: 'day15',
     day: '15',
     date: '2026.05.14',
@@ -231,6 +242,7 @@ export default function App() {
           {view === 'day11' && <Day011 />}
           {view === 'day12' && <Day012 />}
           {view === 'day13' && <Day013 />}
+          {view === 'day14' && <Day014 />}
           {view === 'day15' && <Day015 />}
           {view === 'day16' && <Day016 />}
         </main>
