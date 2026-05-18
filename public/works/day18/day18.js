@@ -117,31 +117,14 @@ function onStageChange(prev,next){
 }
 
 function autoScreenCrack(level){
+  // 맥북 바디 안으로만 크랙 생성
+  var mbX=canvasW*0.055, mbY=canvasH*0.048;
+  var mbW=canvasW*0.854, mbH=canvasH*0.909;
   var count=level*3+2;
   for(var i=0;i<count;i++){
-    var cx,cy;
-    if(level>=3 && i%3===0){
-      // 베젤/바디 영역에도 균열
-      cx=rnd(canvasW*0.05,canvasW*0.95);
-      cy=rnd(canvasH*0.02,canvasH*0.92);
-    } else {
-      cx=rnd(screenRect.x+screenRect.w*0.03,screenRect.x+screenRect.w*0.97);
-      cy=rnd(screenRect.y+screenRect.h*0.03,screenRect.y+screenRect.h*0.97);
-    }
-    addCrackPoint(cx,cy,rnd(20+level*12,50+level*18),level>=3);
-  }
-  // stage 2+: 화면 경계(베젤)에도 균열 방사
-  if(level>=2){
-    var edges=[
-      {x:screenRect.x,y:rnd(screenRect.y,screenRect.y+screenRect.h)},
-      {x:screenRect.x+screenRect.w,y:rnd(screenRect.y,screenRect.y+screenRect.h)},
-      {x:rnd(screenRect.x,screenRect.x+screenRect.w),y:screenRect.y},
-      {x:rnd(screenRect.x,screenRect.x+screenRect.w),y:screenRect.y+screenRect.h},
-    ];
-    for(var j=0;j<level-1;j++){
-      var e=edges[j%edges.length];
-      addCrackPoint(e.x,e.y,rnd(40+level*15,80+level*20),level>=3);
-    }
+    var cx=rnd(mbX+mbW*0.05, mbX+mbW*0.95);
+    var cy=rnd(mbY+mbH*0.05, mbY+mbH*0.85);
+    addCrackPoint(cx,cy,rnd(20+level*10,40+level*14),level>=3);
   }
 }
 
@@ -241,20 +224,32 @@ restartBtn.addEventListener('click',function(){
 
 // 균열
 function addCrackPoint(cx,cy,radius,isBig){
-  var n=isBig?rndInt(10,18):rndInt(4,9);
+  var mbx1=canvasW*0.055, mby1=canvasH*0.048;
+  var mbx2=canvasW*0.909, mby2=canvasH*0.957;
+  cx = Math.max(mbx1+4, Math.min(mbx2-4, cx));
+  cy = Math.max(mby1+4, Math.min(mby2-4, cy));
+  var maxR = Math.min(radius, cx-mbx1, mbx2-cx, cy-mby1, mby2-cy, 70);
+  if(maxR < 6) return;
+  var n=isBig?rndInt(8,14):rndInt(3,7);
   var lines=[];
   for(var i=0;i<n;i++){
     var ang=rnd(0,Math.PI*2);
-    lines.push(buildCrackSegs(cx,cy,ang,rnd(radius*0.5,radius*1.5),isBig?3:2));
+    lines.push(buildCrackSegs(cx,cy,ang,rnd(maxR*0.5,maxR*1.1),isBig?3:2));
   }
-  crackPoints.push({x:cx,y:cy,radius:radius,lines:lines,isBig:isBig});
+  crackPoints.push({x:cx,y:cy,radius:maxR,lines:lines,isBig:isBig});
   needCrackRedraw=true;
 }
 function buildCrackSegs(sx,sy,ang,len,depth){
+  var mbx1=canvasW*0.055, mby1=canvasH*0.048;
+  var mbx2=canvasW*0.909, mby2=canvasH*0.957;
   var segs=[],x=sx,y=sy,a=ang,n=rndInt(3,6);
   for(var i=0;i<n;i++){
     var sl=len/n*rnd(0.55,1.45);
-    var nx=x+Math.cos(a)*sl+rnd(-3,3),ny=y+Math.sin(a)*sl+rnd(-3,3);
+    var nx=x+Math.cos(a)*sl+rnd(-3,3);
+    var ny=y+Math.sin(a)*sl+rnd(-3,3);
+    // 맥북 바디 안으로 클램프
+    nx=Math.max(mbx1,Math.min(mbx2,nx));
+    ny=Math.max(mby1,Math.min(mby2,ny));
     segs.push({x1:x,y1:y,x2:nx,y2:ny});
     x=nx;y=ny;a+=rnd(-0.55,0.55);
     if(depth>1&&Math.random()<0.38)segs=segs.concat(buildCrackSegs(nx,ny,a+rnd(-1.3,1.3),len*0.45,depth-1));
@@ -263,10 +258,12 @@ function buildCrackSegs(sx,sy,ang,len,depth){
 }
 function redrawCracks(){
   cCtx.clearRect(0,0,canvasW,canvasH);
-  // 균열 전체를 맥북 바디 안으로 클리핑
   cCtx.save();
+  // 맥북 바디 안으로만 그림
+  var mbX=canvasW*0.055, mbY=canvasH*0.048;
+  var mbW=canvasW*0.854, mbH=canvasH*0.909;
   cCtx.beginPath();
-  cCtx.rect(canvasW*0.055, canvasH*0.048, canvasW*0.854, canvasH*0.909);
+  cCtx.rect(mbX, mbY, mbW, mbH);
   cCtx.clip();
   crackPoints.forEach(function(cp){
     var g=cCtx.createRadialGradient(cp.x,cp.y,0,cp.x,cp.y,cp.radius*0.28);
@@ -292,6 +289,12 @@ function redrawCracks(){
 
 // 베젤/프레임 데미지 — 타격점 주변 금속 변형 (damageCanvas에 강하게)
 function drawBezelDamage(cx, cy, type){
+  // damageCanvas 클리핑 — 맥북 바디 안으로
+  dCtx.save();
+  dCtx.beginPath();
+  dCtx.rect(canvasW*0.055, canvasH*0.048, canvasW*0.854, canvasH*0.909);
+  dCtx.clip();
+
   if(type==='claw'){
     // 베젤 깊은 스크래치 — 두껍고 명확한 선
     for(var i=0;i<8;i++){
@@ -375,6 +378,7 @@ function drawBezelDamage(cx, cy, type){
     dCtx.lineWidth=1.5;
     dCtx.beginPath(); dCtx.arc(cx,cy,dr*1.4,0,Math.PI*2); dCtx.stroke();
   }
+  dCtx.restore(); // 맥북 바디 클리핑 해제
 }
 
 // 발톱: 타격점 중심 방사형 찢김 + 벌어진 틈
@@ -718,41 +722,47 @@ function drawDesktop(ctx2d,stage){
 // 메인 렌더 프레임
 function drawFrame(){
   updateGlitch();
-  if(needCrackRedraw)redrawCracks();
+  if(needCrackRedraw) redrawCracks();
   updateShake();
-  updateFragments(); // 조각 lerp 업데이트
-  blackoutPatches.forEach(function(p){if(p.growing)p.alpha=Math.min(1,p.alpha+0.012);});
+  blackoutPatches.forEach(function(p){if(p.growing) p.alpha=Math.min(1,p.alpha+0.012);});
 
   ctx.clearRect(0,0,canvasW,canvasH);
-  // shakeX/Y는 drawMacbook 내부에서 조각별로 적용
-  ctx.save();
 
-  // 1. macbook.png (조각 분할 렌더)
-  drawMacbook();
+  // 맥북 바디 클리핑 rect (shake offset 없음 — 화면 좌표 고정)
+  var mbX = canvasW*0.055, mbY = canvasH*0.048;
+  var mbW = canvasW*0.854, mbH = canvasH*0.909;
 
-  // 2. 화면 영역: macOS 바탕화면 (폴리곤 클리핑)
+  // 1. macbook.png — shake 적용해서 그림
+  if(macbookLoaded){
+    var br=[1,0.98,0.95,0.90,0.80,0.60][Math.min(damageStage,5)];
+    ctx.save();
+    ctx.filter='brightness('+br+')';
+    ctx.translate(shakeX, shakeY);
+    ctx.drawImage(macbookImg, 0, 0, canvasW, canvasH);
+    ctx.restore();
+    ctx.filter='none';
+  }
+
+  // 2. 화면 영역: macOS 바탕화면 — shake 적용
   ctx.save();
   ctx.translate(shakeX, shakeY);
   var poly=getScreenPoly(damageStage);
   ctx.beginPath();
   ctx.moveTo(poly[0].x,poly[0].y);
-  for(var i=1;i<poly.length;i++)ctx.lineTo(poly[i].x,poly[i].y);
-  ctx.closePath();ctx.clip();
+  for(var i=1;i<poly.length;i++) ctx.lineTo(poly[i].x,poly[i].y);
+  ctx.closePath(); ctx.clip();
   drawDesktop(ctx,damageStage);
   ctx.restore();
 
-  // 3 & 4. 데미지/균열 레이어 — 맥북 바디 영역으로 클리핑
-  var mbX = canvasW*0.055, mbY = canvasH*0.048;
-  var mbW = canvasW*0.854, mbH = canvasH*0.909;
-
+  // 3. damageCanvas + crackCanvas — shake 적용, 맥북 바디로 클리핑
+  // shake와 함께 clip rect도 보정: canvas 좌표계에서 shake만큼 이동한 위치
   ctx.save();
-  // 클리핑을 먼저 화면 좌표로 설정, 그 다음 translate
-  ctx.beginPath();
-  ctx.rect(mbX, mbY, mbW, mbH);
-  ctx.clip();
   ctx.translate(shakeX, shakeY);
+  ctx.beginPath();
+  ctx.rect(mbX, mbY, mbW, mbH);  // translate 후라 로컬 좌표 = 원본 좌표
+  ctx.clip();
   ctx.drawImage(damageCanvas, 0, 0);
-  ctx.drawImage(crackCanvas, 0, 0);
+  ctx.drawImage(crackCanvas,  0, 0);
   ctx.restore();
 
   // 5. 블랙아웃 패치
