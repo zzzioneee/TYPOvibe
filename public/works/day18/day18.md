@@ -1,32 +1,33 @@
-# Day 18 — 말하면 그려줌
+# Day 18 — 햄찌의 분노
 
 **날짜**: 2026.05.19  
-**태그**: Voice, GPT-Image-1, Web Speech API, Interactive
+**태그**: Canvas, Interactive, Game, Desktop Destroyer
 
 ## 개요
 
-Neuralink가 생각만으로 로봇 팔을 움직이는 시연을 발표했고, 국내에서는 몸이 불편한 만화가 천계영 님이 음성인식으로 AI를 학습시켜 만화를 그려내고 있다.  
-"말"이 이미 손을 대신하는 시대 — 그렇다면 음성으로 장면을 설명하면 그 자리에서 그림이 그려지면 어떨까?
+AI툴로 직장인 회사생활 애니메이션을 만드는 유튜버 '정서불안 김햄찌'에서 영감받은 인터랙티브 바이브코딩.  
+2000년대 초중반 추억의 고전게임 'Desktop Destroyer (바탕화면 부수기)'를 햄찌 테마로 재해석.
 
-마이크를 누르고 말하면 GPT-Image-1이 "세상에서 가장 하찮은 그림판 스타일"로 실시간으로 그려준다.  
-@withgrdnrush의 [세상에서 가장 하찮은 프롬프트]에서 영감받은 고정 스타일.
+Windows 95 바탕화면을 햄스터 발톱, 해바라기씨 폭탄, 화염방사기, 햄스터 주먹으로 박살낸다.
 
 ## 기술 스택
 
-- **Web Speech API** (SpeechRecognition) — 브라우저 내장 음성인식, 설치 불필요
-- **OpenAI GPT-Image-1** — 이미지 생성 (base64 응답)
-- **localStorage** — API 키 로컬 저장 (외부 전송 없음)
+- **Canvas 2D** — 모든 파괴 이펙트 렌더링
+- **Radial Gradient** — 그을음, 주먹 자국, 불꽃
+- **파티클 시스템** — 씨앗 파편, 화염, 발톱 살점
+- **재귀 균열 생성** — 주먹 자국 방사형 크랙
 - 순수 HTML/CSS/JS, 의존성 없음
 
-## 구현 포인트
+## 툴 목록
 
-- 음성인식 `continuous: true` + `interimResults: true` → 말하는 중에도 실시간 텍스트 표시
-- 버튼 누르면 시작, 다시 누르면 종료 → 종료 시 자동으로 generateImage 호출
-- 고정 스타일 프롬프트 + 사용자 음성 텍스트 결합: "MS Paint, 5초에 그린 것 같은 하찮은 그림"
-- 히스토리 썸네일로 최근 8장 접근 가능
-- `quality: 'low'` 설정으로 빠른 응답
+| 툴 | 단축키 | 동작 |
+|---|---|---|
+| 🐾 발톱 | Q | 드래그 → 3줄 긁힘 + 살점 파편 |
+| 🌻 씨폭탄 | W | 클릭 → 해바라기씨 방사형 폭발 + 그을음 |
+| 🔥 화염 | E | 드래그 → 진행방향 화염방사 + 탄 자국 |
+| 👊 주먹 | R | 클릭 → 방사형 균열 + 화면 흔들림 |
 
 ## FROM
 
-- [Neuralink 음성인식 로봇팔 시연 기사](https://blog.secondbrush.co.kr/dailyprompt-751/?ref=daily-prompt-newsletter)
-- [@withgrdnrush — 세상에서 가장 하찮은 프롬프트](https://www.threads.net/@withgrdnrush)
+- [정서불안 김햄찌 — 중앙일보 칼럼](https://www.joongangenews.com/news/articleView.html?idxno=519116)
+- Desktop Destroyer (2000년대 고전 바탕화면 부수기 게임)

@@ -3,560 +3,709 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Day 18 — 말하면 그려줌</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+<title>Day 18 — 햄찌의 분노</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
-* { margin:0; padding:0; box-sizing:border-box; }
-html, body {
-  width:100%; height:100%;
-  background:#fff;
-  font-family:'Noto Sans KR', sans-serif;
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;overflow:hidden;background:#008080;font-family:'Noto Sans KR',sans-serif;}
+
+/* ── 윈도우95 바탕화면 ── */
+#desktop{
+  position:fixed;inset:0;
+  background:#008080;
   overflow:hidden;
 }
 
-/* ── 레이아웃 ── */
-.app {
-  width:100%; height:100%;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  position:relative;
-}
-
-/* ── 캔버스 영역 ── */
-.canvas-wrap {
-  position:relative;
-  width:min(80vw, 80vh);
-  height:min(80vw, 80vh);
-  background:#fff;
-  border:2px solid #111;
-  flex-shrink:0;
-}
-.canvas-wrap img {
-  width:100%; height:100%;
-  object-fit:contain;
-  display:block;
-}
-.canvas-placeholder {
-  width:100%; height:100%;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  color:#ccc;
-  font-size:clamp(12px, 2vw, 18px);
-  text-align:center;
-  line-height:1.6;
-  padding:20px;
-  white-space:pre-line;
-}
-
-/* ── 로딩 오버레이 ── */
-.loading-overlay {
+/* 바탕화면 아이콘 */
+.icon{
   position:absolute;
-  inset:0;
-  background:rgba(255,255,255,0.85);
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  gap:12px;
-  opacity:0;
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  cursor:default;user-select:none;
+  width:64px;
+}
+.icon-img{
+  width:32px;height:32px;
+  image-rendering:pixelated;
+  display:flex;align-items:center;justify-content:center;
+  font-size:24px;
+}
+.icon-label{
+  color:#fff;font-size:11px;font-weight:400;
+  text-align:center;line-height:1.2;
+  text-shadow:1px 1px 1px #000;
+  padding:1px 2px;
+}
+.icon:hover .icon-label{background:#000080;color:#fff;}
+
+/* ── 작업표시줄 ── */
+#taskbar{
+  position:fixed;bottom:0;left:0;right:0;height:28px;
+  background:#c0c0c0;
+  border-top:2px solid #fff;
+  display:flex;align-items:center;
+  gap:4px;padding:0 4px;
+  z-index:50;
+}
+#start-btn{
+  height:22px;padding:0 8px;
+  background:#c0c0c0;
+  border:2px solid;
+  border-color:#fff #808080 #808080 #fff;
+  font-size:11px;font-weight:700;
+  cursor:pointer;display:flex;align-items:center;gap:4px;
+  font-family:'Noto Sans KR',sans-serif;
+}
+#start-btn:active{border-color:#808080 #fff #fff #808080;}
+#clock{
+  margin-left:auto;padding:0 8px;
+  border:2px solid;border-color:#808080 #fff #fff #808080;
+  height:22px;font-size:11px;line-height:20px;
+  background:#c0c0c0;min-width:60px;text-align:center;
+}
+
+/* ── 파괴 캔버스 ── */
+#destruction{
+  position:fixed;inset:0 0 28px 0;
   pointer-events:none;
-  transition:opacity 0.2s;
-}
-.loading-overlay.active {
-  opacity:1;
-  pointer-events:all;
-}
-.loading-dots {
-  display:flex; gap:8px;
-}
-.loading-dots span {
-  width:10px; height:10px;
-  background:#111;
-  border-radius:50%;
-  animation:bounce 1.2s infinite ease-in-out;
-}
-.loading-dots span:nth-child(2) { animation-delay:0.2s; }
-.loading-dots span:nth-child(3) { animation-delay:0.4s; }
-@keyframes bounce {
-  0%,80%,100% { transform:scale(0.5); opacity:0.4; }
-  40% { transform:scale(1); opacity:1; }
-}
-.loading-text {
-  font-size:13px;
-  color:#555;
-  letter-spacing:0.05em;
+  z-index:10;
 }
 
-/* ── 컨트롤 영역 ── */
-.controls {
-  margin-top:16px;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:10px;
-  width:min(80vw, 80vh);
+/* ── 툴바 ── */
+#toolbar{
+  position:fixed;top:50%;left:16px;transform:translateY(-50%);
+  background:#c0c0c0;
+  border:2px solid;border-color:#fff #808080 #808080 #fff;
+  padding:6px 4px;
+  display:flex;flex-direction:column;gap:4px;
+  z-index:40;
 }
-
-/* ── 음성 텍스트 표시 ── */
-.transcript-box {
-  width:100%;
-  min-height:40px;
-  background:#f5f5f5;
-  border:1.5px solid #ddd;
-  padding:10px 14px;
-  font-size:clamp(12px, 1.8vw, 15px);
-  color:#333;
-  line-height:1.5;
+.tool-btn{
+  width:44px;height:44px;
+  background:#c0c0c0;
+  border:2px solid;border-color:#fff #808080 #808080 #fff;
+  cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-size:20px;line-height:1;
+  gap:1px;
+  transition:none;
   position:relative;
-  text-align:left;
 }
-.transcript-box .interim {
-  color:#aaa;
+.tool-btn:active,.tool-btn.active{border-color:#808080 #fff #fff #808080;background:#b0b0b0;}
+.tool-btn .tool-label{font-size:7px;color:#000;font-family:'Noto Sans KR',sans-serif;font-weight:700;line-height:1;}
+.tool-btn .shortcut{
+  position:absolute;top:1px;right:2px;
+  font-size:8px;color:#666;font-family:monospace;
 }
-.transcript-hint {
-  font-size:11px;
-  color:#bbb;
-  position:absolute;
-  top:50%;
-  left:50%;
-  transform:translate(-50%,-50%);
+
+/* 선택된 툴 강조 */
+.tool-btn.selected{
+  border-color:#808080 #fff #fff #808080;
+  background:#b8b8ff;
+}
+
+/* ── 커서 커스텀 ── */
+body.tool-claw{cursor:crosshair;}
+body.tool-bomb{cursor:cell;}
+body.tool-flame{cursor:crosshair;}
+body.tool-fist{cursor:pointer;}
+
+/* ── 분노 게이지 ── */
+#rage-wrap{
+  position:fixed;top:16px;right:16px;
+  background:#c0c0c0;
+  border:2px solid;border-color:#808080 #fff #fff #808080;
+  padding:6px 10px;z-index:40;
+  min-width:120px;
+}
+#rage-title{font-size:10px;font-weight:700;margin-bottom:4px;color:#000;}
+#rage-bar-outer{
+  width:100%;height:12px;
+  background:#808080;
+  border:1px solid #404040;
+}
+#rage-bar{height:100%;width:0%;background:#ff0000;transition:width 0.1s;}
+#rage-score{font-size:10px;margin-top:3px;color:#000;text-align:right;}
+
+/* ── 리셋 버튼 ── */
+#reset-btn{
+  position:fixed;top:16px;left:72px;
+  background:#c0c0c0;
+  border:2px solid;border-color:#fff #808080 #808080 #fff;
+  padding:4px 10px;font-size:11px;font-weight:700;
+  cursor:pointer;z-index:40;
+  font-family:'Noto Sans KR',sans-serif;
+}
+#reset-btn:active{border-color:#808080 #fff #fff #808080;}
+
+/* ── 햄찌 반응 말풍선 ── */
+#bubble{
+  position:fixed;bottom:48px;right:16px;
+  background:#ffff99;
+  border:2px solid #000;
+  padding:8px 12px;
+  font-size:13px;font-weight:700;
+  max-width:180px;text-align:center;line-height:1.4;
+  z-index:40;
+  opacity:0;transform:scale(0.8);
+  transition:opacity 0.2s,transform 0.2s;
   pointer-events:none;
-  white-space:nowrap;
 }
-
-/* ── 마이크 버튼 ── */
-.mic-btn {
-  width:64px; height:64px;
-  border-radius:50%;
-  border:2.5px solid #111;
-  background:#fff;
-  cursor:pointer;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  transition:background 0.15s, transform 0.1s;
-  flex-shrink:0;
+#bubble::after{
+  content:'';position:absolute;bottom:-10px;right:20px;
+  border:5px solid transparent;border-top-color:#000;
 }
-.mic-btn:hover { background:#f0f0f0; }
-.mic-btn.recording {
-  background:#111;
-  animation:pulse 1.4s infinite;
-}
-.mic-btn.recording svg path { fill:#fff; }
-@keyframes pulse {
-  0%,100% { box-shadow:0 0 0 0 rgba(0,0,0,0.3); }
-  50% { box-shadow:0 0 0 10px rgba(0,0,0,0); }
-}
-.mic-icon { width:28px; height:28px; }
-
-/* ── 하단 상태 텍스트 ── */
-.status-text {
-  font-size:clamp(10px, 1.5vw, 12px);
-  color:#999;
-  letter-spacing:0.08em;
-  text-align:center;
-  height:16px;
-}
-
-/* ── API 키 모달 ── */
-.modal-bg {
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,0.5);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  z-index:100;
-}
-.modal {
-  background:#fff;
-  padding:32px;
-  width:min(90vw, 440px);
-  display:flex;
-  flex-direction:column;
-  gap:16px;
-}
-.modal h2 {
-  font-size:20px;
-  font-weight:700;
-  line-height:1.3;
-}
-.modal p {
-  font-size:13px;
-  color:#555;
-  line-height:1.7;
-}
-.modal input {
-  width:100%;
-  padding:10px 14px;
-  border:1.5px solid #ccc;
-  font-size:14px;
-  font-family:monospace;
-  outline:none;
-}
-.modal input:focus { border-color:#111; }
-.modal-btn {
-  padding:12px;
-  background:#111;
-  color:#fff;
-  border:none;
-  font-size:15px;
-  font-weight:700;
-  cursor:pointer;
-  font-family:'Noto Sans KR', sans-serif;
-  transition:opacity 0.15s;
-}
-.modal-btn:hover { opacity:0.8; }
-.modal-note {
-  font-size:11px;
-  color:#aaa;
-  text-align:center;
-}
-
-/* ── 이전 이미지 히스토리 ── */
-.history-row {
-  display:flex;
-  gap:6px;
-  overflow-x:auto;
-  width:100%;
-  padding-bottom:2px;
-}
-.history-row::-webkit-scrollbar { height:3px; }
-.history-row::-webkit-scrollbar-thumb { background:#ddd; }
-.history-thumb {
-  width:52px; height:52px;
-  flex-shrink:0;
-  border:1.5px solid #ddd;
-  cursor:pointer;
-  object-fit:cover;
-  transition:border-color 0.15s;
-}
-.history-thumb:hover { border-color:#111; }
+#bubble.show{opacity:1;transform:scale(1);}
 
 /* ── 썸네일 모드 ── */
-body.is-thumb .controls,
-body.is-thumb .modal-bg { display:none !important; }
+body.is-thumb #toolbar,body.is-thumb #rage-wrap,
+body.is-thumb #reset-btn,body.is-thumb #bubble{display:none;}
 </style>
 </head>
 <body>
-
-<!-- API 키 모달 -->
-<div class="modal-bg" id="modalBg">
-  <div class="modal">
-    <h2>OpenAI API 키 입력</h2>
-    <p>음성으로 말하면 GPT-Image-1이 그려드립니다.<br>키는 이 브라우저에만 저장되고 외부로 전송되지 않아요.</p>
-    <input type="password" id="apiKeyInput" placeholder="sk-..." autocomplete="off"/>
-    <button class="modal-btn" id="saveKeyBtn">시작하기</button>
-    <p class="modal-note">키는 localStorage에만 저장됩니다</p>
+<div id="desktop">
+  <!-- 바탕화면 아이콘들 -->
+  <div class="icon" style="left:20px;top:20px">
+    <div class="icon-img">🖥️</div>
+    <div class="icon-label">내 컴퓨터</div>
+  </div>
+  <div class="icon" style="left:20px;top:100px">
+    <div class="icon-img">📁</div>
+    <div class="icon-label">내 문서</div>
+  </div>
+  <div class="icon" style="left:20px;top:180px">
+    <div class="icon-img">🗑️</div>
+    <div class="icon-label">휴지통</div>
+  </div>
+  <div class="icon" style="left:20px;top:260px">
+    <div class="icon-img">🌐</div>
+    <div class="icon-label">Internet Explorer</div>
+  </div>
+  <div class="icon" style="left:20px;top:360px">
+    <div class="icon-img">📧</div>
+    <div class="icon-label">Outlook Express</div>
+  </div>
+  <!-- 중앙 텍스트 -->
+  <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    text-align:center;color:rgba(255,255,255,0.15);pointer-events:none;user-select:none;">
+    <div style="font-size:clamp(24px,4vw,48px);font-weight:900;letter-spacing:0.05em;line-height:1.2;">
+      Windows 95
+    </div>
+    <div style="font-size:clamp(10px,1.5vw,16px);margin-top:8px;font-weight:400;">
+      Microsoft Corporation
+    </div>
   </div>
 </div>
 
-<!-- 메인 앱 -->
-<div class="app">
-  <!-- 이미지 캔버스 -->
-  <div class="canvas-wrap" id="canvasWrap">
-    <div class="canvas-placeholder" id="placeholder">마이크를 누르고\n뭔가 말해봐요</div>
-    <div class="loading-overlay" id="loadingOverlay">
-      <div class="loading-dots">
-        <span></span><span></span><span></span>
-      </div>
-      <div class="loading-text" id="loadingText">그리는 중...</div>
-    </div>
-  </div>
+<!-- 파괴 캔버스 -->
+<canvas id="destruction"></canvas>
 
-  <!-- 컨트롤 -->
-  <div class="controls">
-    <!-- 히스토리 -->
-    <div class="history-row" id="historyRow"></div>
-
-    <!-- 음성 텍스트 -->
-    <div class="transcript-box" id="transcriptBox">
-      <span class="transcript-hint" id="transcriptHint">여기에 음성이 표시됩니다</span>
-      <span id="finalText"></span><span class="interim" id="interimText"></span>
-    </div>
-
-    <!-- 마이크 버튼 -->
-    <button class="mic-btn" id="micBtn" title="말하기">
-      <svg class="mic-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 1C10.34 1 9 2.34 9 4V12C9 13.66 10.34 15 12 15C13.66 15 15 13.66 15 12V4C15 2.34 13.66 1 12 1Z" fill="#111"/>
-        <path d="M5 11C5 14.87 8.13 18 12 18C15.87 18 19 14.87 19 11H17C17 13.76 14.76 16 12 16C9.24 16 7 13.76 7 11H5Z" fill="#111"/>
-        <path d="M11 19H13V23H11V19Z" fill="#111"/>
-      </svg>
-    </button>
-
-    <!-- 상태 텍스트 -->
-    <div class="status-text" id="statusText">마이크를 누르고 장면을 설명해봐요</div>
-  </div>
+<!-- 툴바 -->
+<div id="toolbar">
+  <button class="tool-btn selected" id="btn-claw" title="발톱 (Q)">
+    🐾<span class="tool-label">발톱</span><span class="shortcut">Q</span>
+  </button>
+  <button class="tool-btn" id="btn-bomb" title="해바라기씨 폭탄 (W)">
+    🌻<span class="tool-label">씨폭탄</span><span class="shortcut">W</span>
+  </button>
+  <button class="tool-btn" id="btn-flame" title="화염방사기 (E)">
+    🔥<span class="tool-label">화염</span><span class="shortcut">E</span>
+  </button>
+  <button class="tool-btn" id="btn-fist" title="햄스터 주먹 (R)">
+    👊<span class="tool-label">주먹</span><span class="shortcut">R</span>
+  </button>
 </div>
+
+<!-- 분노 게이지 -->
+<div id="rage-wrap">
+  <div id="rage-title">🐹 햄찌 분노게이지</div>
+  <div id="rage-bar-outer"><div id="rage-bar"></div></div>
+  <div id="rage-score">0 / 100</div>
+</div>
+
+<!-- 리셋 -->
+<button id="reset-btn">🔄 리셋</button>
+
+<!-- 작업표시줄 -->
+<div id="taskbar">
+  <button id="start-btn">🪟 시작</button>
+  <div id="clock">--:--</div>
+</div>
+
+<!-- 햄찌 말풍선 -->
+<div id="bubble" id="bubble">찍찍!!</div>
 
 <script>
 'use strict';
-
 var IS_THUMB = new URLSearchParams(location.search).has('thumb');
 if (IS_THUMB) document.body.classList.add('is-thumb');
 
-// ── DOM ──
-var modalBg       = document.getElementById('modalBg');
-var apiKeyInput   = document.getElementById('apiKeyInput');
-var saveKeyBtn    = document.getElementById('saveKeyBtn');
-var canvasWrap    = document.getElementById('canvasWrap');
-var placeholder   = document.getElementById('placeholder');
-var loadingOverlay= document.getElementById('loadingOverlay');
-var loadingText   = document.getElementById('loadingText');
-var transcriptBox = document.getElementById('transcriptBox');
-var transcriptHint= document.getElementById('transcriptHint');
-var finalText     = document.getElementById('finalText');
-var interimText   = document.getElementById('interimText');
-var micBtn        = document.getElementById('micBtn');
-var statusText    = document.getElementById('statusText');
-var historyRow    = document.getElementById('historyRow');
+// ── 시계 ──
+function updateClock() {
+  var d = new Date();
+  var h = String(d.getHours()).padStart(2,'0');
+  var m = String(d.getMinutes()).padStart(2,'0');
+  document.getElementById('clock').textContent = h+':'+m;
+}
+updateClock(); setInterval(updateClock, 10000);
+
+// ── 캔버스 셋업 ──
+var canvas = document.getElementById('destruction');
+var ctx = canvas.getContext('2d');
+var W, H;
+
+function resize() {
+  W = window.innerWidth;
+  H = window.innerHeight - 28;
+  canvas.width = W; canvas.height = H;
+}
+resize();
+window.addEventListener('resize', resize);
 
 // ── 상태 ──
-var apiKey        = '';
-var isRecording   = false;
-var recognition   = null;
-var accFinal      = '';
-var currentImg    = null;  // 현재 표시중인 img element
-var isGenerating  = false;
+var currentTool = 'claw';
+var isMouseDown = false;
+var mouseX = 0, mouseY = 0;
+var rageScore = 0;
+var flamePrev = null;  // 화염방사기 이전 위치
 
-// ── 하찮은 그림 스타일 고정 프롬프트 ──
-var STYLE_PROMPT = [
-  'Draw this in the most pathetic, amateurish style possible.',
-  'Use MS Paint style with jagged mouse-drawn lines.',
-  'White background, pixel-level imprecision.',
-  'Colors slightly off, shapes vaguely recognizable but wrong.',
-  'Look like a child drew it in 5 seconds.',
-  'Subject: '
-].join(' ');
+// ── 툴 선택 ──
+var toolBtns = {
+  claw:  document.getElementById('btn-claw'),
+  bomb:  document.getElementById('btn-bomb'),
+  flame: document.getElementById('btn-flame'),
+  fist:  document.getElementById('btn-fist'),
+};
 
-// ── API 키 관리 ──
-function loadKey() {
-  var k = localStorage.getItem('oai_key_day18');
-  if (k) {
-    apiKey = k;
-    modalBg.style.display = 'none';
-  }
+function selectTool(name) {
+  currentTool = name;
+  Object.keys(toolBtns).forEach(function(k){
+    toolBtns[k].classList.toggle('selected', k === name);
+  });
+  document.body.className = IS_THUMB ? 'is-thumb' : '';
+  document.body.classList.add('tool-' + name);
+  flamePrev = null;
+}
+selectTool('claw');
+
+Object.keys(toolBtns).forEach(function(k){
+  toolBtns[k].addEventListener('click', function(){ selectTool(k); });
+});
+
+// 키보드 단축키
+document.addEventListener('keydown', function(e){
+  if (e.key==='q'||e.key==='Q') selectTool('claw');
+  if (e.key==='w'||e.key==='W') selectTool('bomb');
+  if (e.key==='e'||e.key==='E') selectTool('flame');
+  if (e.key==='r'||e.key==='R') selectTool('fist');
+});
+
+// ── 분노 게이지 ──
+var rageBar = document.getElementById('rage-bar');
+var rageScoreEl = document.getElementById('rage-score');
+function addRage(v) {
+  rageScore = Math.min(100, rageScore + v);
+  rageBar.style.width = rageScore + '%';
+  rageBar.style.background = rageScore > 80 ? '#ff0000' : rageScore > 50 ? '#ff8800' : '#ffcc00';
+  rageScoreEl.textContent = Math.round(rageScore) + ' / 100';
+  if (rageScore >= 100) showBubble(getMaxRageMsg());
 }
 
-saveKeyBtn.addEventListener('click', function() {
-  var k = apiKeyInput.value.trim();
-  if (!k.startsWith('sk-')) {
-    apiKeyInput.style.borderColor = '#f00';
-    return;
+// ── 말풍선 ──
+var bubbleEl = document.getElementById('bubble');
+var bubbleTimer = null;
+var MESSAGES = {
+  claw:  ['찍찍!!','으드득!!','긁어버려!!','발톱이다!!'],
+  bomb:  ['씨앗 폭탄이다!!','쾅!!','씨드 어택!!','해바라기 씨 투척!!'],
+  flame: ['불이야!!','화염방사!!','타버려!!','불꽃 분노!!'],
+  fist:  ['주먹이다!!','햄찌 어퍼컷!!','쾅쾅쾅!!','햄스터 주먹!!'],
+};
+function getMaxRageMsg(){ return ['🐹 분노 MAX!!','이 모니터 내 거다!!','아악 진짜!!!','찍찍찍찍찍!!'][Math.floor(Math.random()*4)]; }
+function showBubble(msg) {
+  bubbleEl.textContent = msg;
+  bubbleEl.classList.add('show');
+  clearTimeout(bubbleTimer);
+  bubbleTimer = setTimeout(function(){ bubbleEl.classList.remove('show'); }, 1800);
+}
+function maybeBubble(tool) {
+  if (Math.random() < 0.18) {
+    var msgs = MESSAGES[tool];
+    showBubble(msgs[Math.floor(Math.random()*msgs.length)]);
   }
-  localStorage.setItem('oai_key_day18', k);
-  apiKey = k;
-  modalBg.style.display = 'none';
-});
+}
+</script>
 
-apiKeyInput.addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') saveKeyBtn.click();
-  apiKeyInput.style.borderColor = '#ccc';
-});
+<script>
+// ── 유틸 ──
+function rnd(a,b){ return a + Math.random()*(b-a); }
+function rndInt(a,b){ return Math.floor(rnd(a,b+1)); }
 
-// ── 이미지 생성 ──
-function generateImage(prompt) {
-  if (isGenerating || !apiKey) return;
-  if (!prompt.trim()) {
-    setStatus('텍스트가 없어요. 다시 말해봐요.');
-    return;
+// ── 화면 흔들기 ──
+var shakeAmt = 0;
+function shake(v){ shakeAmt = Math.max(shakeAmt, v); }
+function applyShake(){
+  if(shakeAmt < 0.5){ canvas.style.transform=''; shakeAmt=0; return; }
+  var dx = rnd(-shakeAmt,shakeAmt);
+  var dy = rnd(-shakeAmt,shakeAmt);
+  canvas.style.transform = 'translate('+dx+'px,'+dy+'px)';
+  shakeAmt *= 0.75;
+}
+
+// ══════════════════════════════════════════
+// 🐾 발톱 — 드래그하면 3줄 긁힘 + 살점 파편
+// ══════════════════════════════════════════
+var clawStrokes = [];  // {x1,y1,x2,y2,w,alpha}
+var clawParticles = [];
+var lastClawPos = null;
+
+function drawClaw(x, y) {
+  if (!lastClawPos) { lastClawPos = {x,y}; return; }
+  var dx = x - lastClawPos.x, dy = y - lastClawPos.y;
+  var dist = Math.hypot(dx,dy);
+  if (dist < 4) return;
+
+  var nx = -dy/dist, ny = dx/dist; // 수직
+  var offsets = [-6, 0, 6];
+  offsets.forEach(function(off){
+    clawStrokes.push({
+      x1: lastClawPos.x + nx*off,
+      y1: lastClawPos.y + ny*off,
+      x2: x + nx*off,
+      y2: y + ny*off,
+      w: rnd(1.5, 3),
+      alpha: rnd(0.7, 1.0),
+    });
+  });
+
+  // 파편
+  for(var i=0;i<3;i++){
+    clawParticles.push({
+      x: x+rnd(-8,8), y: y+rnd(-8,8),
+      vx: rnd(-2,2), vy: rnd(-3,0),
+      life: 1, size: rnd(2,5),
+      color: ['#cc3333','#994422','#cc6644'][rndInt(0,2)],
+    });
   }
 
-  isGenerating = true;
-  loadingOverlay.classList.add('active');
-  loadingText.textContent = '"' + prompt.slice(0, 30) + (prompt.length > 30 ? '...' : '') + '" 그리는 중';
-  setStatus('그리는 중...');
+  addRage(0.3);
+  maybeBubble('claw');
+  lastClawPos = {x,y};
+}
 
-  var fullPrompt = STYLE_PROMPT + prompt;
+function renderClaw() {
+  ctx.lineCap = 'round';
+  clawStrokes.forEach(function(s){
+    ctx.strokeStyle = 'rgba(80,0,0,'+s.alpha+')';
+    ctx.lineWidth = s.w;
+    ctx.beginPath();
+    ctx.moveTo(s.x1,s.y1);
+    ctx.lineTo(s.x2,s.y2);
+    ctx.stroke();
+  });
 
-  fetch('https://api.openai.com/v1/images/generations', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + apiKey,
-    },
-    body: JSON.stringify({
-      model: 'gpt-image-1',
-      prompt: fullPrompt,
-      n: 1,
-      size: '1024x1024',
-      quality: 'low',
-    }),
-  })
-  .then(function(res) {
-    if (!res.ok) return res.json().then(function(e) { throw new Error(e.error?.message || res.status); });
-    return res.json();
-  })
-  .then(function(data) {
-    var b64 = data.data[0].b64_json;
-    var url = 'data:image/png;base64,' + b64;
-    showImage(url, prompt);
-    addHistory(url, prompt);
-    setStatus('완성! 다시 말하면 새로 그려요');
-  })
-  .catch(function(err) {
-    console.error(err);
-    setStatus('오류: ' + err.message);
-  })
-  .finally(function() {
-    isGenerating = false;
-    loadingOverlay.classList.remove('active');
+  // 파편 렌더 + 업데이트
+  clawParticles = clawParticles.filter(function(p){
+    p.x+=p.vx; p.y+=p.vy; p.vy+=0.15; p.life-=0.04;
+    if(p.life<=0) return false;
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x,p.y,p.size,p.size);
+    ctx.globalAlpha = 1;
+    return true;
   });
 }
 
-function showImage(url, prompt) {
-  // 기존 이미지 제거
-  if (currentImg) currentImg.remove();
-  placeholder.style.display = 'none';
+// ══════════════════════════════════════════
+// 🌻 해바라기씨 폭탄 — 클릭 시 폭발 + 그을음 + 씨앗 파편
+// ══════════════════════════════════════════
+var bombMarks = [];   // {x,y,r,alpha} 그을음 원
+var seedParticles = []; // 씨앗 파편
 
-  var img = document.createElement('img');
-  img.src = url;
-  img.alt = prompt;
-  img.title = prompt;
-  canvasWrap.appendChild(img);
-  currentImg = img;
-}
+function triggerBomb(x, y) {
+  var r = rnd(40, 80);
 
-// ── 히스토리 ──
-function addHistory(url, prompt) {
-  var thumb = document.createElement('img');
-  thumb.src = url;
-  thumb.alt = prompt;
-  thumb.title = prompt;
-  thumb.className = 'history-thumb';
-  thumb.addEventListener('click', function() {
-    showImage(url, prompt);
-  });
-  historyRow.insertBefore(thumb, historyRow.firstChild);
-  // 최대 8개 유지
-  while (historyRow.children.length > 8) {
-    historyRow.removeChild(historyRow.lastChild);
+  // 그을음 원
+  bombMarks.push({x,y,r,alpha:0.85,grow:true,gr:r});
+
+  // 씨앗 파편 — 방사형으로 퍼짐
+  var count = rndInt(12, 20);
+  for(var i=0;i<count;i++){
+    var ang = (i/count)*Math.PI*2 + rnd(-0.3,0.3);
+    var spd = rnd(4, 14);
+    seedParticles.push({
+      x,y,
+      vx: Math.cos(ang)*spd,
+      vy: Math.sin(ang)*spd - rnd(2,5),
+      rot: rnd(0, Math.PI*2),
+      rotV: rnd(-0.3,0.3),
+      life:1, size:rnd(4,9),
+    });
   }
+
+  // 화면 흔들기
+  shake(rnd(8,16));
+  addRage(8);
+  maybeBubble('bomb');
+  showBubble(MESSAGES.bomb[rndInt(0,MESSAGES.bomb.length-1)]);
 }
 
-// ── 음성인식 ──
-var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+function renderBomb() {
+  // 그을음
+  bombMarks.forEach(function(m){
+    var grad = ctx.createRadialGradient(m.x,m.y,0,m.x,m.y,m.r);
+    grad.addColorStop(0,'rgba(0,0,0,'+m.alpha+')');
+    grad.addColorStop(0.5,'rgba(20,10,0,'+(m.alpha*0.6)+')');
+    grad.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(m.x,m.y,m.r,0,Math.PI*2);
+    ctx.fill();
+  });
 
-if (!SpeechRecognition) {
-  setStatus('이 브라우저는 음성인식을 지원하지 않아요 (Chrome 권장)');
-  micBtn.disabled = true;
-  micBtn.style.opacity = '0.3';
+  // 씨앗 파편
+  seedParticles = seedParticles.filter(function(p){
+    p.x+=p.vx; p.y+=p.vy; p.vy+=0.4; p.vx*=0.97;
+    p.rot+=p.rotV; p.life-=0.022;
+    if(p.life<=0) return false;
+
+    ctx.save();
+    ctx.globalAlpha = p.life;
+    ctx.translate(p.x,p.y);
+    ctx.rotate(p.rot);
+    // 씨앗 모양 — 타원
+    ctx.fillStyle = '#3a2200';
+    ctx.beginPath();
+    ctx.ellipse(0,0,p.size*0.4,p.size*0.7,0,0,Math.PI*2);
+    ctx.fill();
+    // 흰 줄무늬
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(0,-p.size*0.5);
+    ctx.lineTo(0,p.size*0.5);
+    ctx.stroke();
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    return true;
+  });
 }
 
-function initRecognition() {
-  recognition = new SpeechRecognition();
-  recognition.lang = 'ko-KR';
-  recognition.continuous = true;
-  recognition.interimResults = true;
+// ══════════════════════════════════════════
+// 🔥 화염방사기 — 드래그 방향으로 불꽃 번짐
+// ══════════════════════════════════════════
+var flameParticles = [];
+var charMarks = [];  // 탄 자국
 
-  recognition.onstart = function() {
-    isRecording = true;
-    micBtn.classList.add('recording');
-    setStatus('듣고 있어요... 말을 마치면 버튼을 다시 눌러요');
-    transcriptHint.style.display = 'none';
-  };
+function drawFlame(x, y) {
+  if (!flamePrev) { flamePrev={x,y}; return; }
+  var dx = x-flamePrev.x, dy = y-flamePrev.y;
+  var dist = Math.hypot(dx,dy);
+  if(dist < 3){ flamePrev={x,y}; return; }
 
-  recognition.onresult = function(e) {
-    var interim = '';
-    var final_ = accFinal;
+  var ang = Math.atan2(dy,dx);
 
-    for (var i = e.resultIndex; i < e.results.length; i++) {
-      var t = e.results[i][0].transcript;
-      if (e.results[i].isFinal) {
-        final_ += t;
-      } else {
-        interim += t;
-      }
-    }
-    accFinal = final_;
-    finalText.textContent = final_;
-    interimText.textContent = interim;
+  // 불꽃 파티클 — 진행 방향으로 퍼짐
+  for(var i=0;i<6;i++){
+    var spread = rnd(-0.7,0.7);
+    var spd = rnd(2,8);
+    flameParticles.push({
+      x: x+rnd(-4,4), y: y+rnd(-4,4),
+      vx: Math.cos(ang+spread)*spd,
+      vy: Math.sin(ang+spread)*spd - rnd(0,3),
+      life:1,
+      size:rnd(6,18),
+      hot: Math.random()>0.4,  // true=노란/주황, false=빨간/어두움
+    });
+  }
 
-    // interim이 있으면 힌트 숨김
-    if (final_ || interim) {
-      transcriptHint.style.display = 'none';
-    }
-  };
+  // 탄 자국 (그을음 선)
+  if(dist > 6){
+    charMarks.push({
+      x1:flamePrev.x, y1:flamePrev.y,
+      x2:x, y2:y,
+      w:rnd(8,20),
+      alpha:rnd(0.3,0.6),
+    });
+  }
 
-  recognition.onerror = function(e) {
-    if (e.error === 'no-speech') return; // 무시
-    if (e.error === 'not-allowed') {
-      setStatus('마이크 권한이 필요해요');
+  addRage(0.5);
+  maybeBubble('flame');
+  flamePrev = {x,y};
+}
+
+function renderFlame() {
+  // 탄 자국
+  ctx.lineCap='round';
+  charMarks.forEach(function(m){
+    ctx.strokeStyle='rgba(10,5,0,'+m.alpha+')';
+    ctx.lineWidth=m.w;
+    ctx.beginPath();
+    ctx.moveTo(m.x1,m.y1);
+    ctx.lineTo(m.x2,m.y2);
+    ctx.stroke();
+  });
+
+  // 불꽃
+  flameParticles = flameParticles.filter(function(p){
+    p.x+=p.vx; p.y+=p.vy; p.vy-=0.15; p.vx*=0.93;
+    p.life-=0.04;
+    if(p.life<=0) return false;
+
+    var r = p.size * p.life;
+    var grad = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,r);
+    if(p.hot){
+      grad.addColorStop(0,'rgba(255,255,150,'+p.life+')');
+      grad.addColorStop(0.4,'rgba(255,160,0,'+(p.life*0.9)+')');
+      grad.addColorStop(1,'rgba(255,50,0,0)');
     } else {
-      setStatus('음성인식 오류: ' + e.error);
+      grad.addColorStop(0,'rgba(200,60,0,'+p.life+')');
+      grad.addColorStop(0.5,'rgba(120,20,0,'+(p.life*0.7)+')');
+      grad.addColorStop(1,'rgba(0,0,0,0)');
     }
-    stopRecording();
-  };
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,r,0,Math.PI*2);
+    ctx.fill();
+    return true;
+  });
+}
 
-  recognition.onend = function() {
-    if (isRecording) {
-      // 연속 모드가 끊기면 재시작
-      try { recognition.start(); } catch(e) {}
+// ══════════════════════════════════════════
+// 👊 햄스터 주먹 — 클릭 시 주먹 자국 + 크랙 + 강진
+// ══════════════════════════════════════════
+var fistMarks = [];   // 주먹 자국 원
+var cracks = [];      // 균열 선들
+
+function triggerFist(x, y) {
+  var r = rnd(25, 45);
+  fistMarks.push({x,y,r,alpha:rnd(0.5,0.8)});
+
+  // 균열 생성 — 방사형 지그재그
+  var numCracks = rndInt(5, 10);
+  for(var i=0;i<numCracks;i++){
+    var ang = rnd(0, Math.PI*2);
+    var len = rnd(40, 120);
+    buildCrack(x, y, ang, len, 3);
+  }
+
+  shake(rnd(18, 28));
+  addRage(12);
+  maybeBubble('fist');
+  showBubble(MESSAGES.fist[rndInt(0,MESSAGES.fist.length-1)]);
+}
+
+function buildCrack(sx, sy, ang, len, depth) {
+  if(depth<=0 || len<8) return;
+  var segs = rndInt(3,6);
+  var x=sx, y=sy;
+  var a=ang;
+  for(var i=0;i<segs;i++){
+    var segLen = len/segs * rnd(0.6,1.4);
+    var nx = x + Math.cos(a)*segLen + rnd(-4,4);
+    var ny = y + Math.sin(a)*segLen + rnd(-4,4);
+    cracks.push({x1:x,y1:y,x2:nx,y2:ny,w:rnd(0.8,2)*depth*0.6,alpha:rnd(0.6,0.9)});
+    x=nx; y=ny;
+    a += rnd(-0.5,0.5);
+    // 분기
+    if(Math.random()<0.4 && depth>1){
+      buildCrack(nx,ny,a+rnd(-1.2,1.2),len*0.5,depth-1);
     }
-  };
-}
-
-function startRecording() {
-  if (!SpeechRecognition) return;
-  accFinal = '';
-  finalText.textContent = '';
-  interimText.textContent = '';
-  transcriptHint.style.display = '';
-
-  if (!recognition) initRecognition();
-  try {
-    recognition.start();
-  } catch(e) {
-    // 이미 실행 중
   }
 }
 
-function stopRecording() {
-  isRecording = false;
-  micBtn.classList.remove('recording');
-  if (recognition) {
-    try { recognition.stop(); } catch(e) {}
-  }
+function renderFist() {
+  // 균열
+  ctx.lineCap='round';
+  cracks.forEach(function(c){
+    ctx.strokeStyle='rgba(0,0,0,'+c.alpha+')';
+    ctx.lineWidth=c.w;
+    ctx.beginPath();
+    ctx.moveTo(c.x1,c.y1);
+    ctx.lineTo(c.x2,c.y2);
+    ctx.stroke();
+  });
 
-  var text = accFinal.trim();
-  interimText.textContent = '';
-
-  if (text) {
-    finalText.textContent = text;
-    transcriptHint.style.display = 'none';
-    setStatus('인식 완료. 그리는 중...');
-    setTimeout(function() {
-      generateImage(text);
-    }, 300);
-  } else {
-    setStatus('말을 인식하지 못했어요. 다시 시도해봐요.');
-    transcriptHint.style.display = '';
-  }
+  // 주먹 자국 (원형 함몰)
+  fistMarks.forEach(function(m){
+    var grad = ctx.createRadialGradient(m.x,m.y,m.r*0.3,m.x,m.y,m.r);
+    grad.addColorStop(0,'rgba(0,0,0,'+m.alpha+')');
+    grad.addColorStop(0.7,'rgba(40,20,0,'+(m.alpha*0.5)+')');
+    grad.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=grad;
+    ctx.beginPath();
+    ctx.arc(m.x,m.y,m.r,0,Math.PI*2);
+    ctx.fill();
+  });
 }
 
-micBtn.addEventListener('click', function() {
-  if (!apiKey) {
-    modalBg.style.display = 'flex';
-    return;
-  }
-  if (isGenerating) return;
-  if (isRecording) {
-    stopRecording();
-  } else {
-    startRecording();
-  }
+// ── 전체 렌더 루프 ──
+function render() {
+  requestAnimationFrame(render);
+  ctx.clearRect(0,0,W,H);
+
+  renderBomb();
+  renderFlame();
+  renderFist();
+  renderClaw();
+  applyShake();
+}
+render();
+
+// ── 마우스/터치 이벤트 ──
+canvas.style.pointerEvents = 'all';
+
+canvas.addEventListener('mousedown', function(e){
+  isMouseDown = true;
+  mouseX = e.clientX; mouseY = e.clientY;
+  lastClawPos = null; flamePrev = null;
+  handleAction(mouseX, mouseY, true);
 });
+canvas.addEventListener('mousemove', function(e){
+  mouseX = e.clientX; mouseY = e.clientY;
+  if(isMouseDown) handleAction(mouseX, mouseY, false);
+});
+canvas.addEventListener('mouseup', function(){ isMouseDown=false; lastClawPos=null; flamePrev=null; });
+canvas.addEventListener('mouseleave', function(){ isMouseDown=false; lastClawPos=null; flamePrev=null; });
 
-function setStatus(msg) {
-  statusText.textContent = msg;
+canvas.addEventListener('touchstart', function(e){
+  e.preventDefault();
+  isMouseDown=true;
+  var t=e.touches[0];
+  mouseX=t.clientX; mouseY=t.clientY;
+  lastClawPos=null; flamePrev=null;
+  handleAction(mouseX,mouseY,true);
+},{passive:false});
+canvas.addEventListener('touchmove', function(e){
+  e.preventDefault();
+  var t=e.touches[0];
+  mouseX=t.clientX; mouseY=t.clientY;
+  if(isMouseDown) handleAction(mouseX,mouseY,false);
+},{passive:false});
+canvas.addEventListener('touchend', function(){isMouseDown=false;lastClawPos=null;flamePrev=null;});
+
+function handleAction(x, y, isClick) {
+  if(currentTool==='claw') {
+    drawClaw(x,y);
+  } else if(currentTool==='bomb' && isClick) {
+    triggerBomb(x,y);
+  } else if(currentTool==='flame') {
+    drawFlame(x,y);
+  } else if(currentTool==='fist' && isClick) {
+    triggerFist(x,y);
+  }
 }
 
-// ── 초기화 ──
-loadKey();
+// ── 리셋 ──
+document.getElementById('reset-btn').addEventListener('click', function(){
+  clawStrokes=[]; clawParticles=[];
+  bombMarks=[]; seedParticles=[];
+  flameParticles=[]; charMarks=[];
+  fistMarks=[]; cracks=[];
+  rageScore=0;
+  rageBar.style.width='0%';
+  rageScoreEl.textContent='0 / 100';
+  canvas.style.transform='';
+  bubbleEl.classList.remove('show');
+});
 </script>
 </body>
 </html>

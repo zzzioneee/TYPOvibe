@@ -195,11 +195,11 @@ const WORKS = [
     id: 'day18',
     day: '18',
     date: '2026.05.19',
-    title: '말하면 그려줌',
-    desc: '음성으로 장면을 설명하면 GPT-Image-1이 세상에서 가장 하찮은 그림판 스타일로 그려준다.',
-    tags: ['Voice', 'GPT-Image-1', 'Web Speech API'],
+    title: '햄찌의 분노',
+    desc: '정서불안 김햄찌 × Desktop Destroyer. 발톱·씨폭탄·화염·주먹으로 Windows 95 바탕화면을 박살낸다.',
+    tags: ['Canvas', 'Interactive', 'Game'],
     ratio: '4 / 3',
-    bgTheme: 'light' as const,
+    bgTheme: 'dark' as const,
   },
 ]
 
