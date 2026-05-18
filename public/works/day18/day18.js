@@ -54,6 +54,10 @@ var MSGS={
 function rnd(a,b){return a+Math.random()*(b-a);}
 function rndInt(a,b){return Math.floor(rnd(a,b+1));}
 
+// 마스킹용 오프스크린 캔버스
+var maskOffscreen = document.createElement('canvas');
+var maskOffCtx = maskOffscreen.getContext('2d');
+
 // 캔버스 크기 계산
 function resizeCanvas(){
   var vw=window.innerWidth, vh=window.innerHeight;
@@ -108,12 +112,46 @@ function updateDamageStage(){
 
 function onStageChange(prev,next){
   autoScreenCrack(next);
-  if(next>=2)generateLCDLines(next);
-  if(next>=3)generateBlackoutPatches(next);
-  if(next>=2)startFlicker();
+  if(next>=1) autoBezelDamage(next); // 베젤 자동 데미지
+  if(next>=2) generateLCDLines(next);
+  if(next>=3) generateBlackoutPatches(next);
+  if(next>=2) startFlicker();
   cachedPoly=null; cachedPolyStage=-1;
-  updateFragmentTargets(next); // 조각 변형 목표 업데이트
   polyDistortCache={};
+}
+
+// 베젤 영역 랜덤 포인트 반환
+function rndBezelPoint(){
+  // 베젤 4개 영역: 상단/하단/좌측/우측 베젤
+  var mbX=canvasW*0.055, mbY=canvasH*0.048;
+  var mbW=canvasW*0.854, mbH=canvasH*0.909;
+  var scX=screenRect.x, scY=screenRect.y;
+  var scW=screenRect.w,  scH=screenRect.h;
+  var zones=[
+    // 상단 베젤
+    {x1:mbX,      x2:mbX+mbW,     y1:mbY,      y2:scY},
+    // 좌측 베젤
+    {x1:mbX,      x2:scX,         y1:scY,      y2:scY+scH},
+    // 우측 베젤
+    {x1:scX+scW,  x2:mbX+mbW,     y1:scY,      y2:scY+scH},
+    // 하단 베젤+팜레스트
+    {x1:mbX,      x2:mbX+mbW,     y1:scY+scH,  y2:mbY+mbH},
+  ];
+  var z=zones[rndInt(0,zones.length-1)];
+  if(z.x2<=z.x1 || z.y2<=z.y1) return rndBezelPoint(); // 빈 영역 스킵
+  return {x:rnd(z.x1,z.x2), y:rnd(z.y1,z.y2)};
+}
+
+function autoBezelDamage(level){
+  var count = level*2+1;
+  for(var i=0;i<count;i++){
+    var p=rndBezelPoint();
+    var type=['claw','bomb','fist'][rndInt(0,2)];
+    drawBezelDamage(p.x, p.y, type);
+    // 베젤 균열도 추가
+    if(level>=2) addCrackPoint(p.x, p.y, rnd(15+level*8, 30+level*12), level>=3);
+  }
+  if(level>=2) needCrackRedraw=true;
 }
 
 function autoScreenCrack(level){
@@ -258,13 +296,7 @@ function buildCrackSegs(sx,sy,ang,len,depth){
 }
 function redrawCracks(){
   cCtx.clearRect(0,0,canvasW,canvasH);
-  cCtx.save();
-  // 맥북 바디 안으로만 그림
-  var mbX=canvasW*0.055, mbY=canvasH*0.048;
-  var mbW=canvasW*0.854, mbH=canvasH*0.909;
-  cCtx.beginPath();
-  cCtx.rect(mbX, mbY, mbW, mbH);
-  cCtx.clip();
+  // 클리핑 없이 crackCanvas에 그림 — 합성 시 clip 적용
   crackPoints.forEach(function(cp){
     var g=cCtx.createRadialGradient(cp.x,cp.y,0,cp.x,cp.y,cp.radius*0.28);
     g.addColorStop(0,'rgba(0,0,0,0.65)');g.addColorStop(1,'rgba(0,0,0,0)');
@@ -283,7 +315,6 @@ function redrawCracks(){
     g2.addColorStop(0,'rgba(0,0,0,0.65)');g2.addColorStop(1,'rgba(0,0,0,0)');
     cCtx.fillStyle=g2;cCtx.beginPath();cCtx.arc(cp.x,cp.y,cp.radius*0.28,0,Math.PI*2);cCtx.fill();
   });
-  cCtx.restore();
   needCrackRedraw=false;
 }
 
@@ -754,15 +785,17 @@ function drawFrame(){
   drawDesktop(ctx,damageStage);
   ctx.restore();
 
-  // 3. damageCanvas + crackCanvas — shake 적용, 맥북 바디로 클리핑
-  // shake와 함께 clip rect도 보정: canvas 좌표계에서 shake만큼 이동한 위치
+  // 3. damageCanvas + crackCanvas — macbook.png 알파 마스크로 클리핑
   ctx.save();
   ctx.translate(shakeX, shakeY);
-  ctx.beginPath();
-  ctx.rect(mbX, mbY, mbW, mbH);  // translate 후라 로컬 좌표 = 원본 좌표
-  ctx.clip();
-  ctx.drawImage(damageCanvas, 0, 0);
-  ctx.drawImage(crackCanvas,  0, 0);
+  maskOffscreen.width = canvasW; maskOffscreen.height = canvasH;
+  maskOffCtx.clearRect(0,0,canvasW,canvasH);
+  maskOffCtx.drawImage(damageCanvas, 0, 0);
+  maskOffCtx.drawImage(crackCanvas,  0, 0);
+  maskOffCtx.globalCompositeOperation = 'destination-in';
+  if(macbookLoaded) maskOffCtx.drawImage(macbookImg, 0, 0, canvasW, canvasH);
+  maskOffCtx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(maskOffscreen, 0, 0);
   ctx.restore();
 
   // 5. 블랙아웃 패치
