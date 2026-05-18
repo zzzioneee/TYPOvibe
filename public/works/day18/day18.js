@@ -232,7 +232,7 @@ function doClaw(x,y){
       dmgX.restore();
     }
   });
-  damage(rndI(2,4),'claw');
+  damage(rndI(2,4)); // claw — 말풍선 없음
   doShake(6);
 }
 
@@ -272,7 +272,7 @@ function doFlame(x,y,drag){
     flameQueue.push({x,y,t:Date.now()});
     flameAcc=0;
   }
-  damage(0.15,'flame');flamePrev={x,y};
+  damage(0.15); // flame — 말풍선 없음flamePrev={x,y};
 }
 
 function doFist(x,y){
@@ -282,7 +282,9 @@ function doFist(x,y){
     sparks.push({x,y,vx:Math.cos(a)*rnd(3,9),vy:Math.sin(a)*rnd(3,9)-1,
       life:1,sz:rnd(2,6),col:i%2===0?'#fff':'#ccaa88'});
   }
-  damage(rndI(6,10),'fist');doShake(26);showBubble('fist');
+  damage(rndI(6,10));
+  doShake(26);
+  showBubble('fist'); // 펀치할 때마다 항상
 }
 
 // ─── HP ─────────────────────────────────────
@@ -320,11 +322,11 @@ function triggerDeath(){
 }
 
 function showBubble(t){
-  var m=MSGS[t]||['찍찍!!'];
+  var m=MSGS[t]||MSGS.fist;
   bubbleEl.textContent=m[rndI(0,m.length-1)];
   bubbleEl.classList.add('show');
   clearTimeout(showBubble._t);
-  showBubble._t=setTimeout(function(){bubbleEl.classList.remove('show');},1500);
+  showBubble._t=setTimeout(function(){bubbleEl.classList.remove('show');},1400);
 }
 function doShake(v){shakeAmt=Math.max(shakeAmt,v);}
 function updShake(){
@@ -434,9 +436,11 @@ document.addEventListener('keydown',function(e){
 document.addEventListener('mousemove',function(e){
   cursorEl.style.left=e.clientX+'px';
   cursorEl.style.top=e.clientY+'px';
-  // 말풍선: 햄스터 오른쪽 상단에 고정으로 따라다님
-  bubbleEl.style.left=(e.clientX+55)+'px';
-  bubbleEl.style.top=(e.clientY-115)+'px';
+  // 말풍선: 햄스터 귀 오른쪽에 딱 붙게
+  // 햄스터: transform(-38%,-62%), 너비 360px → 귀는 이미지 우상단 근처
+  // clientX 기준 오른쪽+, clientY 기준 위쪽-
+  bubbleEl.style.left=(e.clientX + 140)+'px';
+  bubbleEl.style.top=(e.clientY - 200)+'px';
 });
 
 function toC(e){var t=e.touches?e.touches[0]:e;return toCv(t.clientX,t.clientY);}
