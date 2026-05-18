@@ -383,70 +383,66 @@ function triggerFist(cx,cy){
 }
 
 // macbook.png 조각 분할 시스템
-var FRAG_COLS = 8, FRAG_ROWS = 6;
-var fragments = []; // {sx,sy,sw,sh, dx,dy, rot, offsetX,offsetY, damaged}
+var FRAG_COLS = 6, FRAG_ROWS = 4;
+var fragments = [];
 
 function initFragments(){
   fragments = [];
+  var fw = canvasW/FRAG_COLS, fh = canvasH/FRAG_ROWS;
   for(var r=0;r<FRAG_ROWS;r++){
     for(var c=0;c<FRAG_COLS;c++){
-      // 소스 좌표 (macbook.png 원본 기준)
-      var sx = (MB_W/FRAG_COLS)*c, sy = (MB_H/FRAG_ROWS)*r;
-      var sw = MB_W/FRAG_COLS,    sh = MB_H/FRAG_ROWS;
-      // 캔버스 목적 좌표
-      var dx = (canvasW/FRAG_COLS)*c, dy = (canvasH/FRAG_ROWS)*r;
-      var dw = canvasW/FRAG_COLS,     dh = canvasH/FRAG_ROWS;
       fragments.push({
-        sx,sy,sw,sh,          // 소스 rect
-        dx,dy,dw,dh,          // 목적 rect (기준)
-        ox:0, oy:0,           // 현재 오프셋
-        rot:0,                // 현재 회전
-        targetOx:0, targetOy:0, targetRot:0, // 목표값
+        sx: (MB_W/FRAG_COLS)*c,  sy: (MB_H/FRAG_ROWS)*r,
+        sw: MB_W/FRAG_COLS,       sh: MB_H/FRAG_ROWS,
+        dx: fw*c, dy: fh*r, dw: fw, dh: fh,
+        ox:0, oy:0, rot:0,
+        targetOx:0, targetOy:0, targetRot:0,
         col:c, row:r,
       });
     }
   }
 }
 initFragments();
-window.addEventListener('resize',function(){initFragments();});
-
-// 데미지 stage에 따라 fragment 목표값 설정
-var fragSeed = 42;
-function seededRnd(i,range){ // 결정론적 난수 (같은 i → 같은 값)
-  var x = Math.sin(i*127.1+fragSeed*311.7)*43758.5453;
-  return (x - Math.floor(x)) * range * 2 - range;
-}
+window.addEventListener('resize',function(){resizeCanvas();initFragments();updateFragmentTargets(damageStage);});
 
 function updateFragmentTargets(stage){
-  if(stage<=0){ fragments.forEach(function(f){f.targetOx=0;f.targetOy=0;f.targetRot=0;}); return; }
-  var intensity = [0, 0.3, 0.8, 1.8, 3.5, 6][Math.min(stage,5)];
-  var maxOff = canvasW * 0.012 * intensity;
-  var maxRot = 0.015 * intensity;
+  if(stage<=0){
+    fragments.forEach(function(f){f.targetOx=0;f.targetOy=0;f.targetRot=0;});
+    return;
+  }
+  // 조각마다 중앙에서 바깥 방향으로 밀려나는 벡터 계산
+  var cx=FRAG_COLS/2-0.5, cy=FRAG_ROWS/2-0.5;
+  // intensity: stage 1=미세, 5=폭발
+  var dist    = [0, canvasW*0.005, canvasW*0.018, canvasW*0.045, canvasW*0.09, canvasW*0.16][Math.min(stage,5)];
+  var maxRot  = [0, 0.008,          0.022,          0.05,          0.10,          0.18        ][Math.min(stage,5)];
+
   fragments.forEach(function(f,i){
-    // 가장자리 조각일수록 더 심하게 움직임
-    var edgeFactor = 1;
-    var distFromCenter = Math.hypot(f.col - FRAG_COLS/2, f.row - FRAG_ROWS/2);
-    edgeFactor = 0.5 + distFromCenter / (FRAG_COLS/2) * 0.8;
-    f.targetOx = seededRnd(i*3,   maxOff) * edgeFactor;
-    f.targetOy = seededRnd(i*3+1, maxOff) * edgeFactor;
-    f.targetRot= seededRnd(i*3+2, maxRot) * edgeFactor;
+    var dx = f.col - cx, dy = f.row - cy;
+    var d  = Math.hypot(dx,dy) || 1;
+    // 중앙 조각은 조금, 가장자리는 많이
+    var edgeMul = 0.4 + (d / Math.hypot(cx,cy)) * 0.8;
+    // 방향: 중앙에서 바깥으로
+    var nx = dx/d, ny = dy/d;
+    // 결정론적 노이즈로 약간의 불규칙성 추가
+    var noise = Math.sin(i*7.3+stage*13.7)*0.35;
+    f.targetOx  = (nx + Math.sin(i*3.1)*0.3) * dist * edgeMul;
+    f.targetOy  = (ny + Math.cos(i*3.1)*0.3) * dist * edgeMul;
+    f.targetRot = noise * maxRot * edgeMul;
   });
 }
 
-// 매 프레임 조각 lerp 이동
 function updateFragments(){
-  var lr = 0.08;
+  var lr = 0.06;
   fragments.forEach(function(f){
-    f.ox += (f.targetOx - f.ox) * lr;
-    f.oy += (f.targetOy - f.oy) * lr;
-    f.rot+= (f.targetRot - f.rot) * lr;
+    f.ox  += (f.targetOx  - f.ox)  * lr;
+    f.oy  += (f.targetOy  - f.oy)  * lr;
+    f.rot += (f.targetRot - f.rot) * lr;
   });
 }
 
-// macbook.png 조각들 그리기
 function drawMacbook(){
   if(!macbookLoaded) return;
-  var br=[1,0.97,0.93,0.88,0.78,0.55][Math.min(damageStage,5)];
+  var br=[1,0.98,0.94,0.88,0.78,0.55][Math.min(damageStage,5)];
   ctx.filter='brightness('+br+')';
   fragments.forEach(function(f){
     var cx2 = f.dx + f.dw/2 + f.ox + shakeX;
