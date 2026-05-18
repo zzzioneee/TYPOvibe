@@ -305,7 +305,7 @@ function renderParticles(){
     var g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,r);
     if(p.hot){g.addColorStop(0,'rgba(255,255,100,'+p.life+')');g.addColorStop(1,'rgba(255,80,0,0)');}
     else{g.addColorStop(0,'rgba(60,30,0,'+p.life+')');g.addColorStop(1,'rgba(0,0,0,0)');}
-    ctx.save();ctx.translate(shake.x,shake.y);
+    ctx.save();
     ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.fill();
     ctx.restore();
     return true;
@@ -348,16 +348,18 @@ function draw(){
   shake=getShake();
 
   ctx.clearRect(0,0,CW,CH);
-  ctx.save();
-  ctx.translate(shake.x,shake.y);
 
-  // 1. 화면 (맥북 뒤)
+  // shake 적용 레이어 (macbook, 화면, 균열)
+  ctx.save();
+  ctx.translate(shake.x, shake.y);
+
+  // 1. 화면 (맥북 뒤, shake 포함)
   ctx.save();
   ctx.beginPath();ctx.rect(SR.x,SR.y,SR.w,SR.h);ctx.clip();
   drawDesktop(stage);
   ctx.restore();
 
-  // 2. macbook.png (베젤이 화면 위 덮음)
+  // 2. macbook.png
   if(macLoaded){
     var br=[1,0.98,0.94,0.88,0.76,0.55][Math.min(stage,5)];
     ctx.filter='brightness('+br+')';
@@ -365,13 +367,24 @@ function draw(){
     ctx.filter='none';
   }
 
-  // 3. 데미지 레이어 (맥북 bounding box clip)
+  // 3. 균열 레이어 (shake 포함 → macbook과 정렬)
+  // clip을 translate 전 화면 좌표 기준으로: shake 역보정
   ctx.save();
-  ctx.beginPath();ctx.rect(MB.x,MB.y,MB.w,MB.h);ctx.clip();
-  ctx.drawImage(dmgC,0,0);
-  ctx.drawImage(crackC,0,0);
+  ctx.beginPath();
+  ctx.rect(MB.x - shake.x, MB.y - shake.y, MB.w, MB.h);
+  ctx.clip();
+  ctx.drawImage(crackC, 0, 0);
   ctx.restore();
 
+  ctx.restore(); // shake 복원
+
+  // 4. 데미지 레이어 — shake 없이 (dmgC 좌표 = canvas 좌표)
+  // macbook bounding box clip (shake 없는 절대 좌표)
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(MB.x, MB.y, MB.w, MB.h);
+  ctx.clip();
+  ctx.drawImage(dmgC, 0, 0);
   ctx.restore();
 }
 
