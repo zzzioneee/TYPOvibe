@@ -60,42 +60,34 @@ function withMBClip(fn){
 // 주먹/폭탄: 충격 구멍 (각진 다각형 + 방사형 균열선)
 function stampImpact(cx,cy,r){
   withMBClip(function(){
-    // 검정 구멍
+    // 검정 구멍 — 더 크고 명확하게
     dmgX.fillStyle='#000';
     dmgX.beginPath();
-    var n=rndI(7,10);
+    var n=rndI(6,8);
     for(var i=0;i<n;i++){
-      var a=(i/n)*Math.PI*2+rnd(-0.25,0.25);
-      var rv=r*rnd(0.6,1.0);
+      var a=(i/n)*Math.PI*2+rnd(-0.2,0.2);
+      var rv=r*rnd(0.7,1.0);
       if(i===0)dmgX.moveTo(cx+Math.cos(a)*rv,cy+Math.sin(a)*rv);
       else dmgX.lineTo(cx+Math.cos(a)*rv,cy+Math.sin(a)*rv);
     }
     dmgX.closePath();dmgX.fill();
-    // 흰 테두리
-    dmgX.strokeStyle='#fff';dmgX.lineWidth=1.5;dmgX.stroke();
-    // 방사형 균열 (단색 선)
-    dmgX.strokeStyle='#000';dmgX.lineWidth=2;
-    var nc=rndI(8,14);
+    // 흰 테두리 (찢긴 금속 하이라이트)
+    dmgX.strokeStyle='#fff';dmgX.lineWidth=2;dmgX.stroke();
+
+    // 방사형 균열 — 굵고 적게 (4~6개)
+    dmgX.strokeStyle='#000';dmgX.lineWidth=3;dmgX.lineCap='round';
+    var nc=rndI(4,6);
     for(var j=0;j<nc;j++){
       var ca=rnd(0,Math.PI*2);
-      var cl=r*rnd(1.2,2.2);
-      var sx=cx+Math.cos(ca)*r*rnd(0.6,0.9);
-      var sy=cy+Math.sin(ca)*r*rnd(0.6,0.9);
-      var ex=cx+Math.cos(ca+rnd(-0.2,0.2))*cl;
-      var ey=cy+Math.sin(ca+rnd(-0.2,0.2))*cl;
+      var cl=r*rnd(1.5,2.5);
+      var sx=cx+Math.cos(ca)*r*0.85;
+      var sy=cy+Math.sin(ca)*r*0.85;
       // 꺾임 한 번
-      var mx=(sx+ex)/2+rnd(-r*0.3,r*0.3);
-      var my=(sy+ey)/2+rnd(-r*0.3,r*0.3);
-      dmgX.beginPath();dmgX.moveTo(sx,sy);dmgX.lineTo(mx,my);dmgX.lineTo(ex,ey);dmgX.stroke();
-    }
-    // 금속 하이라이트
-    dmgX.strokeStyle='rgba(255,255,255,0.8)';dmgX.lineWidth=1;
-    for(var k=0;k<4;k++){
-      var ha=rnd(0,Math.PI*2),hl=r*rnd(0.5,0.9);
-      dmgX.beginPath();
-      dmgX.moveTo(cx+Math.cos(ha)*r*0.3,cy+Math.sin(ha)*r*0.3);
-      dmgX.lineTo(cx+Math.cos(ha)*hl,cy+Math.sin(ha)*hl);
-      dmgX.stroke();
+      var kx=sx+(Math.cos(ca+rnd(-0.4,0.4))*(cl-r)*0.5);
+      var ky=sy+(Math.sin(ca+rnd(-0.4,0.4))*(cl-r)*0.5);
+      var ex=cx+Math.cos(ca+rnd(-0.3,0.3))*cl;
+      var ey=cy+Math.sin(ca+rnd(-0.3,0.3))*cl;
+      dmgX.beginPath();dmgX.moveTo(sx,sy);dmgX.lineTo(kx,ky);dmgX.lineTo(ex,ey);dmgX.stroke();
     }
   });
 }
@@ -138,7 +130,7 @@ function moveClaw(x,y){
 function endClaw(){prevClawPt=null;}
 
 function doBomb(x,y){
-  stampImpact(x,y,rndI(30,50));
+  stampImpact(x,y,rndI(40,65));
   for(var i=0;i<rndI(10,16);i++){
     var a=(i/16)*Math.PI*2+rnd(-0.2,0.2);
     sparks.push({x,y,vx:Math.cos(a)*rnd(4,12),vy:Math.sin(a)*rnd(4,12)-rnd(0,3),
@@ -162,7 +154,7 @@ function doFlame(x,y,drag){
 }
 
 function doFist(x,y){
-  stampImpact(x,y,rndI(34,55));
+  stampImpact(x,y,rndI(45,70));
   for(var i=0;i<8;i++){
     var a=rnd(0,Math.PI*2);
     sparks.push({x,y,vx:Math.cos(a)*rnd(3,9),vy:Math.sin(a)*rnd(3,9)-1,
@@ -194,7 +186,7 @@ function autoBezel(s){
   ];
   for(var i=0;i<s+1;i++){
     var p=zones[i%zones.length]();
-    stampImpact(p.x,p.y,rndI(16+s*5,28+s*8));
+    stampImpact(p.x,p.y,rndI(22+s*6,38+s*10));
   }
 }
 
