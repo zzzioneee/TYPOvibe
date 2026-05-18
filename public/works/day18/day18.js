@@ -29,7 +29,7 @@ macImg.onload=function(){macLoaded=true;};
 
 var crackImgs=[];
 var crackImgsLoaded=0;
-['JiksScreenBreak 배포용/깨진자국3.png','JiksScreenBreak 배포용/깨진자국4.png'].forEach(function(src){
+['crack3.png','crack4.png'].forEach(function(src){
   var img=new Image();
   img.onload=function(){crackImgsLoaded++;};
   img.onerror=function(){console.warn('failed to load:',src);};
