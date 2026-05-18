@@ -7,705 +7,334 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-html,body{width:100%;height:100%;overflow:hidden;background:#008080;font-family:'Noto Sans KR',sans-serif;}
+html,body{width:100%;height:100%;overflow:hidden;background:#f0f0f0;font-family:'Noto Sans KR',sans-serif;cursor:none;}
 
-/* ── 윈도우95 바탕화면 ── */
-#desktop{
+/* ── 흰 배경 씬 ── */
+#scene{
   position:fixed;inset:0;
-  background:#008080;
-  overflow:hidden;
-}
-
-/* 바탕화면 아이콘 */
-.icon{
-  position:absolute;
-  display:flex;flex-direction:column;align-items:center;gap:3px;
-  cursor:default;user-select:none;
-  width:64px;
-}
-.icon-img{
-  width:32px;height:32px;
-  image-rendering:pixelated;
+  background:#fff;
   display:flex;align-items:center;justify-content:center;
-  font-size:24px;
-}
-.icon-label{
-  color:#fff;font-size:11px;font-weight:400;
-  text-align:center;line-height:1.2;
-  text-shadow:1px 1px 1px #000;
-  padding:1px 2px;
-}
-.icon:hover .icon-label{background:#000080;color:#fff;}
-
-/* ── 작업표시줄 ── */
-#taskbar{
-  position:fixed;bottom:0;left:0;right:0;height:28px;
-  background:#c0c0c0;
-  border-top:2px solid #fff;
-  display:flex;align-items:center;
-  gap:4px;padding:0 4px;
-  z-index:50;
-}
-#start-btn{
-  height:22px;padding:0 8px;
-  background:#c0c0c0;
-  border:2px solid;
-  border-color:#fff #808080 #808080 #fff;
-  font-size:11px;font-weight:700;
-  cursor:pointer;display:flex;align-items:center;gap:4px;
-  font-family:'Noto Sans KR',sans-serif;
-}
-#start-btn:active{border-color:#808080 #fff #fff #808080;}
-#clock{
-  margin-left:auto;padding:0 8px;
-  border:2px solid;border-color:#808080 #fff #fff #808080;
-  height:22px;font-size:11px;line-height:20px;
-  background:#c0c0c0;min-width:60px;text-align:center;
 }
 
-/* ── 파괴 캔버스 ── */
-#destruction{
-  position:fixed;inset:0 0 28px 0;
+/* ── 맥북 래퍼 ── */
+#macbook-wrap{
+  position:relative;
+  /* 맥북 전체 비율 유지 */
+  width:min(80vw, 70vh * 1.6);
+  aspect-ratio: 1.6 / 1.08;
+}
+
+/* ── 맥북 바디 (CSS로 그림) ── */
+#macbook-body{
+  position:absolute;
+  inset:0;
   pointer-events:none;
-  z-index:10;
+}
+
+/* 맥북 화면 베젤 */
+#screen-bezel{
+  position:absolute;
+  top:0; left:4%; right:4%;
+  height:72%;
+  background:#1a1a1a;
+  border-radius:8px 8px 0 0;
+}
+
+/* 맥북 화면 영역 — 파괴 일어나는 곳 */
+#screen{
+  position:absolute;
+  top:3.5%; left:5.5%; right:5.5%;
+  bottom:5%;
+  background:#e8f0fe;
+  overflow:hidden;
+  /* macOS 바탕화면 같은 느낌 */
+  background: linear-gradient(160deg, #5b8fd4 0%, #3a6fc7 40%, #2d5aa8 100%);
+}
+
+/* 화면 안 바탕화면 UI */
+#desktop-ui{
+  position:absolute;inset:0;
+  pointer-events:none;
+  user-select:none;
+}
+.desktop-icon{
+  position:absolute;
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  color:#fff;font-size:10px;text-align:center;width:50px;
+  text-shadow:1px 1px 2px rgba(0,0,0,0.7);
+}
+.desktop-icon .di{font-size:22px;}
+
+/* macOS menubar */
+#menubar{
+  position:absolute;top:0;left:0;right:0;height:18px;
+  background:rgba(255,255,255,0.85);backdrop-filter:blur(4px);
+  display:flex;align-items:center;padding:0 8px;gap:12px;
+  font-size:9px;color:#000;font-weight:700;
+}
+.menu-apple{font-size:11px;}
+
+/* macOS dock */
+#dock{
+  position:absolute;bottom:4px;left:50%;transform:translateX(-50%);
+  background:rgba(255,255,255,0.25);backdrop-filter:blur(8px);
+  border-radius:12px;padding:3px 6px;
+  display:flex;gap:4px;align-items:flex-end;
+  border:1px solid rgba(255,255,255,0.3);
+}
+.dock-icon{font-size:16px;line-height:1;}
+
+/* 파괴 캔버스 — 화면 위에 겹침 */
+#destruction{
+  position:absolute;inset:0;
+  pointer-events:none;
+  z-index:5;
+}
+
+/* 유리 균열 오버레이 캔버스 */
+#cracks-canvas{
+  position:absolute;inset:0;
+  pointer-events:none;
+  z-index:6;
+}
+
+/* 화면 완전 박살 오버레이 */
+#smashed-overlay{
+  position:absolute;inset:0;
+  z-index:7;
+  opacity:0;
+  pointer-events:none;
+  background:
+    repeating-linear-gradient(
+      45deg,
+      rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px,
+      transparent 1px, transparent 8px
+    );
+  transition:opacity 0.5s;
+}
+
+/* 화면 클릭 이벤트 받는 투명 레이어 */
+#hit-layer{
+  position:absolute;inset:0;
+  z-index:8;
+  cursor:none;
+}
+
+/* 맥북 하단 힌지+팜레스트 */
+#palmrest{
+  position:absolute;
+  top:72%; left:0; right:0; bottom:0;
+  background:linear-gradient(180deg, #d0d0d0 0%, #b8b8b8 40%, #c8c8c8 100%);
+  border-radius:0 0 6px 6px;
+}
+#palmrest::after{
+  content:'';position:absolute;
+  top:28%;left:35%;right:35%;bottom:20%;
+  background:linear-gradient(180deg,#c0c0c0,#b0b0b0);
+  border-radius:3px;
+  border:1px solid #a0a0a0;
+}
+/* 키보드 느낌 */
+#keyboard{
+  position:absolute;
+  top:8%;left:8%;right:8%;height:55%;
+  display:grid;
+  grid-template-columns:repeat(13,1fr);
+  grid-template-rows:repeat(4,1fr);
+  gap:1.5px;
+}
+.key{background:#d8d8d8;border-radius:1px;border-bottom:1px solid #a0a0a0;}
+
+/* 맥북 하단 바닥 그림자 */
+#macbook-shadow{
+  position:absolute;
+  bottom:-8px;left:5%;right:5%;height:16px;
+  background:radial-gradient(ellipse,rgba(0,0,0,0.25) 0%,transparent 70%);
+  pointer-events:none;
+}
+
+/* ── 햄스터 커서 ── */
+#hamster-cursor{
+  position:fixed;
+  width:56px;height:56px;
+  pointer-events:none;
+  z-index:1000;
+  transform:translate(-50%,-50%);
+  transition:none;
+  image-rendering:auto;
 }
 
 /* ── 툴바 ── */
 #toolbar{
-  position:fixed;top:50%;left:16px;transform:translateY(-50%);
-  background:#c0c0c0;
-  border:2px solid;border-color:#fff #808080 #808080 #fff;
-  padding:6px 4px;
-  display:flex;flex-direction:column;gap:4px;
-  z-index:40;
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  display:flex;gap:8px;align-items:center;
+  background:rgba(255,255,255,0.9);
+  border:1px solid #ddd;
+  border-radius:40px;
+  padding:8px 16px;
+  box-shadow:0 4px 20px rgba(0,0,0,0.12);
+  z-index:100;
 }
 .tool-btn{
-  width:44px;height:44px;
-  background:#c0c0c0;
-  border:2px solid;border-color:#fff #808080 #808080 #fff;
-  cursor:pointer;
+  width:48px;height:48px;border-radius:50%;
+  border:2px solid transparent;
+  background:#f5f5f5;
+  cursor:none;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  font-size:20px;line-height:1;
-  gap:1px;
-  transition:none;
-  position:relative;
+  font-size:20px;gap:1px;transition:background 0.15s,border-color 0.15s;
 }
-.tool-btn:active,.tool-btn.active{border-color:#808080 #fff #fff #808080;background:#b0b0b0;}
-.tool-btn .tool-label{font-size:7px;color:#000;font-family:'Noto Sans KR',sans-serif;font-weight:700;line-height:1;}
-.tool-btn .shortcut{
-  position:absolute;top:1px;right:2px;
-  font-size:8px;color:#666;font-family:monospace;
+.tool-btn .tl{font-size:8px;font-weight:700;color:#555;}
+.tool-btn:hover{background:#ebebeb;}
+.tool-btn.selected{border-color:#333;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.15);}
+
+/* 단축키 뱃지 */
+.tool-btn .sk{
+  position:absolute;top:-4px;right:-4px;
+  background:#333;color:#fff;
+  border-radius:50%;width:14px;height:14px;
+  font-size:8px;display:flex;align-items:center;justify-content:center;
+  font-family:monospace;
 }
 
-/* 선택된 툴 강조 */
-.tool-btn.selected{
-  border-color:#808080 #fff #fff #808080;
-  background:#b8b8ff;
+/* ── HP 바 ── */
+#hp-wrap{
+  position:fixed;top:20px;left:50%;transform:translateX(-50%);
+  background:rgba(255,255,255,0.9);border:1px solid #ddd;
+  border-radius:20px;padding:6px 16px;
+  display:flex;align-items:center;gap:10px;
+  z-index:100;box-shadow:0 2px 12px rgba(0,0,0,0.1);
+  min-width:220px;
 }
+#hp-label{font-size:12px;font-weight:700;white-space:nowrap;}
+#hp-bar-outer{flex:1;height:10px;background:#e0e0e0;border-radius:5px;overflow:hidden;}
+#hp-bar{height:100%;width:100%;background:linear-gradient(90deg,#4caf50,#8bc34a);border-radius:5px;transition:width 0.2s,background 0.3s;}
+#hp-num{font-size:11px;font-weight:700;min-width:36px;text-align:right;}
 
-/* ── 커서 커스텀 ── */
-body.tool-claw{cursor:crosshair;}
-body.tool-bomb{cursor:cell;}
-body.tool-flame{cursor:crosshair;}
-body.tool-fist{cursor:pointer;}
-
-/* ── 분노 게이지 ── */
-#rage-wrap{
-  position:fixed;top:16px;right:16px;
-  background:#c0c0c0;
-  border:2px solid;border-color:#808080 #fff #fff #808080;
-  padding:6px 10px;z-index:40;
-  min-width:120px;
+/* ── 햄찌 말풍선 ── */
+#bubble{
+  position:fixed;bottom:96px;left:50%;transform:translateX(-50%) scale(0.8);
+  background:#ffff88;border:2px solid #333;border-radius:12px;
+  padding:8px 14px;font-size:13px;font-weight:700;
+  white-space:nowrap;z-index:200;
+  opacity:0;transition:opacity 0.15s,transform 0.15s;
+  pointer-events:none;
+  box-shadow:2px 2px 0 #333;
 }
-#rage-title{font-size:10px;font-weight:700;margin-bottom:4px;color:#000;}
-#rage-bar-outer{
-  width:100%;height:12px;
-  background:#808080;
-  border:1px solid #404040;
-}
-#rage-bar{height:100%;width:0%;background:#ff0000;transition:width 0.1s;}
-#rage-score{font-size:10px;margin-top:3px;color:#000;text-align:right;}
+#bubble.show{opacity:1;transform:translateX(-50%) scale(1);}
 
-/* ── 리셋 버튼 ── */
-#reset-btn{
-  position:fixed;top:16px;left:72px;
-  background:#c0c0c0;
-  border:2px solid;border-color:#fff #808080 #808080 #fff;
-  padding:4px 10px;font-size:11px;font-weight:700;
-  cursor:pointer;z-index:40;
+/* 최종박살 메시지 */
+#final-msg{
+  position:fixed;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  z-index:500;
+  opacity:0;pointer-events:none;
+  transition:opacity 0.5s;
+}
+#final-msg.show{opacity:1;}
+#final-msg-inner{
+  background:#fff;border:3px solid #000;
+  padding:24px 40px;text-align:center;
+  box-shadow:6px 6px 0 #000;
+}
+#final-msg-inner h2{font-size:28px;font-weight:900;margin-bottom:8px;}
+#final-msg-inner p{font-size:14px;color:#555;margin-bottom:16px;}
+#restart-btn{
+  padding:10px 24px;background:#000;color:#fff;border:none;
+  font-size:14px;font-weight:700;cursor:pointer;
   font-family:'Noto Sans KR',sans-serif;
 }
-#reset-btn:active{border-color:#808080 #fff #fff #808080;}
-
-/* ── 햄찌 반응 말풍선 ── */
-#bubble{
-  position:fixed;bottom:48px;right:16px;
-  background:#ffff99;
-  border:2px solid #000;
-  padding:8px 12px;
-  font-size:13px;font-weight:700;
-  max-width:180px;text-align:center;line-height:1.4;
-  z-index:40;
-  opacity:0;transform:scale(0.8);
-  transition:opacity 0.2s,transform 0.2s;
-  pointer-events:none;
-}
-#bubble::after{
-  content:'';position:absolute;bottom:-10px;right:20px;
-  border:5px solid transparent;border-top-color:#000;
-}
-#bubble.show{opacity:1;transform:scale(1);}
-
-/* ── 썸네일 모드 ── */
-body.is-thumb #toolbar,body.is-thumb #rage-wrap,
-body.is-thumb #reset-btn,body.is-thumb #bubble{display:none;}
 </style>
 </head>
 <body>
-<div id="desktop">
-  <!-- 바탕화면 아이콘들 -->
-  <div class="icon" style="left:20px;top:20px">
-    <div class="icon-img">🖥️</div>
-    <div class="icon-label">내 컴퓨터</div>
-  </div>
-  <div class="icon" style="left:20px;top:100px">
-    <div class="icon-img">📁</div>
-    <div class="icon-label">내 문서</div>
-  </div>
-  <div class="icon" style="left:20px;top:180px">
-    <div class="icon-img">🗑️</div>
-    <div class="icon-label">휴지통</div>
-  </div>
-  <div class="icon" style="left:20px;top:260px">
-    <div class="icon-img">🌐</div>
-    <div class="icon-label">Internet Explorer</div>
-  </div>
-  <div class="icon" style="left:20px;top:360px">
-    <div class="icon-img">📧</div>
-    <div class="icon-label">Outlook Express</div>
-  </div>
-  <!-- 중앙 텍스트 -->
-  <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-    text-align:center;color:rgba(255,255,255,0.15);pointer-events:none;user-select:none;">
-    <div style="font-size:clamp(24px,4vw,48px);font-weight:900;letter-spacing:0.05em;line-height:1.2;">
-      Windows 95
+
+<!-- 씬 -->
+<div id="scene">
+  <div id="macbook-wrap">
+    <!-- 그림자 -->
+    <div id="macbook-shadow"></div>
+    <!-- 베젤 -->
+    <div id="screen-bezel">
+      <!-- 화면 -->
+      <div id="screen">
+        <!-- 바탕화면 UI -->
+        <div id="desktop-ui">
+          <div id="menubar">
+            <span class="menu-apple">🍎</span>
+            <span>Finder</span><span>File</span><span>Edit</span><span>View</span><span>Go</span><span>Window</span>
+          </div>
+          <!-- 아이콘들 -->
+          <div class="desktop-icon" style="right:12px;top:28px"><div class="di">🗂️</div>내 작업물</div>
+          <div class="desktop-icon" style="right:12px;top:88px"><div class="di">🗑️</div>휴지통</div>
+          <div class="desktop-icon" style="right:12px;top:148px"><div class="di">📸</div>스크린샷</div>
+          <div id="dock">
+            <div class="dock-icon">🔍</div>
+            <div class="dock-icon">📁</div>
+            <div class="dock-icon">🌐</div>
+            <div class="dock-icon">✉️</div>
+            <div class="dock-icon">🎵</div>
+            <div class="dock-icon">📝</div>
+          </div>
+        </div>
+        <!-- 파괴 캔버스들 -->
+        <canvas id="destruction"></canvas>
+        <canvas id="cracks-canvas"></canvas>
+        <div id="smashed-overlay"></div>
+        <!-- 클릭 레이어 -->
+        <div id="hit-layer"></div>
+      </div>
     </div>
-    <div style="font-size:clamp(10px,1.5vw,16px);margin-top:8px;font-weight:400;">
-      Microsoft Corporation
+    <!-- 팜레스트 -->
+    <div id="palmrest">
+      <div id="keyboard">
+        <!-- 키 60개 정도 -->
+        <script>for(var _k=0;_k<52;_k++) document.write('<div class="key"></div>');</script>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- 파괴 캔버스 -->
-<canvas id="destruction"></canvas>
+<!-- 햄스터 커서 -->
+<img id="hamster-cursor" src="Hamster.png" alt="hamster"/>
+
+<!-- HP 바 -->
+<div id="hp-wrap">
+  <div id="hp-label">🖥️ 맥북 HP</div>
+  <div id="hp-bar-outer"><div id="hp-bar"></div></div>
+  <div id="hp-num">100</div>
+</div>
 
 <!-- 툴바 -->
 <div id="toolbar">
-  <button class="tool-btn selected" id="btn-claw" title="발톱 (Q)">
-    🐾<span class="tool-label">발톱</span><span class="shortcut">Q</span>
-  </button>
-  <button class="tool-btn" id="btn-bomb" title="해바라기씨 폭탄 (W)">
-    🌻<span class="tool-label">씨폭탄</span><span class="shortcut">W</span>
-  </button>
-  <button class="tool-btn" id="btn-flame" title="화염방사기 (E)">
-    🔥<span class="tool-label">화염</span><span class="shortcut">E</span>
-  </button>
-  <button class="tool-btn" id="btn-fist" title="햄스터 주먹 (R)">
-    👊<span class="tool-label">주먹</span><span class="shortcut">R</span>
-  </button>
+  <div style="position:relative">
+    <button class="tool-btn selected" id="btn-claw" title="발톱 (Q)">🐾<div class="tl">발톱</div>
+    <span class="sk">Q</span></button>
+  </div>
+  <div style="position:relative">
+    <button class="tool-btn" id="btn-bomb" title="씨폭탄 (W)">🌻<div class="tl">씨폭탄</div>
+    <span class="sk">W</span></button>
+  </div>
+  <div style="position:relative">
+    <button class="tool-btn" id="btn-flame" title="화염 (E)">🔥<div class="tl">화염</div>
+    <span class="sk">E</span></button>
+  </div>
+  <div style="position:relative">
+    <button class="tool-btn" id="btn-fist" title="주먹 (R)">👊<div class="tl">주먹</div>
+    <span class="sk">R</span></button>
+  </div>
 </div>
 
-<!-- 분노 게이지 -->
-<div id="rage-wrap">
-  <div id="rage-title">🐹 햄찌 분노게이지</div>
-  <div id="rage-bar-outer"><div id="rage-bar"></div></div>
-  <div id="rage-score">0 / 100</div>
+<!-- 말풍선 -->
+<div id="bubble"></div>
+
+<!-- 최종 박살 -->
+<div id="final-msg">
+  <div id="final-msg-inner">
+    <h2>🐹 완전히 박살났다!</h2>
+    <p>햄찌의 분노가 맥북을 완전히 파괴했습니다</p>
+    <button id="restart-btn">🔄 다시하기</button>
+  </div>
 </div>
 
-<!-- 리셋 -->
-<button id="reset-btn">🔄 리셋</button>
-
-<!-- 작업표시줄 -->
-<div id="taskbar">
-  <button id="start-btn">🪟 시작</button>
-  <div id="clock">--:--</div>
-</div>
-
-<!-- 햄찌 말풍선 -->
-<div id="bubble" id="bubble">찍찍!!</div>
-
-<script>
-'use strict';
-var IS_THUMB = new URLSearchParams(location.search).has('thumb');
-if (IS_THUMB) document.body.classList.add('is-thumb');
-
-// ── 시계 ──
-function updateClock() {
-  var d = new Date();
-  var h = String(d.getHours()).padStart(2,'0');
-  var m = String(d.getMinutes()).padStart(2,'0');
-  document.getElementById('clock').textContent = h+':'+m;
-}
-updateClock(); setInterval(updateClock, 10000);
-
-// ── 캔버스 셋업 ──
-var canvas = document.getElementById('destruction');
-var ctx = canvas.getContext('2d');
-var W, H;
-
-function resize() {
-  W = window.innerWidth;
-  H = window.innerHeight - 28;
-  canvas.width = W; canvas.height = H;
-}
-resize();
-window.addEventListener('resize', resize);
-
-// ── 상태 ──
-var currentTool = 'claw';
-var isMouseDown = false;
-var mouseX = 0, mouseY = 0;
-var rageScore = 0;
-var flamePrev = null;  // 화염방사기 이전 위치
-
-// ── 툴 선택 ──
-var toolBtns = {
-  claw:  document.getElementById('btn-claw'),
-  bomb:  document.getElementById('btn-bomb'),
-  flame: document.getElementById('btn-flame'),
-  fist:  document.getElementById('btn-fist'),
-};
-
-function selectTool(name) {
-  currentTool = name;
-  Object.keys(toolBtns).forEach(function(k){
-    toolBtns[k].classList.toggle('selected', k === name);
-  });
-  document.body.className = IS_THUMB ? 'is-thumb' : '';
-  document.body.classList.add('tool-' + name);
-  flamePrev = null;
-}
-selectTool('claw');
-
-Object.keys(toolBtns).forEach(function(k){
-  toolBtns[k].addEventListener('click', function(){ selectTool(k); });
-});
-
-// 키보드 단축키
-document.addEventListener('keydown', function(e){
-  if (e.key==='q'||e.key==='Q') selectTool('claw');
-  if (e.key==='w'||e.key==='W') selectTool('bomb');
-  if (e.key==='e'||e.key==='E') selectTool('flame');
-  if (e.key==='r'||e.key==='R') selectTool('fist');
-});
-
-// ── 분노 게이지 ──
-var rageBar = document.getElementById('rage-bar');
-var rageScoreEl = document.getElementById('rage-score');
-function addRage(v) {
-  rageScore = Math.min(100, rageScore + v);
-  rageBar.style.width = rageScore + '%';
-  rageBar.style.background = rageScore > 80 ? '#ff0000' : rageScore > 50 ? '#ff8800' : '#ffcc00';
-  rageScoreEl.textContent = Math.round(rageScore) + ' / 100';
-  if (rageScore >= 100) showBubble(getMaxRageMsg());
-}
-
-// ── 말풍선 ──
-var bubbleEl = document.getElementById('bubble');
-var bubbleTimer = null;
-var MESSAGES = {
-  claw:  ['찍찍!!','으드득!!','긁어버려!!','발톱이다!!'],
-  bomb:  ['씨앗 폭탄이다!!','쾅!!','씨드 어택!!','해바라기 씨 투척!!'],
-  flame: ['불이야!!','화염방사!!','타버려!!','불꽃 분노!!'],
-  fist:  ['주먹이다!!','햄찌 어퍼컷!!','쾅쾅쾅!!','햄스터 주먹!!'],
-};
-function getMaxRageMsg(){ return ['🐹 분노 MAX!!','이 모니터 내 거다!!','아악 진짜!!!','찍찍찍찍찍!!'][Math.floor(Math.random()*4)]; }
-function showBubble(msg) {
-  bubbleEl.textContent = msg;
-  bubbleEl.classList.add('show');
-  clearTimeout(bubbleTimer);
-  bubbleTimer = setTimeout(function(){ bubbleEl.classList.remove('show'); }, 1800);
-}
-function maybeBubble(tool) {
-  if (Math.random() < 0.18) {
-    var msgs = MESSAGES[tool];
-    showBubble(msgs[Math.floor(Math.random()*msgs.length)]);
-  }
-}
-</script>
-
-<script>
-// ── 유틸 ──
-function rnd(a,b){ return a + Math.random()*(b-a); }
-function rndInt(a,b){ return Math.floor(rnd(a,b+1)); }
-
-// ── 화면 흔들기 ──
-var shakeAmt = 0;
-function shake(v){ shakeAmt = Math.max(shakeAmt, v); }
-function applyShake(){
-  if(shakeAmt < 0.5){ canvas.style.transform=''; shakeAmt=0; return; }
-  var dx = rnd(-shakeAmt,shakeAmt);
-  var dy = rnd(-shakeAmt,shakeAmt);
-  canvas.style.transform = 'translate('+dx+'px,'+dy+'px)';
-  shakeAmt *= 0.75;
-}
-
-// ══════════════════════════════════════════
-// 🐾 발톱 — 드래그하면 3줄 긁힘 + 살점 파편
-// ══════════════════════════════════════════
-var clawStrokes = [];  // {x1,y1,x2,y2,w,alpha}
-var clawParticles = [];
-var lastClawPos = null;
-
-function drawClaw(x, y) {
-  if (!lastClawPos) { lastClawPos = {x,y}; return; }
-  var dx = x - lastClawPos.x, dy = y - lastClawPos.y;
-  var dist = Math.hypot(dx,dy);
-  if (dist < 4) return;
-
-  var nx = -dy/dist, ny = dx/dist; // 수직
-  var offsets = [-6, 0, 6];
-  offsets.forEach(function(off){
-    clawStrokes.push({
-      x1: lastClawPos.x + nx*off,
-      y1: lastClawPos.y + ny*off,
-      x2: x + nx*off,
-      y2: y + ny*off,
-      w: rnd(1.5, 3),
-      alpha: rnd(0.7, 1.0),
-    });
-  });
-
-  // 파편
-  for(var i=0;i<3;i++){
-    clawParticles.push({
-      x: x+rnd(-8,8), y: y+rnd(-8,8),
-      vx: rnd(-2,2), vy: rnd(-3,0),
-      life: 1, size: rnd(2,5),
-      color: ['#cc3333','#994422','#cc6644'][rndInt(0,2)],
-    });
-  }
-
-  addRage(0.3);
-  maybeBubble('claw');
-  lastClawPos = {x,y};
-}
-
-function renderClaw() {
-  ctx.lineCap = 'round';
-  clawStrokes.forEach(function(s){
-    ctx.strokeStyle = 'rgba(80,0,0,'+s.alpha+')';
-    ctx.lineWidth = s.w;
-    ctx.beginPath();
-    ctx.moveTo(s.x1,s.y1);
-    ctx.lineTo(s.x2,s.y2);
-    ctx.stroke();
-  });
-
-  // 파편 렌더 + 업데이트
-  clawParticles = clawParticles.filter(function(p){
-    p.x+=p.vx; p.y+=p.vy; p.vy+=0.15; p.life-=0.04;
-    if(p.life<=0) return false;
-    ctx.globalAlpha = p.life;
-    ctx.fillStyle = p.color;
-    ctx.fillRect(p.x,p.y,p.size,p.size);
-    ctx.globalAlpha = 1;
-    return true;
-  });
-}
-
-// ══════════════════════════════════════════
-// 🌻 해바라기씨 폭탄 — 클릭 시 폭발 + 그을음 + 씨앗 파편
-// ══════════════════════════════════════════
-var bombMarks = [];   // {x,y,r,alpha} 그을음 원
-var seedParticles = []; // 씨앗 파편
-
-function triggerBomb(x, y) {
-  var r = rnd(40, 80);
-
-  // 그을음 원
-  bombMarks.push({x,y,r,alpha:0.85,grow:true,gr:r});
-
-  // 씨앗 파편 — 방사형으로 퍼짐
-  var count = rndInt(12, 20);
-  for(var i=0;i<count;i++){
-    var ang = (i/count)*Math.PI*2 + rnd(-0.3,0.3);
-    var spd = rnd(4, 14);
-    seedParticles.push({
-      x,y,
-      vx: Math.cos(ang)*spd,
-      vy: Math.sin(ang)*spd - rnd(2,5),
-      rot: rnd(0, Math.PI*2),
-      rotV: rnd(-0.3,0.3),
-      life:1, size:rnd(4,9),
-    });
-  }
-
-  // 화면 흔들기
-  shake(rnd(8,16));
-  addRage(8);
-  maybeBubble('bomb');
-  showBubble(MESSAGES.bomb[rndInt(0,MESSAGES.bomb.length-1)]);
-}
-
-function renderBomb() {
-  // 그을음
-  bombMarks.forEach(function(m){
-    var grad = ctx.createRadialGradient(m.x,m.y,0,m.x,m.y,m.r);
-    grad.addColorStop(0,'rgba(0,0,0,'+m.alpha+')');
-    grad.addColorStop(0.5,'rgba(20,10,0,'+(m.alpha*0.6)+')');
-    grad.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(m.x,m.y,m.r,0,Math.PI*2);
-    ctx.fill();
-  });
-
-  // 씨앗 파편
-  seedParticles = seedParticles.filter(function(p){
-    p.x+=p.vx; p.y+=p.vy; p.vy+=0.4; p.vx*=0.97;
-    p.rot+=p.rotV; p.life-=0.022;
-    if(p.life<=0) return false;
-
-    ctx.save();
-    ctx.globalAlpha = p.life;
-    ctx.translate(p.x,p.y);
-    ctx.rotate(p.rot);
-    // 씨앗 모양 — 타원
-    ctx.fillStyle = '#3a2200';
-    ctx.beginPath();
-    ctx.ellipse(0,0,p.size*0.4,p.size*0.7,0,0,Math.PI*2);
-    ctx.fill();
-    // 흰 줄무늬
-    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-    ctx.lineWidth = 0.8;
-    ctx.beginPath();
-    ctx.moveTo(0,-p.size*0.5);
-    ctx.lineTo(0,p.size*0.5);
-    ctx.stroke();
-    ctx.restore();
-    ctx.globalAlpha = 1;
-    return true;
-  });
-}
-
-// ══════════════════════════════════════════
-// 🔥 화염방사기 — 드래그 방향으로 불꽃 번짐
-// ══════════════════════════════════════════
-var flameParticles = [];
-var charMarks = [];  // 탄 자국
-
-function drawFlame(x, y) {
-  if (!flamePrev) { flamePrev={x,y}; return; }
-  var dx = x-flamePrev.x, dy = y-flamePrev.y;
-  var dist = Math.hypot(dx,dy);
-  if(dist < 3){ flamePrev={x,y}; return; }
-
-  var ang = Math.atan2(dy,dx);
-
-  // 불꽃 파티클 — 진행 방향으로 퍼짐
-  for(var i=0;i<6;i++){
-    var spread = rnd(-0.7,0.7);
-    var spd = rnd(2,8);
-    flameParticles.push({
-      x: x+rnd(-4,4), y: y+rnd(-4,4),
-      vx: Math.cos(ang+spread)*spd,
-      vy: Math.sin(ang+spread)*spd - rnd(0,3),
-      life:1,
-      size:rnd(6,18),
-      hot: Math.random()>0.4,  // true=노란/주황, false=빨간/어두움
-    });
-  }
-
-  // 탄 자국 (그을음 선)
-  if(dist > 6){
-    charMarks.push({
-      x1:flamePrev.x, y1:flamePrev.y,
-      x2:x, y2:y,
-      w:rnd(8,20),
-      alpha:rnd(0.3,0.6),
-    });
-  }
-
-  addRage(0.5);
-  maybeBubble('flame');
-  flamePrev = {x,y};
-}
-
-function renderFlame() {
-  // 탄 자국
-  ctx.lineCap='round';
-  charMarks.forEach(function(m){
-    ctx.strokeStyle='rgba(10,5,0,'+m.alpha+')';
-    ctx.lineWidth=m.w;
-    ctx.beginPath();
-    ctx.moveTo(m.x1,m.y1);
-    ctx.lineTo(m.x2,m.y2);
-    ctx.stroke();
-  });
-
-  // 불꽃
-  flameParticles = flameParticles.filter(function(p){
-    p.x+=p.vx; p.y+=p.vy; p.vy-=0.15; p.vx*=0.93;
-    p.life-=0.04;
-    if(p.life<=0) return false;
-
-    var r = p.size * p.life;
-    var grad = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,r);
-    if(p.hot){
-      grad.addColorStop(0,'rgba(255,255,150,'+p.life+')');
-      grad.addColorStop(0.4,'rgba(255,160,0,'+(p.life*0.9)+')');
-      grad.addColorStop(1,'rgba(255,50,0,0)');
-    } else {
-      grad.addColorStop(0,'rgba(200,60,0,'+p.life+')');
-      grad.addColorStop(0.5,'rgba(120,20,0,'+(p.life*0.7)+')');
-      grad.addColorStop(1,'rgba(0,0,0,0)');
-    }
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(p.x,p.y,r,0,Math.PI*2);
-    ctx.fill();
-    return true;
-  });
-}
-
-// ══════════════════════════════════════════
-// 👊 햄스터 주먹 — 클릭 시 주먹 자국 + 크랙 + 강진
-// ══════════════════════════════════════════
-var fistMarks = [];   // 주먹 자국 원
-var cracks = [];      // 균열 선들
-
-function triggerFist(x, y) {
-  var r = rnd(25, 45);
-  fistMarks.push({x,y,r,alpha:rnd(0.5,0.8)});
-
-  // 균열 생성 — 방사형 지그재그
-  var numCracks = rndInt(5, 10);
-  for(var i=0;i<numCracks;i++){
-    var ang = rnd(0, Math.PI*2);
-    var len = rnd(40, 120);
-    buildCrack(x, y, ang, len, 3);
-  }
-
-  shake(rnd(18, 28));
-  addRage(12);
-  maybeBubble('fist');
-  showBubble(MESSAGES.fist[rndInt(0,MESSAGES.fist.length-1)]);
-}
-
-function buildCrack(sx, sy, ang, len, depth) {
-  if(depth<=0 || len<8) return;
-  var segs = rndInt(3,6);
-  var x=sx, y=sy;
-  var a=ang;
-  for(var i=0;i<segs;i++){
-    var segLen = len/segs * rnd(0.6,1.4);
-    var nx = x + Math.cos(a)*segLen + rnd(-4,4);
-    var ny = y + Math.sin(a)*segLen + rnd(-4,4);
-    cracks.push({x1:x,y1:y,x2:nx,y2:ny,w:rnd(0.8,2)*depth*0.6,alpha:rnd(0.6,0.9)});
-    x=nx; y=ny;
-    a += rnd(-0.5,0.5);
-    // 분기
-    if(Math.random()<0.4 && depth>1){
-      buildCrack(nx,ny,a+rnd(-1.2,1.2),len*0.5,depth-1);
-    }
-  }
-}
-
-function renderFist() {
-  // 균열
-  ctx.lineCap='round';
-  cracks.forEach(function(c){
-    ctx.strokeStyle='rgba(0,0,0,'+c.alpha+')';
-    ctx.lineWidth=c.w;
-    ctx.beginPath();
-    ctx.moveTo(c.x1,c.y1);
-    ctx.lineTo(c.x2,c.y2);
-    ctx.stroke();
-  });
-
-  // 주먹 자국 (원형 함몰)
-  fistMarks.forEach(function(m){
-    var grad = ctx.createRadialGradient(m.x,m.y,m.r*0.3,m.x,m.y,m.r);
-    grad.addColorStop(0,'rgba(0,0,0,'+m.alpha+')');
-    grad.addColorStop(0.7,'rgba(40,20,0,'+(m.alpha*0.5)+')');
-    grad.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.fillStyle=grad;
-    ctx.beginPath();
-    ctx.arc(m.x,m.y,m.r,0,Math.PI*2);
-    ctx.fill();
-  });
-}
-
-// ── 전체 렌더 루프 ──
-function render() {
-  requestAnimationFrame(render);
-  ctx.clearRect(0,0,W,H);
-
-  renderBomb();
-  renderFlame();
-  renderFist();
-  renderClaw();
-  applyShake();
-}
-render();
-
-// ── 마우스/터치 이벤트 ──
-canvas.style.pointerEvents = 'all';
-
-canvas.addEventListener('mousedown', function(e){
-  isMouseDown = true;
-  mouseX = e.clientX; mouseY = e.clientY;
-  lastClawPos = null; flamePrev = null;
-  handleAction(mouseX, mouseY, true);
-});
-canvas.addEventListener('mousemove', function(e){
-  mouseX = e.clientX; mouseY = e.clientY;
-  if(isMouseDown) handleAction(mouseX, mouseY, false);
-});
-canvas.addEventListener('mouseup', function(){ isMouseDown=false; lastClawPos=null; flamePrev=null; });
-canvas.addEventListener('mouseleave', function(){ isMouseDown=false; lastClawPos=null; flamePrev=null; });
-
-canvas.addEventListener('touchstart', function(e){
-  e.preventDefault();
-  isMouseDown=true;
-  var t=e.touches[0];
-  mouseX=t.clientX; mouseY=t.clientY;
-  lastClawPos=null; flamePrev=null;
-  handleAction(mouseX,mouseY,true);
-},{passive:false});
-canvas.addEventListener('touchmove', function(e){
-  e.preventDefault();
-  var t=e.touches[0];
-  mouseX=t.clientX; mouseY=t.clientY;
-  if(isMouseDown) handleAction(mouseX,mouseY,false);
-},{passive:false});
-canvas.addEventListener('touchend', function(){isMouseDown=false;lastClawPos=null;flamePrev=null;});
-
-function handleAction(x, y, isClick) {
-  if(currentTool==='claw') {
-    drawClaw(x,y);
-  } else if(currentTool==='bomb' && isClick) {
-    triggerBomb(x,y);
-  } else if(currentTool==='flame') {
-    drawFlame(x,y);
-  } else if(currentTool==='fist' && isClick) {
-    triggerFist(x,y);
-  }
-}
-
-// ── 리셋 ──
-document.getElementById('reset-btn').addEventListener('click', function(){
-  clawStrokes=[]; clawParticles=[];
-  bombMarks=[]; seedParticles=[];
-  flameParticles=[]; charMarks=[];
-  fistMarks=[]; cracks=[];
-  rageScore=0;
-  rageBar.style.width='0%';
-  rageScoreEl.textContent='0 / 100';
-  canvas.style.transform='';
-  bubbleEl.classList.remove('show');
-});
-</script>
+<script src="day18.js"></script>
 </body>
 </html>
