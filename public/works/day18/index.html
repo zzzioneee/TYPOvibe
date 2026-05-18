@@ -100,10 +100,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#fff;font-family:'No
 }
 #final-msg-inner h2{font-size:28px;font-weight:900;margin-bottom:8px;}
 #final-msg-inner p{font-size:14px;color:#555;margin-bottom:16px;}
-#restart-btn{
-  padding:10px 24px;background:#000;color:#fff;border:none;
-  font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;
-}
+/* restart-btn은 tool-btn 스타일 재사용 */
 
 body.is-thumb #toolbar,body.is-thumb #hp-wrap,
 body.is-thumb #bubble,body.is-thumb #final-msg{display:none!important;}
@@ -137,8 +134,8 @@ body.is-thumb #bubble,body.is-thumb #final-msg{display:none!important;}
   <div id="final-msg-inner">
     <h2>완전히 박살났다!</h2>
     <p>햄찌의 분노가 맥북을 완전히 파괴했습니다</p>
-    <button id="restart-btn" class="tool-btn" style="margin:0 auto;">
-      <span class="tl">다시하기</span><span class="sk">R</span>
+    <button id="restart-btn" class="tool-btn" style="margin:0 auto;background:#fff;cursor:pointer;">
+      <span class="tl" style="color:#111;">다시하기</span><span class="sk" style="color:#111;">R</span>
     </button>
   </div>
 </div>
