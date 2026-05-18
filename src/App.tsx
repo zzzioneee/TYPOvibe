@@ -196,10 +196,10 @@ const WORKS = [
     day: '18',
     date: '2026.05.19',
     title: '햄찌의 분노',
-    desc: '정서불안 김햄찌 × Desktop Destroyer. 발톱·씨폭탄·화염·주먹으로 Windows 95 바탕화면을 박살낸다.',
+    desc: '정서불안 김햄찌 × Desktop Destroyer. 발톱·불지르기·파멸펀치로 맥북을 박살낸다.',
     tags: ['Canvas', 'Interactive', 'Game'],
     ratio: '4 / 3',
-    bgTheme: 'dark' as const,
+    bgTheme: 'light' as const,
   },
 ]
 
