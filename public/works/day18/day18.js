@@ -100,49 +100,9 @@ function radialDisplace(cx,cy,radius,pushDist){
   }
   // 결과를 mbX(렌더용)에만 씀 — srcX 원본은 변경 없음
   mbX.putImageData(new ImageData(dst,w,h),x0,y0);
-  // 구멍 + 찢긴 단면 흰 테두리
-  sharpHole(cx,cy,Math.round(radius*0.55));
-  // 경계 흰 선
-  mbX.save();
-  mbX.strokeStyle='#cccccc';mbX.lineWidth=1.5;
-  mbX.beginPath();
-  var nEdge=rndI(5,8);
-  for(var k=0;k<nEdge;k++){
-    var ea=(k/nEdge)*Math.PI*2+rnd(-0.3,0.3);
-    var er=Math.round(radius*rnd(0.45,0.65));
-    mbX.moveTo(cx+Math.cos(ea)*er,cy+Math.sin(ea)*er);
-    mbX.lineTo(cx+Math.cos(ea+rnd(0.3,0.7))*(er*rnd(0.8,1.1)),cy+Math.sin(ea+rnd(0.3,0.7))*(er*rnd(0.8,1.1)));
-  }
-  mbX.stroke();mbX.restore();
 }
 
-// 날카로운 각진 구멍 — mbX에 직접 그림 (stC 아님)
-function sharpHole(cx,cy,r){
-  if(!inMB(cx,cy))return;
-  var n=rndI(6,8);
-  mbX.save();
-  mbX.beginPath();
-  for(var i=0;i<n;i++){
-    var a=(i/n)*Math.PI*2+rnd(-0.3,0.3);
-    var rv=r*rnd(0.65,1.0);
-    var px=cx+Math.cos(a)*rv,py=cy+Math.sin(a)*rv;
-    if(i===0)mbX.moveTo(px,py);else mbX.lineTo(px,py);
-  }
-  mbX.closePath();
-  mbX.fillStyle='#000000';mbX.fill();
-  mbX.strokeStyle='#ffffff';mbX.lineWidth=1.2;mbX.stroke();
-  // 내부 단색 단면
-  for(var j=0;j<3;j++){
-    var a2=rnd(0,Math.PI*2);
-    mbX.fillStyle='rgba(50,40,30,0.7)';
-    mbX.beginPath();
-    mbX.moveTo(cx,cy);
-    mbX.lineTo(cx+Math.cos(a2)*r*0.55,cy+Math.sin(a2)*r*0.55);
-    mbX.lineTo(cx+Math.cos(a2+0.9)*r*0.35,cy+Math.sin(a2+0.9)*r*0.35);
-    mbX.closePath();mbX.fill();
-  }
-  mbX.restore();
-}
+// (sharpHole 제거)
 
 // ════════════════════════════════════════
 // 핵심B: Linear Slash Displacement
