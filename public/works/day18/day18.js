@@ -148,7 +148,7 @@ function autoBezelDamage(level){
     var p=rndBezelPoint();
     var type=['claw','bomb','fist'][rndInt(0,2)];
     drawBezelDamage(p.x, p.y, type);
-    // 베젤 균열도 추가
+    drawCrackSprite(p.x, p.y, rnd(0.3+level*0.1, 0.6+level*0.1), rnd(0, Math.PI*2));
     if(level>=2) addCrackPoint(p.x, p.y, rnd(15+level*8, 30+level*12), level>=3);
   }
   if(level>=2) needCrackRedraw=true;
@@ -462,6 +462,7 @@ function triggerClaw(cx,cy){
   dCtx.restore();
 
   drawBezelDamage(cx,cy,'claw');
+  drawCrackSprite(cx, cy, rnd(0.35, 0.55), rnd(0, Math.PI*2)); // 파손 스프라이트
   addCrackPoint(cx,cy,rnd(25,45),false);
   damage(rnd(4,7),'claw'); shake(rnd(5,9));
 }
@@ -511,6 +512,7 @@ function triggerBomb(cx,cy){
     seedParts.push({x:cx,y:cy,vx:Math.cos(ba)*spd,vy:Math.sin(ba)*spd-rnd(1,4),rot:rnd(0,Math.PI*2),rotV:rnd(-0.4,0.4),life:1,size:rnd(3.5,8)});
   }
   drawBezelDamage(cx,cy,'bomb');
+  drawCrackSprite(cx, cy, rnd(0.55, 0.85), rnd(0, Math.PI*2)); // 파손 스프라이트 크게
   addCrackPoint(cx,cy,rnd(55,90),true);
   damage(rnd(10,16),'bomb'); shake(rnd(14,22)); showBubble('bomb');
 }
@@ -645,11 +647,39 @@ function triggerFist(cx,cy){
   }
 
   drawBezelDamage(cx,cy,'fist');
+  drawCrackSprite(cx, cy, rnd(0.45, 0.65), rnd(0, Math.PI*2)); // 파손 스프라이트
   addCrackPoint(cx,cy,rnd(40,70),false);
   damage(rnd(13,19),'fist'); shake(rnd(18,28)); showBubble('fist');
 }
 
-// ── fragment 시스템 완전 제거, macbook.png 통째로 그리기 ──
+// 파손 스프라이트 이미지 로드
+var crackSprites = [];
+var crackSpriteSrcs = [
+  'JiksScreenBreak 배포용/깨진자국3.png',
+  'JiksScreenBreak 배포용/깨진자국4.png',
+];
+var crackSpritesLoaded = 0;
+crackSpriteSrcs.forEach(function(src, i){
+  var img = new Image();
+  img.onload = function(){ crackSpritesLoaded++; };
+  img.src = src;
+  crackSprites.push(img);
+});
+
+// 파손 스프라이트를 damageCanvas에 그리기
+function drawCrackSprite(cx, cy, scale, rotate){
+  if(crackSpritesLoaded === 0) return;
+  var img = crackSprites[Math.floor(Math.random() * crackSprites.length)];
+  var w = img.naturalWidth  * scale;
+  var h = img.naturalHeight * scale;
+  dCtx.save();
+  dCtx.translate(cx, cy);
+  dCtx.rotate(rotate || rnd(0, Math.PI * 2));
+  dCtx.globalAlpha = rnd(0.75, 0.95);
+  dCtx.drawImage(img, -w/2, -h/2, w, h);
+  dCtx.globalAlpha = 1;
+  dCtx.restore();
+}
 function drawMacbook(){
   if(!macbookLoaded) return;
   var br=[1,0.98,0.95,0.90,0.80,0.60][Math.min(damageStage,5)];
