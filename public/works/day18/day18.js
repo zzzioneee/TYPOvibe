@@ -111,7 +111,9 @@ function onStageChange(prev,next){
   if(next>=2)generateLCDLines(next);
   if(next>=3)generateBlackoutPatches(next);
   if(next>=2)startFlicker();
-  cachedPoly=null; cachedPolyStage=-1; // 화면 폴리곤 재계산
+  cachedPoly=null; cachedPolyStage=-1;
+  updateFragmentTargets(next); // 조각 변형 목표 업데이트
+  polyDistortCache={};
 }
 
 function autoScreenCrack(level){
@@ -234,6 +236,7 @@ restartBtn.addEventListener('click',function(){
   finalMsg.classList.remove('show');bubbleEl.classList.remove('show');
   dCtx.clearRect(0,0,canvasW,canvasH);cCtx.clearRect(0,0,canvasW,canvasH);
   needCrackRedraw=false;
+  initFragments(); updateFragmentTargets(0);
 });
 
 // 균열
@@ -379,9 +382,83 @@ function triggerFist(cx,cy){
   damage(rnd(13,19),'fist');shake(rnd(18,28));showBubble('fist');
 }
 
-// 흔들기
-function shake(v){shakeAmt=Math.max(shakeAmt,v);}
-function updateShake(){
+// macbook.png 조각 분할 시스템
+var FRAG_COLS = 8, FRAG_ROWS = 6;
+var fragments = []; // {sx,sy,sw,sh, dx,dy, rot, offsetX,offsetY, damaged}
+
+function initFragments(){
+  fragments = [];
+  for(var r=0;r<FRAG_ROWS;r++){
+    for(var c=0;c<FRAG_COLS;c++){
+      // 소스 좌표 (macbook.png 원본 기준)
+      var sx = (MB_W/FRAG_COLS)*c, sy = (MB_H/FRAG_ROWS)*r;
+      var sw = MB_W/FRAG_COLS,    sh = MB_H/FRAG_ROWS;
+      // 캔버스 목적 좌표
+      var dx = (canvasW/FRAG_COLS)*c, dy = (canvasH/FRAG_ROWS)*r;
+      var dw = canvasW/FRAG_COLS,     dh = canvasH/FRAG_ROWS;
+      fragments.push({
+        sx,sy,sw,sh,          // 소스 rect
+        dx,dy,dw,dh,          // 목적 rect (기준)
+        ox:0, oy:0,           // 현재 오프셋
+        rot:0,                // 현재 회전
+        targetOx:0, targetOy:0, targetRot:0, // 목표값
+        col:c, row:r,
+      });
+    }
+  }
+}
+initFragments();
+window.addEventListener('resize',function(){initFragments();});
+
+// 데미지 stage에 따라 fragment 목표값 설정
+var fragSeed = 42;
+function seededRnd(i,range){ // 결정론적 난수 (같은 i → 같은 값)
+  var x = Math.sin(i*127.1+fragSeed*311.7)*43758.5453;
+  return (x - Math.floor(x)) * range * 2 - range;
+}
+
+function updateFragmentTargets(stage){
+  if(stage<=0){ fragments.forEach(function(f){f.targetOx=0;f.targetOy=0;f.targetRot=0;}); return; }
+  var intensity = [0, 0.3, 0.8, 1.8, 3.5, 6][Math.min(stage,5)];
+  var maxOff = canvasW * 0.012 * intensity;
+  var maxRot = 0.015 * intensity;
+  fragments.forEach(function(f,i){
+    // 가장자리 조각일수록 더 심하게 움직임
+    var edgeFactor = 1;
+    var distFromCenter = Math.hypot(f.col - FRAG_COLS/2, f.row - FRAG_ROWS/2);
+    edgeFactor = 0.5 + distFromCenter / (FRAG_COLS/2) * 0.8;
+    f.targetOx = seededRnd(i*3,   maxOff) * edgeFactor;
+    f.targetOy = seededRnd(i*3+1, maxOff) * edgeFactor;
+    f.targetRot= seededRnd(i*3+2, maxRot) * edgeFactor;
+  });
+}
+
+// 매 프레임 조각 lerp 이동
+function updateFragments(){
+  var lr = 0.08;
+  fragments.forEach(function(f){
+    f.ox += (f.targetOx - f.ox) * lr;
+    f.oy += (f.targetOy - f.oy) * lr;
+    f.rot+= (f.targetRot - f.rot) * lr;
+  });
+}
+
+// macbook.png 조각들 그리기
+function drawMacbook(){
+  if(!macbookLoaded) return;
+  var br=[1,0.97,0.93,0.88,0.78,0.55][Math.min(damageStage,5)];
+  ctx.filter='brightness('+br+')';
+  fragments.forEach(function(f){
+    var cx2 = f.dx + f.dw/2 + f.ox + shakeX;
+    var cy2 = f.dy + f.dh/2 + f.oy + shakeY;
+    ctx.save();
+    ctx.translate(cx2, cy2);
+    ctx.rotate(f.rot);
+    ctx.drawImage(macbookImg, f.sx, f.sy, f.sw, f.sh, -f.dw/2, -f.dh/2, f.dw, f.dh);
+    ctx.restore();
+  });
+  ctx.filter='none';
+}
   if(shakeAmt<0.4){shakeX=0;shakeY=0;shakeAmt=0;return;}
   shakeX=rnd(-shakeAmt,shakeAmt);shakeY=rnd(-shakeAmt,shakeAmt);shakeAmt*=0.72;
 }
@@ -469,22 +546,19 @@ function drawFrame(){
   updateGlitch();
   if(needCrackRedraw)redrawCracks();
   updateShake();
+  updateFragments(); // 조각 lerp 업데이트
   blackoutPatches.forEach(function(p){if(p.growing)p.alpha=Math.min(1,p.alpha+0.012);});
 
   ctx.clearRect(0,0,canvasW,canvasH);
+  // shakeX/Y는 drawMacbook 내부에서 조각별로 적용
   ctx.save();
-  ctx.translate(shakeX,shakeY);
 
-  // 1. macbook.png
-  if(macbookLoaded){
-    var br=[1,0.97,0.93,0.88,0.78,0.55][damageStage];
-    ctx.filter='brightness('+br+')';
-    ctx.drawImage(macbookImg,0,0,canvasW,canvasH);
-    ctx.filter='none';
-  }
+  // 1. macbook.png (조각 분할 렌더)
+  drawMacbook();
 
   // 2. 화면 영역: macOS 바탕화면 (폴리곤 클리핑)
   ctx.save();
+  ctx.translate(shakeX, shakeY);
   var poly=getScreenPoly(damageStage);
   ctx.beginPath();
   ctx.moveTo(poly[0].x,poly[0].y);
@@ -495,32 +569,38 @@ function drawFrame(){
 
   // 3. 데미지 레이어 — 클리핑 없이 전체 (베젤/바디에도 타격 자국)
   ctx.save();
+  ctx.translate(shakeX, shakeY);
   ctx.drawImage(damageCanvas,0,0);
   ctx.restore();
 
   // 4. 균열 레이어 — 클리핑 없이 전체 canvas에 표시
   ctx.save();
+  ctx.translate(shakeX, shakeY);
   ctx.drawImage(crackCanvas,0,0);
   ctx.restore();
 
   // 5. 블랙아웃 패치
+  ctx.save();ctx.translate(shakeX,shakeY);
   blackoutPatches.forEach(function(p){
     var a=p.flicker&&Math.random()<0.15?rnd(0.3,0.7):p.alpha;
     ctx.fillStyle='rgba(0,0,0,'+a+')';ctx.fillRect(p.x,p.y,p.w,p.h);
   });
+  ctx.restore();
 
   // 6. 글리치 라인
+  ctx.save();ctx.translate(shakeX,shakeY);
   glitchLines.forEach(function(gl){
-    ctx.save();ctx.globalAlpha=gl.alpha;
+    ctx.globalAlpha=gl.alpha;
     ctx.fillStyle='rgba('+gl.color[0]+','+gl.color[1]+','+gl.color[2]+','+gl.alpha+')';
     ctx.fillRect(screenRect.x+gl.shift,gl.y,screenRect.w,gl.h*0.4);
-    ctx.restore();
   });
+  ctx.globalAlpha=1;
+  ctx.restore();
 
   // 7. 비네팅 오버레이
   if(damageStage>=1){
+    ctx.save();ctx.translate(shakeX,shakeY);
     var ovA=Math.pow(1-hp/100,1.6)*0.7;
-    ctx.save();
     ctx.beginPath();ctx.rect(screenRect.x,screenRect.y,screenRect.w,screenRect.h);ctx.clip();
     var vg=ctx.createRadialGradient(
       screenRect.x+screenRect.w/2,screenRect.y+screenRect.h/2,screenRect.w*0.1,
@@ -533,7 +613,8 @@ function drawFrame(){
 
   // 8. 노이즈 (stage 4+)
   if(damageStage>=4&&Math.random()<0.6){
-    ctx.save();ctx.beginPath();ctx.rect(screenRect.x,screenRect.y,screenRect.w,screenRect.h);ctx.clip();
+    ctx.save();ctx.translate(shakeX,shakeY);
+    ctx.beginPath();ctx.rect(screenRect.x,screenRect.y,screenRect.w,screenRect.h);ctx.clip();
     for(var ni=0;ni<80;ni++){
       ctx.fillStyle=Math.random()<0.5?'rgba(255,255,255,'+rnd(0.1,0.5)+')':'rgba(0,0,0,'+rnd(0.1,0.4)+')';
       ctx.fillRect(rnd(screenRect.x,screenRect.x+screenRect.w),rnd(screenRect.y,screenRect.y+screenRect.h),rnd(1,4),rnd(1,3));
@@ -541,7 +622,7 @@ function drawFrame(){
     ctx.restore();
   }
 
-  ctx.restore(); // 흔들기 복원
+  ctx.restore();
 }
 
 // 도구 선택
