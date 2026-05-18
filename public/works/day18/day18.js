@@ -117,9 +117,29 @@ function onStageChange(prev,next){
 function autoScreenCrack(level){
   var count=level*3+2;
   for(var i=0;i<count;i++){
-    var cx=rnd(screenRect.x+screenRect.w*0.05,screenRect.x+screenRect.w*0.95);
-    var cy=rnd(screenRect.y+screenRect.h*0.05,screenRect.y+screenRect.h*0.95);
-    addCrackPoint(cx,cy,rnd(20+level*10,45+level*15),level>=3);
+    var cx,cy;
+    if(level>=3 && i%3===0){
+      // 베젤/바디 영역에도 균열
+      cx=rnd(canvasW*0.05,canvasW*0.95);
+      cy=rnd(canvasH*0.02,canvasH*0.92);
+    } else {
+      cx=rnd(screenRect.x+screenRect.w*0.03,screenRect.x+screenRect.w*0.97);
+      cy=rnd(screenRect.y+screenRect.h*0.03,screenRect.y+screenRect.h*0.97);
+    }
+    addCrackPoint(cx,cy,rnd(20+level*12,50+level*18),level>=3);
+  }
+  // stage 2+: 화면 경계(베젤)에도 균열 방사
+  if(level>=2){
+    var edges=[
+      {x:screenRect.x,y:rnd(screenRect.y,screenRect.y+screenRect.h)},
+      {x:screenRect.x+screenRect.w,y:rnd(screenRect.y,screenRect.y+screenRect.h)},
+      {x:rnd(screenRect.x,screenRect.x+screenRect.w),y:screenRect.y},
+      {x:rnd(screenRect.x,screenRect.x+screenRect.w),y:screenRect.y+screenRect.h},
+    ];
+    for(var j=0;j<level-1;j++){
+      var e=edges[j%edges.length];
+      addCrackPoint(e.x,e.y,rnd(40+level*15,80+level*20),level>=3);
+    }
   }
 }
 
@@ -279,7 +299,6 @@ function triggerClaw(cx,cy){
   addCrackPoint(cx,cy,rnd(18,38),false);
   damage(rnd(4,7),'claw');shake(rnd(5,10));
 }
-
 // 씨폭탄
 function triggerBomb(cx,cy){
   var r=rnd(28,52);
@@ -355,7 +374,8 @@ function triggerFist(cx,cy){
   var g=dCtx.createRadialGradient(cx,cy,4,cx,cy,r);
   g.addColorStop(0,'rgba(0,0,0,0.75)');g.addColorStop(0.6,'rgba(0,0,0,0.3)');g.addColorStop(1,'rgba(0,0,0,0)');
   dCtx.fillStyle=g;dCtx.beginPath();dCtx.arc(cx,cy,r,0,Math.PI*2);dCtx.fill();
-  addCrackPoint(cx,cy,rnd(55,95),true);
+  // 주먹은 균열이 바디로 크게 번짐
+  addCrackPoint(cx,cy,rnd(80,140),true);
   damage(rnd(13,19),'fist');shake(rnd(18,28));showBubble('fist');
 }
 
@@ -473,17 +493,13 @@ function drawFrame(){
   drawDesktop(ctx,damageStage);
   ctx.restore();
 
-  // 3. 데미지 레이어 — 화면 + 베젤 약간 포함
+  // 3. 데미지 레이어 — 클리핑 없이 전체 (베젤/바디에도 타격 자국)
   ctx.save();
-  ctx.beginPath();
-  ctx.rect(screenRect.x-screenRect.w*0.02,screenRect.y-screenRect.h*0.02,screenRect.w*1.04,screenRect.h*1.04);
-  ctx.clip();
   ctx.drawImage(damageCanvas,0,0);
   ctx.restore();
 
-  // 4. 균열 레이어
+  // 4. 균열 레이어 — 클리핑 없이 전체 canvas에 표시
   ctx.save();
-  if(damageStage<=2){ctx.beginPath();ctx.rect(screenRect.x,screenRect.y,screenRect.w,screenRect.h);ctx.clip();}
   ctx.drawImage(crackCanvas,0,0);
   ctx.restore();
 
