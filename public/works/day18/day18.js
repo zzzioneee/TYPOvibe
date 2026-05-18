@@ -12,26 +12,14 @@ var bubbleEl=document.getElementById('bubble');
 var finalMsg=document.getElementById('final-msg');
 var restartBtn=document.getElementById('restart-btn');
 
-// offscreen: macbook 원본 픽셀 (절대 수정 안 함 — displacement 소스)
-var srcC=document.createElement('canvas');
-var srcX=srcC.getContext('2d',{willReadFrequently:true});
-// offscreen: 렌더용 맥북 (displacement 결과 + 구멍 스탬프 누적)
-var mbC=document.createElement('canvas');
-var mbX=mbC.getContext('2d');
-// (stC 제거 — mbC에 직접 합성)
+// 데미지 누적 캔버스 (타격 자국)
+var dmgC=document.createElement('canvas');
+var dmgX=dmgC.getContext('2d');
 
 var macImg=new Image(); macImg.src='macbook.png'; var macLoaded=false;
-macImg.onload=function(){ macLoaded=true; initMb(); };
+macImg.onload=function(){macLoaded=true;};
 
 var CW=0,CH=0,SR={},MB={};
-function initMb(){
-  srcC.width=mbC.width=CW; srcC.height=mbC.height=CH;
-  srcX.clearRect(0,0,CW,CH);
-  srcX.drawImage(macImg,0,0,CW,CH); // 원본 — 절대 수정 안 함
-  mbX.clearRect(0,0,CW,CH);
-  mbX.drawImage(macImg,0,0,CW,CH); // 렌더용 — 여기에 누적
-}
-
 function resize(){
   var vw=window.innerWidth,vh=window.innerHeight,ratio=MB_W/MB_H,w,h;
   if(vw/vh>ratio){h=vh*0.88;w=h*ratio;}else{w=vw*0.88;h=w/ratio;}
@@ -42,7 +30,7 @@ function resize(){
       w:Math.round(CW*(SCX2-SCX1)),h:Math.round(CH*(SCY2-SCY1))};
   MB={x:Math.round(CW*0.055),y:Math.round(CH*0.048),
       w:Math.round(CW*0.854),h:Math.round(CH*0.909)};
-  if(macLoaded)initMb();
+  dmgC.width=CW;dmgC.height=CH;
 }
 resize();
 window.addEventListener('resize',function(){resize();fullReset();});
@@ -50,133 +38,107 @@ window.addEventListener('resize',function(){resize();fullReset();});
 function toCv(cx,cy){var r=canvas.getBoundingClientRect();return{x:(cx-r.left)*(CW/r.width),y:(cy-r.top)*(CH/r.height)};}
 function rnd(a,b){return a+Math.random()*(b-a);}
 function rndI(a,b){return Math.floor(rnd(a,b+1));}
-// 맥북 바디 범위 안인지
-function inMB(x,y){return x>=MB.x&&x<=MB.x+MB.w&&y>=MB.y&&y<=MB.y+MB.h;}
+function clamp(v,mn,mx){return Math.max(mn,Math.min(mx,v));}
 
 var hp=100,stage=0,isDown=false,tool='claw',flamePrev=null;
 var shakeX=0,shakeY=0,shakeAmt=0;
 var sparks=[];
-var slashPath=null;
+var slashSegs=[]; // {x1,y1,x2,y2} 발톱 자국 선분
+
 var MSGS={claw:['으드득!!','찢어버려!!'],bomb:['쾅!!','폭발이다!!'],
           flame:['불이야!!','타버려!!'],fist:['주먹이다!!','햄찌 어퍼컷!!']};
 
-// ════════════════════════════════════════
-// 핵심A: Radial Pixel Displacement
-// src/dst를 분리해서 번짐 없이 정확히 밀어냄
-// ════════════════════════════════════════
-function radialDisplace(cx,cy,radius,pushDist){
-  if(!macLoaded)return;
-  cx=Math.round(cx);cy=Math.round(cy);
-  var r=radius,pd=pushDist;
-  var x0=Math.max(MB.x,cx-r-pd-2),y0=Math.max(MB.y,cy-r-pd-2);
-  var x1=Math.min(MB.x+MB.w,cx+r+pd+2),y1=Math.min(MB.y+MB.h,cy+r+pd+2);
-  if(x1<=x0||y1<=y0)return;
-  var w=x1-x0,h=y1-y0;
-
-  // 원본(srcX)에서 읽기
-  var src=srcX.getImageData(x0,y0,w,h);
-  var sd=src.data;
-  // dst는 별도 버퍼
-  var dst=new Uint8ClampedArray(sd.length);
-  dst.set(sd); // 기본값: 원본 복사
-
-  for(var py=0;py<h;py++){
-    for(var px=0;px<w;px++){
-      var wx=x0+px,wy=y0+py;
-      var dx=wx-cx,dy=wy-cy;
-      var dist=Math.sqrt(dx*dx+dy*dy);
-      if(dist<1||dist>r)continue;
-      var nx=dx/dist,ny=dy/dist;
-      var destX=Math.round(wx+nx*pd),destY=Math.round(wy+ny*pd);
-      var dpx=destX-x0,dpy=destY-y0;
-      if(dpx<0||dpx>=w||dpy<0||dpy>=h)continue;
-      var si=(py*w+px)*4;
-      var di=(dpy*w+dpx)*4;
-      dst[di]=sd[si];dst[di+1]=sd[si+1];dst[di+2]=sd[si+2];dst[di+3]=sd[si+3];
-      // 원래 자리 검정
-      var oi=(py*w+px)*4;
-      dst[oi]=0;dst[oi+1]=0;dst[oi+2]=0;dst[oi+3]=255;
-    }
-  }
-  // 결과를 mbX(렌더용)에만 씀 — srcX 원본은 변경 없음
-  mbX.putImageData(new ImageData(dst,w,h),x0,y0);
+// ─── 타격 효과 (dmgC에 누적) ─────────────────
+// 공통: 맥북 안에만 그리도록 dmgX에 clip 적용
+function withMBClip(fn){
+  dmgX.save();
+  dmgX.beginPath();dmgX.rect(MB.x,MB.y,MB.w,MB.h);dmgX.clip();
+  fn();
+  dmgX.restore();
 }
 
-// (sharpHole 제거)
-
-// ════════════════════════════════════════
-// 핵심B: Linear Slash Displacement
-// 드래그 경로 법선으로 20~30px 양옆 쪼개기
-// 틈새 = 순수 블랙, src/dst 분리
-// ════════════════════════════════════════
-function applySlash(path){
-  if(!macLoaded||path.length<2)return;
-  var SHIFT=rndI(22,32);
-  var HW=2; // 경로 반폭
-
-  var imgData=mbX.getImageData(0,0,CW,CH);
-  var src=new Uint8ClampedArray(srcX.getImageData(0,0,CW,CH).data); // 원본에서 읽기
-  var dst=imgData.data; // 결과에 직접 쓰기
-
-  for(var pi=1;pi<path.length;pi++){
-    var p0=path[pi-1],p1=path[pi];
-    var dx=p1.x-p0.x,dy=p1.y-p0.y;
-    var len=Math.sqrt(dx*dx+dy*dy);
-    if(len<1)continue;
-    var nx=dy/len,ny=-dx/len; // 법선
-
-    var steps=Math.ceil(len*2);
-    for(var s=0;s<=steps;s++){
-      var t=s/steps;
-      var cx=Math.round(p0.x+dx*t),cy=Math.round(p0.y+dy*t);
-      if(!inMB(cx,cy))continue;
-
-      for(var w=-HW;w<=HW;w++){
-        var px=cx+Math.round(nx*w),py=cy+Math.round(ny*w);
-        if(px<0||px>=CW||py<0||py>=CH)continue;
-
-        // 법선 양방향으로 SHIFT만큼 이동
-        for(var side=-1;side<=1;side+=2){
-          var destX=px+Math.round(nx*side*SHIFT);
-          var destY=py+Math.round(ny*side*SHIFT);
-          if(destX<0||destX>=CW||destY<0||destY>=CH)continue;
-          var si=(py*CW+px)*4;
-          var di=(destY*CW+destX)*4;
-          // src(원본)에서 읽어서 dst에 쓰기
-          dst[di]=src[si];dst[di+1]=src[si+1];dst[di+2]=src[si+2];dst[di+3]=src[si+3];
-        }
-        // 원래 자리 = 순수 블랙
-        var bi=(py*CW+px)*4;
-        dst[bi]=0;dst[bi+1]=0;dst[bi+2]=0;dst[bi+3]=255;
-      }
+// 주먹/폭탄: 충격 구멍 (각진 다각형 + 방사형 균열선)
+function stampImpact(cx,cy,r){
+  withMBClip(function(){
+    // 검정 구멍
+    dmgX.fillStyle='#000';
+    dmgX.beginPath();
+    var n=rndI(7,10);
+    for(var i=0;i<n;i++){
+      var a=(i/n)*Math.PI*2+rnd(-0.25,0.25);
+      var rv=r*rnd(0.6,1.0);
+      if(i===0)dmgX.moveTo(cx+Math.cos(a)*rv,cy+Math.sin(a)*rv);
+      else dmgX.lineTo(cx+Math.cos(a)*rv,cy+Math.sin(a)*rv);
     }
-  }
-  mbX.putImageData(imgData,0,0);
-
-  // 스파크
-  for(var i=0;i<path.length;i+=3){
-    var sp=path[i];
-    if(!inMB(sp.x,sp.y))continue;
-    for(var j=0;j<4;j++){
-      sparks.push({x:sp.x+rnd(-5,5),y:sp.y+rnd(-5,5),
-        vx:rnd(-2.5,2.5),vy:rnd(-3.5,0.5),life:1,sz:rnd(1.5,3.5),
-        col:Math.random()<0.5?'#ffffff':'#ffcc00'});
+    dmgX.closePath();dmgX.fill();
+    // 흰 테두리
+    dmgX.strokeStyle='#fff';dmgX.lineWidth=1.5;dmgX.stroke();
+    // 방사형 균열 (단색 선)
+    dmgX.strokeStyle='#000';dmgX.lineWidth=2;
+    var nc=rndI(8,14);
+    for(var j=0;j<nc;j++){
+      var ca=rnd(0,Math.PI*2);
+      var cl=r*rnd(1.2,2.2);
+      var sx=cx+Math.cos(ca)*r*rnd(0.6,0.9);
+      var sy=cy+Math.sin(ca)*r*rnd(0.6,0.9);
+      var ex=cx+Math.cos(ca+rnd(-0.2,0.2))*cl;
+      var ey=cy+Math.sin(ca+rnd(-0.2,0.2))*cl;
+      // 꺾임 한 번
+      var mx=(sx+ex)/2+rnd(-r*0.3,r*0.3);
+      var my=(sy+ey)/2+rnd(-r*0.3,r*0.3);
+      dmgX.beginPath();dmgX.moveTo(sx,sy);dmgX.lineTo(mx,my);dmgX.lineTo(ex,ey);dmgX.stroke();
     }
-  }
+    // 금속 하이라이트
+    dmgX.strokeStyle='rgba(255,255,255,0.8)';dmgX.lineWidth=1;
+    for(var k=0;k<4;k++){
+      var ha=rnd(0,Math.PI*2),hl=r*rnd(0.5,0.9);
+      dmgX.beginPath();
+      dmgX.moveTo(cx+Math.cos(ha)*r*0.3,cy+Math.sin(ha)*r*0.3);
+      dmgX.lineTo(cx+Math.cos(ha)*hl,cy+Math.sin(ha)*hl);
+      dmgX.stroke();
+    }
+  });
 }
 
-// (scorch 제거 — displacement가 충분히 표현)
+// 발톱: 찢긴 틈새 (두꺼운 검정 선 + 양쪽 흰 테두리)
+function addClawSeg(x1,y1,x2,y2){
+  withMBClip(function(){
+    dmgX.lineCap='round';
+    // 검정 틈새
+    dmgX.strokeStyle='#000';dmgX.lineWidth=rnd(4,8);
+    dmgX.beginPath();dmgX.moveTo(x1,y1);dmgX.lineTo(x2,y2);dmgX.stroke();
+    // 양쪽 흰 테두리
+    dmgX.strokeStyle='rgba(255,255,255,0.75)';dmgX.lineWidth=1;
+    var dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy)||1;
+    var nx=dy/len*3,ny=-dx/len*3;
+    dmgX.beginPath();dmgX.moveTo(x1+nx,y1+ny);dmgX.lineTo(x2+nx,y2+ny);dmgX.stroke();
+    dmgX.beginPath();dmgX.moveTo(x1-nx,y1-ny);dmgX.lineTo(x2-nx,y2-ny);dmgX.stroke();
+  });
+}
 
-// ════════════════════════════════════════
-// 툴 동작
-// ════════════════════════════════════════
-function startClaw(x,y){if(inMB(x,y))slashPath=[{x,y}];}
-function moveClaw(x,y){if(slashPath&&inMB(x,y)){slashPath.push({x,y});damage(0.5,'claw');}}
-function endClaw(){if(slashPath&&slashPath.length>=2)applySlash(slashPath);slashPath=null;}
+// 화염: 작은 검정 사각형 그을음
+function addScorch(x,y){
+  if(x<MB.x||x>MB.x+MB.w||y<MB.y||y>MB.y+MB.h)return;
+  withMBClip(function(){
+    dmgX.fillStyle='rgba(0,0,0,0.85)';
+    var s=rndI(6,14);
+    dmgX.fillRect(x-s/2,y-s/2,s,s);
+  });
+}
+
+// ─── 툴 동작 ─────────────────────────────────
+var prevClawPt=null;
+function startClaw(x,y){prevClawPt={x,y};}
+function moveClaw(x,y){
+  if(!prevClawPt)return;
+  addClawSeg(prevClawPt.x,prevClawPt.y,x,y);
+  prevClawPt={x,y};
+  damage(0.5,'claw');
+}
+function endClaw(){prevClawPt=null;}
 
 function doBomb(x,y){
-  if(!inMB(x,y))return;
-  radialDisplace(x,y,70,28);
+  stampImpact(x,y,rndI(30,50));
   for(var i=0;i<rndI(10,16);i++){
     var a=(i/16)*Math.PI*2+rnd(-0.2,0.2);
     sparks.push({x,y,vx:Math.cos(a)*rnd(4,12),vy:Math.sin(a)*rnd(4,12)-rnd(0,3),
@@ -190,13 +152,9 @@ function doFlame(x,y,drag){
   if(!drag){flamePrev={x,y};flameAcc=0;return;}
   if(!flamePrev)return;
   flameAcc+=Math.hypot(x-flamePrev.x,y-flamePrev.y);
-  if(flameAcc>8&&inMB(x,y)){
-    // 화염: 작은 검정 사각형만 (곰팡이 없이)
-    mbX.save();
-    mbX.fillStyle='rgba(0,0,0,0.85)';
-    mbX.fillRect(x-rndI(4,8),y-rndI(4,8),rndI(8,16),rndI(8,16));
-    mbX.restore();
-    sparks.push({x,y,vx:rnd(-1,1),vy:rnd(-3,-0.5),life:1,sz:rndI(6,12),
+  if(flameAcc>8){
+    addScorch(x,y);
+    sparks.push({x,y,vx:rnd(-1,1),vy:rnd(-3,-0.5),life:1,sz:rndI(5,11),
       col:Math.random()<0.6?'#ff8800':'#ffee00',fire:true});
     flameAcc=0;
   }
@@ -204,19 +162,16 @@ function doFlame(x,y,drag){
 }
 
 function doFist(x,y){
-  if(!inMB(x,y))return;
-  radialDisplace(x,y,75,30);  // 반경/밀기 강화
-  for(var i=0;i<6;i++){
+  stampImpact(x,y,rndI(34,55));
+  for(var i=0;i<8;i++){
     var a=rnd(0,Math.PI*2);
-    sparks.push({x,y,vx:Math.cos(a)*rnd(3,8),vy:Math.sin(a)*rnd(3,8)-1,
-      life:1,sz:rnd(2,6),col:i%2===0?'#ffffff':'#ccaa88'});
+    sparks.push({x,y,vx:Math.cos(a)*rnd(3,9),vy:Math.sin(a)*rnd(3,9)-1,
+      life:1,sz:rnd(2,6),col:i%2===0?'#fff':'#ccaa88'});
   }
   damage(rndI(13,20),'fist');doShake(26);showBubble('fist');
 }
 
-// ════════════════════════════════════════
-// HP & 데미지
-// ════════════════════════════════════════
+// ─── HP ─────────────────────────────────────
 function damage(v,t){
   if(hp<=0)return;
   hp=Math.max(0,hp-v);
@@ -239,15 +194,13 @@ function autoBezel(s){
   ];
   for(var i=0;i<s+1;i++){
     var p=zones[i%zones.length]();
-    var r=rndI(20+s*8,38+s*12);
-    radialDisplace(p.x,p.y,r,rndI(14+s*4,22+s*5));
+    stampImpact(p.x,p.y,rndI(16+s*5,28+s*8));
   }
 }
 
 function triggerDeath(){
-  for(var i=0;i<10;i++){
-    radialDisplace(rnd(MB.x+20,MB.x+MB.w-20),rnd(MB.y+20,MB.y+MB.h*0.85),rndI(20,42),rndI(12,20));
-  }
+  for(var i=0;i<12;i++)
+    stampImpact(rnd(MB.x+20,MB.x+MB.w-20),rnd(MB.y+20,MB.y+MB.h*0.85),rndI(20,45));
   showBubble('fist');bubbleEl.textContent='🐹 개박살!!';
   setTimeout(function(){finalMsg.classList.add('show');},1200);
 }
@@ -265,13 +218,10 @@ function updShake(){
   shakeX=rnd(-shakeAmt,shakeAmt);shakeY=rnd(-shakeAmt,shakeAmt);shakeAmt*=0.72;
 }
 
-// ════════════════════════════════════════
-// 화면 내용
-// ════════════════════════════════════════
+// ─── 화면 내용 ───────────────────────────────
 var SCL=['#3d6bb5','#5a4a9a','#7a2555','#200010','#000000'];
 function drawScreen(){
-  ctx.fillStyle=SCL[Math.min(stage,4)];
-  ctx.fillRect(SR.x,SR.y,SR.w,SR.h);
+  ctx.fillStyle=SCL[Math.min(stage,4)];ctx.fillRect(SR.x,SR.y,SR.w,SR.h);
   if(stage>=5)return;
   ctx.fillStyle='rgba(255,255,255,0.88)';ctx.fillRect(SR.x,SR.y,SR.w,Math.round(SR.h*0.085));
   var fs=Math.max(8,Math.round(SR.w*0.024));
@@ -287,37 +237,35 @@ function drawScreen(){
   ctx.textAlign='left';ctx.textBaseline='alphabetic';
 }
 
-// ════════════════════════════════════════
-// 렌더 루프 — 클리핑 순서 엄수
-// ════════════════════════════════════════
+// ─── 렌더 루프 ───────────────────────────────
 function draw(){
   requestAnimationFrame(draw);
   updShake();
   ctx.clearRect(0,0,CW,CH);
 
-  // [필수 순서] save → clip(MB고정) → translate(shake) → draw → restore
+  // 맥북 전체를 shake+clip 안에서 렌더
   ctx.save();
-  ctx.beginPath();ctx.rect(MB.x,MB.y,MB.w,MB.h);  // 맥북 고정 좌표 클립
-  ctx.clip();
-  ctx.translate(shakeX,shakeY);                     // shake는 클립 안에서
+  ctx.beginPath();ctx.rect(MB.x,MB.y,MB.w,MB.h);ctx.clip();
+  ctx.translate(shakeX,shakeY);
 
-  // 화면 내용 (macbook 뒤)
-  ctx.save();
-  ctx.beginPath();ctx.rect(SR.x,SR.y,SR.w,SR.h);ctx.clip();
+  // 1. 화면 내용
+  ctx.save();ctx.beginPath();ctx.rect(SR.x,SR.y,SR.w,SR.h);ctx.clip();
   drawScreen();ctx.restore();
 
-  // macbook (displacement + 구멍 + 그을음 모두 mbC에 누적)
+  // 2. macbook.png 원본
   if(macLoaded){
     var br=[1,0.98,0.93,0.87,0.74,0.52][Math.min(stage,5)];
     ctx.filter='brightness('+br+')';
-    ctx.drawImage(mbC,0,0);
+    ctx.drawImage(macImg,0,0,CW,CH);
     ctx.filter='none';
   }
-  // stC 제거 — 모든 이펙트를 mbC에 직접 그림
 
-  ctx.restore(); // ← 여기서 restore, 이 뒤 파티클은 클립 밖
+  // 3. 데미지 레이어 (dmgC — 맥북 위에)
+  ctx.drawImage(dmgC,0,0);
 
-  // 파티클 (맥북 밖에도 날아갈 수 있음)
+  ctx.restore();
+
+  // 파티클
   sparks=sparks.filter(function(p){
     p.x+=p.vx;p.y+=p.vy;
     if(p.seed){p.vy+=0.4;p.vx*=0.96;}
@@ -325,8 +273,7 @@ function draw(){
     else{p.vy+=0.2;}
     p.life-=p.fire?0.04:0.06;
     if(p.life<=0)return false;
-    ctx.globalAlpha=p.life;
-    ctx.fillStyle=p.col;
+    ctx.globalAlpha=p.life;ctx.fillStyle=p.col;
     if(p.fire){
       ctx.save();ctx.translate(p.x,p.y);ctx.rotate(rnd(0,Math.PI));
       var s=p.sz*p.life;
@@ -338,29 +285,28 @@ function draw(){
     }else{
       ctx.fillRect(p.x-p.sz*0.5,p.y-p.sz*0.5,p.sz,p.sz);
     }
-    ctx.globalAlpha=1;
-    return true;
+    ctx.globalAlpha=1;return true;
   });
 }
 
-// ════════════════════════════════════════
-// 재시작 & 툴 & 이벤트
-// ════════════════════════════════════════
+// ─── 재시작 ──────────────────────────────────
 function fullReset(){
-  hp=100;stage=0;sparks=[];flamePrev=null;slashPath=null;
+  hp=100;stage=0;sparks=[];flamePrev=null;prevClawPt=null;
   shakeX=0;shakeY=0;shakeAmt=0;flameAcc=0;
   hpBar.style.width='100%';hpBar.style.background='linear-gradient(90deg,#4caf50,#8bc34a)';
   hpNum.textContent='100';
   finalMsg.classList.remove('show');bubbleEl.classList.remove('show');
-  if(macLoaded)initMb();
-}restartBtn.addEventListener('click',fullReset);
+  dmgX.clearRect(0,0,CW,CH);
+}
+restartBtn.addEventListener('click',fullReset);
 
+// ─── 툴 & 이벤트 ─────────────────────────────
 var TB={claw:document.getElementById('btn-claw'),bomb:document.getElementById('btn-bomb'),
         flame:document.getElementById('btn-flame'),fist:document.getElementById('btn-fist')};
 Object.keys(TB).forEach(function(k){
   TB[k].addEventListener('click',function(){
     tool=k;Object.keys(TB).forEach(function(j){TB[j].classList.toggle('selected',j===k);});
-    flamePrev=null;
+    flamePrev=null;prevClawPt=null;
   });
   TB[k].addEventListener('mousedown',function(e){e.stopPropagation();});
 });
@@ -369,13 +315,9 @@ document.addEventListener('keydown',function(e){
   if(k==='q')TB.claw.click();if(k==='w')TB.bomb.click();
   if(k==='e')TB.flame.click();if(k==='r')TB.fist.click();
 });
-
-document.addEventListener('mousemove',function(e){
-  cursorEl.style.left=e.clientX+'px';cursorEl.style.top=e.clientY+'px';
-});
+document.addEventListener('mousemove',function(e){cursorEl.style.left=e.clientX+'px';cursorEl.style.top=e.clientY+'px';});
 
 function toC(e){var t=e.touches?e.touches[0]:e;return toCv(t.clientX,t.clientY);}
-
 canvas.addEventListener('mousedown',function(e){
   if(hp<=0)return;isDown=true;flamePrev=null;cursorEl.src='Hamster-punch.png';
   var p=toC(e);
