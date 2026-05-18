@@ -16,11 +16,10 @@ var restartBtn=document.getElementById('restart-btn');
 var dmgC=document.createElement('canvas');
 var dmgX=dmgC.getContext('2d');
 
-var macImg=new Image(); macImg.src='macbook.png'; var macLoaded=false;
+var macImg=new Image(); macImg.src='macbook-text.png'; var macLoaded=false;
 macImg.onload=function(){macLoaded=true;};
 
-var bgImg=new Image(); bgImg.src='macbook-text.png'; var bgLoaded=false;
-bgImg.onload=function(){bgLoaded=true;};
+var bgImg=null; var bgLoaded=false;
 
 var CW=0,CH=0,SR={},MB={};
 function resize(){
@@ -215,14 +214,7 @@ function updShake(){
 
 // ─── 화면 내용 ───────────────────────────────
 function drawScreen(){
-  var sx=SR.x,sy=SR.y,sw=SR.w,sh=SR.h;
-  // 검정 배경
-  ctx.fillStyle='#000';
-  ctx.fillRect(sx,sy,sw,sh);
-  // Background.png를 화면에 꽉 차게
-  if(bgLoaded){
-    ctx.drawImage(bgImg,sx,sy,sw,sh);
-  }
+  // macbook-text.png에 화면 내용이 이미 포함됨 — 별도 그리기 없음
 }
 
 // ─── 렌더 루프 ───────────────────────────────
