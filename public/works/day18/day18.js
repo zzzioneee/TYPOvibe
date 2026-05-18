@@ -79,7 +79,7 @@ function stampImpact(cx,cy,r){
     var nc=rndI(4,6);
     for(var j=0;j<nc;j++){
       var ca=rnd(0,Math.PI*2);
-      var cl=r*rnd(1.5,2.5);
+      var cl=r*rnd(1.2,1.8);
       var sx=cx+Math.cos(ca)*r*0.85;
       var sy=cy+Math.sin(ca)*r*0.85;
       // 꺾임 한 번
@@ -252,8 +252,11 @@ function draw(){
     ctx.filter='none';
   }
 
-  // 3. 데미지 레이어 (dmgC — 맥북 위에)
+  // 3. 데미지 레이어 — MB clip 한 번 더 적용해서 맥북 밖 완전 차단
+  ctx.save();
+  ctx.beginPath();ctx.rect(MB.x,MB.y,MB.w,MB.h);ctx.clip();
   ctx.drawImage(dmgC,0,0);
+  ctx.restore();
 
   ctx.restore();
 
