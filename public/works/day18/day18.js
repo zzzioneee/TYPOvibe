@@ -275,11 +275,7 @@ function doFlame(x,y,drag){
     flameAcc=0;
   }
   damage(0.07); // flame
-  // 화염은 0.5초에 한 번만 말풍선
-  if(!doFlame._lastMsg||Date.now()-doFlame._lastMsg>500){
-    showBubble('flame');
-    doFlame._lastMsg=Date.now();
-  }flamePrev={x,y};
+  flamePrev={x,y};
 }
 
 function doFist(x,y){
@@ -466,6 +462,7 @@ canvas.addEventListener('mousemove',function(e){
 document.addEventListener('mouseup',function(){
   if(!isDown)return;isDown=false;flamePrev=null;cursorEl.src='Hamster.png';
   if(tool==='claw')endClaw();
+  if(tool==='flame')showBubble('flame'); // 손 뗄 때 문구 교체
 });
 canvas.addEventListener('touchstart',function(e){
   e.preventDefault();if(hp<=0)return;isDown=true;flamePrev=null;
