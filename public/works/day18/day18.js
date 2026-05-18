@@ -459,6 +459,10 @@ function drawMacbook(){
   });
   ctx.filter='none';
 }
+
+// 흔들기
+function shake(v){shakeAmt=Math.max(shakeAmt,v);}
+function updateShake(){
   if(shakeAmt<0.4){shakeX=0;shakeY=0;shakeAmt=0;return;}
   shakeX=rnd(-shakeAmt,shakeAmt);shakeY=rnd(-shakeAmt,shakeAmt);shakeAmt*=0.72;
 }
