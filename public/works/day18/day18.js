@@ -24,8 +24,13 @@ var macImg = new Image(); macImg.src='macbook.png'; var macLoaded=false;
 macImg.onload=function(){macLoaded=true;};
 
 var crackImgs=[];
+var crackImgsLoaded=0;
 ['JiksScreenBreak 배포용/깨진자국3.png','JiksScreenBreak 배포용/깨진자국4.png'].forEach(function(src){
-  var img=new Image(); img.src=src; crackImgs.push(img);
+  var img=new Image();
+  img.onload=function(){crackImgsLoaded++;};
+  img.onerror=function(){console.warn('failed to load:',src);};
+  img.src=src;
+  crackImgs.push(img);
 });
 
 // ── 크기 ──
@@ -75,15 +80,26 @@ var MSGS={
 var seedParts=[], flameParts=[];
 
 // 깨진자국 스프라이트 → dmgC에 직접
+// 깨진자국 스프라이트 → dmgC에 직접
 function drawCrackSprite(x,y,sc){
-  var loaded=crackImgs.filter(function(i){return i.complete&&i.naturalWidth;});
-  if(!loaded.length)return;
-  var img=loaded[rndInt(0,loaded.length-1)];
+  // 이미지 로드 안 됐어도 검은 원으로 대체 — 항상 뭔가 표시
+  if(!crackImgsLoaded){
+    dmgX.fillStyle='rgba(0,0,0,0.75)';
+    dmgX.beginPath();dmgX.arc(x,y,Math.round(30*sc),0,Math.PI*2);dmgX.fill();
+    // 방사형 균열선 스케치
+    dmgX.strokeStyle='rgba(0,0,0,0.6)';dmgX.lineWidth=1.5;
+    for(var k=0;k<8;k++){
+      var a=k/8*Math.PI*2;
+      dmgX.beginPath();dmgX.moveTo(x,y);dmgX.lineTo(x+Math.cos(a)*60*sc,y+Math.sin(a)*60*sc);dmgX.stroke();
+    }
+    return;
+  }
+  var img=crackImgs[rndInt(0,crackImgs.length-1)];
   var w=img.naturalWidth*sc, h=img.naturalHeight*sc;
   dmgX.save();
   dmgX.translate(x,y);
   dmgX.rotate(rnd(0,Math.PI*2));
-  dmgX.globalAlpha=rnd(0.8,1.0);
+  dmgX.globalAlpha=rnd(0.85,1.0);
   dmgX.drawImage(img,-w/2,-h/2,w,h);
   dmgX.restore();
   dmgX.globalAlpha=1;
@@ -379,13 +395,8 @@ function draw(){
   ctx.restore(); // shake 복원
 
   // 4. 데미지 레이어 — shake 없이 (dmgC 좌표 = canvas 좌표)
-  // macbook bounding box clip (shake 없는 절대 좌표)
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(MB.x, MB.y, MB.w, MB.h);
-  ctx.clip();
+  // clip 없이 전체 그리고, macbook.png 알파로 배경은 가려짐
   ctx.drawImage(dmgC, 0, 0);
-  ctx.restore();
 }
 
 // ── 재시작 ──
