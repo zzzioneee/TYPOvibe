@@ -53,7 +53,7 @@ var MSGS={claw:['으드득!!','찢어버려!!'],
 // 불 파티클
 // 화염 경로 큐 (딜레이 후 불꽃)
 var flameQueue=[];
-var FLAME_DELAY=380;
+var FLAME_DELAY=200;
 var flamePathPts=[];
 
 var fireParticles=[];
