@@ -435,6 +435,7 @@ document.addEventListener('keydown',function(e){
   if(k==='q')TB.claw.click();
   if(k==='w')TB.flame.click();
   if(k==='e')TB.fist.click();
+  if(k==='r')restartBtn.click(); // 다시하기
 });
 document.addEventListener('mousemove',function(e){
   cursorEl.style.left=e.clientX+'px';
