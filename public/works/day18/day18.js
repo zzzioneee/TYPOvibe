@@ -235,28 +235,32 @@ function draw(){
   updShake();
   ctx.clearRect(0,0,CW,CH);
 
-  // 맥북 전체를 shake+clip 안에서 렌더
+  // shake를 MB 좌표에 반영
+  var sx=MB.x+shakeX, sy=MB.y+shakeY;
+
+  // MB 절대 좌표로 clip (shake 없이)
   ctx.save();
-  ctx.beginPath();ctx.rect(MB.x,MB.y,MB.w,MB.h);ctx.clip();
+  ctx.beginPath();
+  ctx.rect(MB.x, MB.y, MB.w, MB.h);
+  ctx.clip();
+
+  // 화면 내용
+  ctx.save();
   ctx.translate(shakeX,shakeY);
+  ctx.beginPath();ctx.rect(SR.x,SR.y,SR.w,SR.h);ctx.clip();
+  drawScreen();
+  ctx.restore();
 
-  // 1. 화면 내용
-  ctx.save();ctx.beginPath();ctx.rect(SR.x,SR.y,SR.w,SR.h);ctx.clip();
-  drawScreen();ctx.restore();
-
-  // 2. macbook.png 원본
+  // macbook.png (shake 적용)
   if(macLoaded){
     var br=[1,0.98,0.93,0.87,0.74,0.52][Math.min(stage,5)];
     ctx.filter='brightness('+br+')';
-    ctx.drawImage(macImg,0,0,CW,CH);
+    ctx.drawImage(macImg, shakeX, shakeY, CW, CH);
     ctx.filter='none';
   }
 
-  // 3. 데미지 레이어 — MB clip 한 번 더 적용해서 맥북 밖 완전 차단
-  ctx.save();
-  ctx.beginPath();ctx.rect(MB.x,MB.y,MB.w,MB.h);ctx.clip();
-  ctx.drawImage(dmgC,0,0);
-  ctx.restore();
+  // dmgC — shake 없이 (절대 좌표, MB clip 안에 있음)
+  ctx.drawImage(dmgC, 0, 0);
 
   ctx.restore();
 
