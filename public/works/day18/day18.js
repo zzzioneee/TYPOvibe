@@ -263,6 +263,11 @@ function buildCrackSegs(sx,sy,ang,len,depth){
 }
 function redrawCracks(){
   cCtx.clearRect(0,0,canvasW,canvasH);
+  // 균열 전체를 맥북 바디 안으로 클리핑
+  cCtx.save();
+  cCtx.beginPath();
+  cCtx.rect(canvasW*0.055, canvasH*0.048, canvasW*0.854, canvasH*0.909);
+  cCtx.clip();
   crackPoints.forEach(function(cp){
     var g=cCtx.createRadialGradient(cp.x,cp.y,0,cp.x,cp.y,cp.radius*0.28);
     g.addColorStop(0,'rgba(0,0,0,0.65)');g.addColorStop(1,'rgba(0,0,0,0)');
@@ -277,8 +282,83 @@ function redrawCracks(){
         cCtx.beginPath();cCtx.moveTo(s.x1+1,s.y1+1);cCtx.lineTo(s.x2+1,s.y2+1);cCtx.stroke();
       });
     });
+    var g2=cCtx.createRadialGradient(cp.x,cp.y,0,cp.x,cp.y,cp.radius*0.28);
+    g2.addColorStop(0,'rgba(0,0,0,0.65)');g2.addColorStop(1,'rgba(0,0,0,0)');
+    cCtx.fillStyle=g2;cCtx.beginPath();cCtx.arc(cp.x,cp.y,cp.radius*0.28,0,Math.PI*2);cCtx.fill();
   });
+  cCtx.restore();
   needCrackRedraw=false;
+}
+
+// 베젤/프레임 데미지 — 타격점 주변에 직접 그림 (damageCanvas)
+function drawBezelDamage(cx, cy, type){
+  var isInScreen = (cx >= screenRect.x && cx <= screenRect.x+screenRect.w &&
+                    cy >= screenRect.y && cy <= screenRect.y+screenRect.h);
+
+  // 화면 안 타격이면 베젤 바깥 쪽으로 효과 퍼트림
+  // 화면 밖(베젤) 타격이면 그 자리에 효과
+  var bx = cx, by = cy;
+
+  if(type==='claw'){
+    // 베젤 긁힘 — 타격점 주변 밝은 금속 스크래치
+    for(var i=0;i<6;i++){
+      var ang=rnd(0,Math.PI*2), len=rnd(20,55);
+      dCtx.save();
+      dCtx.translate(bx,by); dCtx.rotate(ang);
+      var sg=dCtx.createLinearGradient(0,0,len,0);
+      sg.addColorStop(0,'rgba(255,255,255,0.8)');
+      sg.addColorStop(0.3,'rgba(200,200,200,0.5)');
+      sg.addColorStop(1,'rgba(100,100,100,0)');
+      dCtx.strokeStyle=sg; dCtx.lineWidth=rnd(0.8,2.5); dCtx.lineCap='round';
+      dCtx.beginPath(); dCtx.moveTo(0,0); dCtx.lineTo(len+rnd(-5,5),rnd(-4,4)); dCtx.stroke();
+      // 어두운 그림자 바로 아래
+      dCtx.strokeStyle='rgba(0,0,0,0.5)'; dCtx.lineWidth=rnd(0.5,1.5);
+      dCtx.beginPath(); dCtx.moveTo(0,1.5); dCtx.lineTo(len,rnd(2,5)); dCtx.stroke();
+      dCtx.restore();
+    }
+  } else if(type==='bomb'){
+    // 베젤 찌그러짐 — 타격점 주변 금속 변형
+    var cr=rnd(18,32);
+    // 찌그러진 원형 — 불규칙 다각형
+    dCtx.save();
+    dCtx.beginPath();
+    var pts=12;
+    for(var j=0;j<pts;j++){
+      var a=(j/pts)*Math.PI*2;
+      var r2=cr*(0.6+Math.sin(j*2.3+1.5)*0.4+rnd(-0.1,0.1));
+      if(j===0) dCtx.moveTo(bx+Math.cos(a)*r2,by+Math.sin(a)*r2);
+      else dCtx.lineTo(bx+Math.cos(a)*r2,by+Math.sin(a)*r2);
+    }
+    dCtx.closePath();
+    var rg=dCtx.createRadialGradient(bx,by,0,bx,by,cr);
+    rg.addColorStop(0,'rgba(0,0,0,0.95)');
+    rg.addColorStop(0.6,'rgba(40,35,30,0.7)');
+    rg.addColorStop(1,'rgba(0,0,0,0)');
+    dCtx.fillStyle=rg; dCtx.fill();
+    // 테두리 금속 하이라이트
+    dCtx.strokeStyle='rgba(180,180,180,0.6)'; dCtx.lineWidth=2;
+    dCtx.stroke();
+    dCtx.restore();
+  } else if(type==='fist'){
+    // 베젤 함몰 — 타격점 중심 어두운 dent
+    var dr=rnd(14,26);
+    var dg=dCtx.createRadialGradient(bx,by,0,bx,by,dr*2);
+    dg.addColorStop(0,'rgba(0,0,0,0.88)');
+    dg.addColorStop(0.4,'rgba(20,18,15,0.55)');
+    dg.addColorStop(1,'rgba(0,0,0,0)');
+    dCtx.fillStyle=dg;
+    dCtx.beginPath(); dCtx.arc(bx,by,dr*2,0,Math.PI*2); dCtx.fill();
+    // 주름 하이라이트
+    for(var k=0;k<5;k++){
+      var ha=rnd(0,Math.PI*2), hl=rnd(dr,dr*1.8);
+      dCtx.strokeStyle='rgba(220,220,220,'+rnd(0.3,0.6)+')';
+      dCtx.lineWidth=rnd(0.8,2);
+      dCtx.beginPath();
+      dCtx.moveTo(bx+Math.cos(ha)*dr*0.4,by+Math.sin(ha)*dr*0.4);
+      dCtx.lineTo(bx+Math.cos(ha)*hl,by+Math.sin(ha)*hl);
+      dCtx.stroke();
+    }
+  }
 }
 
 // 발톱: 타격점 중심 방사형 찢김 + 벌어진 틈
@@ -287,9 +367,14 @@ function triggerClaw(cx,cy){
   var baseAng = rnd(0, Math.PI*2);
   var ripLen  = rnd(55, 95);
 
+  // 찢김선은 맥북 바디 안에만
+  dCtx.save();
+  dCtx.beginPath();
+  dCtx.rect(canvasW*0.055, canvasH*0.048, canvasW*0.854, canvasH*0.909);
+  dCtx.clip();
+
   for(var i=0;i<numRips;i++){
     var ang = baseAng + (i/numRips)*Math.PI*2 + rnd(-0.25,0.25);
-    // 찢김선
     var segs = rndInt(4,7);
     var x=cx,y=cy,a=ang;
     for(var s=0;s<segs;s++){
@@ -300,7 +385,6 @@ function triggerClaw(cx,cy){
       dCtx.strokeStyle='rgba(0,0,0,'+rnd(0.7,1.0)+')';
       dCtx.lineWidth=w; dCtx.lineCap='round';
       dCtx.beginPath(); dCtx.moveTo(x,y); dCtx.lineTo(nx2,ny2); dCtx.stroke();
-      // 찢김 틈새 (검은 삼각형)
       if(s<segs-1 && Math.random()<0.5){
         var side=w*2.5;
         var pa=a+Math.PI/2;
@@ -317,18 +401,16 @@ function triggerClaw(cx,cy){
   // 타격 중심 구멍
   dCtx.fillStyle='rgba(0,0,0,0.9)';
   dCtx.beginPath(); dCtx.arc(cx,cy,rnd(6,12),0,Math.PI*2); dCtx.fill();
-
-  // 은박지 찢긴 느낌 — 밝은 하이라이트 선
+  // 하이라이트
   for(var j=0;j<6;j++){
     var ha=rnd(0,Math.PI*2), hl=rnd(10,40);
     dCtx.strokeStyle='rgba(255,255,255,'+rnd(0.3,0.6)+')';
     dCtx.lineWidth=rnd(0.5,1.5);
-    dCtx.beginPath();
-    dCtx.moveTo(cx,cy);
-    dCtx.lineTo(cx+Math.cos(ha)*hl,cy+Math.sin(ha)*hl);
-    dCtx.stroke();
+    dCtx.beginPath(); dCtx.moveTo(cx,cy); dCtx.lineTo(cx+Math.cos(ha)*hl,cy+Math.sin(ha)*hl); dCtx.stroke();
   }
+  dCtx.restore();
 
+  drawBezelDamage(cx,cy,'claw');
   addCrackPoint(cx,cy,rnd(25,45),false);
   damage(rnd(4,7),'claw'); shake(rnd(5,9));
 }
@@ -377,6 +459,7 @@ function triggerBomb(cx,cy){
     var ba=(j/count)*Math.PI*2+rnd(-0.2,0.2), spd=rnd(5,16);
     seedParts.push({x:cx,y:cy,vx:Math.cos(ba)*spd,vy:Math.sin(ba)*spd-rnd(1,4),rot:rnd(0,Math.PI*2),rotV:rnd(-0.4,0.4),life:1,size:rnd(3.5,8)});
   }
+  drawBezelDamage(cx,cy,'bomb');
   addCrackPoint(cx,cy,rnd(55,90),true);
   damage(rnd(10,16),'bomb'); shake(rnd(14,22)); showBubble('bomb');
 }
@@ -510,6 +593,7 @@ function triggerFist(cx,cy){
     dCtx.restore();
   }
 
+  drawBezelDamage(cx,cy,'fist');
   addCrackPoint(cx,cy,rnd(40,70),false);
   damage(rnd(13,19),'fist'); shake(rnd(18,28)); showBubble('fist');
 }
@@ -641,15 +725,19 @@ function drawFrame(){
   drawDesktop(ctx,damageStage);
   ctx.restore();
 
-  // 3. 데미지 레이어 — 클리핑 없이 전체 (베젤/바디에도 타격 자국)
+  // 3. 데미지 레이어 — 맥북 바디 영역으로 클리핑
+  var mbX = canvasW*0.055, mbY = canvasH*0.048;
+  var mbW = canvasW*0.854, mbH = canvasH*0.909;
   ctx.save();
   ctx.translate(shakeX, shakeY);
+  ctx.beginPath(); ctx.rect(mbX, mbY, mbW, mbH); ctx.clip();
   ctx.drawImage(damageCanvas,0,0);
   ctx.restore();
 
-  // 4. 균열 레이어 — 클리핑 없이 전체 canvas에 표시
+  // 4. 균열 레이어 — 맥북 바디 영역으로 클리핑
   ctx.save();
   ctx.translate(shakeX, shakeY);
+  ctx.beginPath(); ctx.rect(mbX, mbY, mbW, mbH); ctx.clip();
   ctx.drawImage(crackCanvas,0,0);
   ctx.restore();
 
