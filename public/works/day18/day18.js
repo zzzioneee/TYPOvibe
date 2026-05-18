@@ -789,43 +789,40 @@ function drawFrame(){
 
   ctx.clearRect(0,0,canvasW,canvasH);
 
-  // 맥북 바디 클리핑 rect (shake offset 없음 — 화면 좌표 고정)
   var mbX = canvasW*0.055, mbY = canvasH*0.048;
   var mbW = canvasW*0.854, mbH = canvasH*0.909;
+  var br=[1,0.98,0.95,0.90,0.80,0.60][Math.min(damageStage,5)];
 
-  // 1. macbook.png — shake 적용해서 그림
+  ctx.save();
+  ctx.translate(shakeX, shakeY);
+
+  // 1. 화면 영역: macOS 바탕화면 (macbook.png 아래에)
   if(macbookLoaded){
-    var br=[1,0.98,0.95,0.90,0.80,0.60][Math.min(damageStage,5)];
+    var poly=getScreenPoly(damageStage);
     ctx.save();
-    ctx.filter='brightness('+br+')';
-    ctx.translate(shakeX, shakeY);
-    ctx.drawImage(macbookImg, 0, 0, canvasW, canvasH);
+    ctx.beginPath();
+    ctx.moveTo(poly[0].x,poly[0].y);
+    for(var i=1;i<poly.length;i++) ctx.lineTo(poly[i].x,poly[i].y);
+    ctx.closePath(); ctx.clip();
+    drawDesktop(ctx,damageStage);
     ctx.restore();
+  }
+
+  // 2. macbook.png — 화면 위에 덮어서 베젤이 화면을 가림
+  if(macbookLoaded){
+    ctx.filter='brightness('+br+')';
+    ctx.drawImage(macbookImg, 0, 0, canvasW, canvasH);
     ctx.filter='none';
   }
 
-  // 2. 화면 영역: macOS 바탕화면 — shake 적용
+  // 3. damageCanvas + crackCanvas — macbook 전체 위에 합성
+  // rect clip으로 맥북 bounding box 밖은 제거
   ctx.save();
-  ctx.translate(shakeX, shakeY);
-  var poly=getScreenPoly(damageStage);
   ctx.beginPath();
-  ctx.moveTo(poly[0].x,poly[0].y);
-  for(var i=1;i<poly.length;i++) ctx.lineTo(poly[i].x,poly[i].y);
-  ctx.closePath(); ctx.clip();
-  drawDesktop(ctx,damageStage);
-  ctx.restore();
-
-  // 3. damageCanvas + crackCanvas — macbook.png 알파 마스크로 클리핑
-  ctx.save();
-  ctx.translate(shakeX, shakeY);
-  maskOffscreen.width = canvasW; maskOffscreen.height = canvasH;
-  maskOffCtx.clearRect(0,0,canvasW,canvasH);
-  maskOffCtx.drawImage(damageCanvas, 0, 0);
-  maskOffCtx.drawImage(crackCanvas,  0, 0);
-  maskOffCtx.globalCompositeOperation = 'destination-in';
-  if(macbookLoaded) maskOffCtx.drawImage(macbookImg, 0, 0, canvasW, canvasH);
-  maskOffCtx.globalCompositeOperation = 'source-over';
-  ctx.drawImage(maskOffscreen, 0, 0);
+  ctx.rect(mbX, mbY, mbW, mbH);
+  ctx.clip();
+  ctx.drawImage(damageCanvas, 0, 0);
+  ctx.drawImage(crackCanvas,  0, 0);
   ctx.restore();
 
   // 5. 블랙아웃 패치
@@ -871,7 +868,7 @@ function drawFrame(){
     ctx.restore();
   }
 
-  ctx.restore();
+  ctx.restore(); // shakeX/Y translate 복원
 }
 
 // 도구 선택
