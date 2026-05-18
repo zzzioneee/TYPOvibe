@@ -98,8 +98,24 @@ function radialDisplace(cx,cy,radius,pushDist){
     }
   }
   mbX.putImageData(new ImageData(dst,w,h),x0,y0);
-  // 구멍 스탬프
-  sharpHole(cx,cy,Math.round(radius*0.5));
+  // 구멍 + 찢긴 단면 흰 테두리
+  sharpHole(cx,cy,Math.round(radius*0.55));
+  // 경계 흰 선 (찢긴 금속 단면)
+  mbX.save();
+  mbX.strokeStyle='#cccccc';
+  mbX.lineWidth=1.5;
+  mbX.beginPath();
+  var nEdge=rndI(5,8);
+  for(var k=0;k<nEdge;k++){
+    var ea=(k/nEdge)*Math.PI*2+rnd(-0.3,0.3);
+    var er=Math.round(radius*rnd(0.45,0.65));
+    var ep1x=cx+Math.cos(ea)*er, ep1y=cy+Math.sin(ea)*er;
+    var ep2x=cx+Math.cos(ea+rnd(0.3,0.7))*(er*rnd(0.8,1.1));
+    var ep2y=cy+Math.sin(ea+rnd(0.3,0.7))*(er*rnd(0.8,1.1));
+    mbX.moveTo(ep1x,ep1y); mbX.lineTo(ep2x,ep2y);
+  }
+  mbX.stroke();
+  mbX.restore();
 }
 
 // 날카로운 각진 구멍 — mbX에 직접 그림 (stC 아님)
@@ -220,8 +236,8 @@ function endClaw(){if(slashPath&&slashPath.length>=2)applySlash(slashPath);slash
 
 function doBomb(x,y){
   if(!inMB(x,y))return;
-  radialDisplace(x,y,40,15);
-  scorch(x,y,rndI(28,45));
+  radialDisplace(x,y,70,28);  // 반경/밀기 강화
+  scorch(x,y,rndI(40,60));
   for(var i=0;i<rndI(10,16);i++){
     var a=(i/16)*Math.PI*2+rnd(-0.2,0.2);
     sparks.push({x,y,vx:Math.cos(a)*rnd(4,12),vy:Math.sin(a)*rnd(4,12)-rnd(0,3),
@@ -246,7 +262,7 @@ function doFlame(x,y,drag){
 
 function doFist(x,y){
   if(!inMB(x,y))return;
-  radialDisplace(x,y,42,16);
+  radialDisplace(x,y,75,30);  // 반경/밀기 강화
   for(var i=0;i<6;i++){
     var a=rnd(0,Math.PI*2);
     sparks.push({x,y,vx:Math.cos(a)*rnd(3,8),vy:Math.sin(a)*rnd(3,8)-1,
@@ -280,8 +296,8 @@ function autoBezel(s){
   ];
   for(var i=0;i<s+1;i++){
     var p=zones[i%zones.length]();
-    var r=rndI(14+s*4,24+s*7);
-    radialDisplace(p.x,p.y,r,rndI(8+s*2,13+s*3));
+    var r=rndI(20+s*8,38+s*12);
+    radialDisplace(p.x,p.y,r,rndI(14+s*4,22+s*5));
   }
 }
 
