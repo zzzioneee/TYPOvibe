@@ -1,6 +1,6 @@
 'use strict';
 
-var MB_W=2912,MB_H=1632;
+var MB_W=2505,MB_H=1484;
 var SCX1=0.2548,SCX2=0.7445,SCY1=0.1624,SCY2=0.6869;
 
 var canvas=document.getElementById('main');
@@ -30,8 +30,7 @@ function resize(){
   canvas.style.width=CW+'px';canvas.style.height=CH+'px';
   SR={x:Math.round(CW*SCX1)-1, y:Math.round(CH*SCY1)-1,
       w:Math.round(CW*(SCX2-SCX1))+2, h:Math.round(CH*(SCY2-SCY1))+2};
-  MB={x:Math.round(CW*0.055),y:Math.round(CH*0.048),
-      w:Math.round(CW*0.854),h:Math.round(CH*0.909)};
+  MB={x:0, y:0, w:CW, h:CH}; // macbook-text.png는 전체 캔버스가 맥북
   dmgC.width=CW;dmgC.height=CH;
 }
 resize();
