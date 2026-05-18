@@ -26,8 +26,8 @@ function resize(){
   CW=Math.round(w);CH=Math.round(h);
   canvas.width=CW;canvas.height=CH;
   canvas.style.width=CW+'px';canvas.style.height=CH+'px';
-  SR={x:Math.round(CW*SCX1),y:Math.round(CH*SCY1),
-      w:Math.round(CW*(SCX2-SCX1)),h:Math.round(CH*(SCY2-SCY1))};
+  SR={x:Math.round(CW*SCX1)-1, y:Math.round(CH*SCY1)-1,
+      w:Math.round(CW*(SCX2-SCX1))+2, h:Math.round(CH*(SCY2-SCY1))+2};
   MB={x:Math.round(CW*0.055),y:Math.round(CH*0.048),
       w:Math.round(CW*0.854),h:Math.round(CH*0.909)};
   dmgC.width=CW;dmgC.height=CH;
@@ -213,20 +213,19 @@ function updShake(){
 // ─── 화면 내용 ───────────────────────────────
 var SCL=['#3d6bb5','#5a4a9a','#7a2555','#200010','#000000'];
 function drawScreen(){
-  ctx.fillStyle=SCL[Math.min(stage,4)];ctx.fillRect(SR.x,SR.y,SR.w,SR.h);
-  if(stage>=5)return;
-  ctx.fillStyle='rgba(255,255,255,0.88)';ctx.fillRect(SR.x,SR.y,SR.w,Math.round(SR.h*0.085));
-  var fs=Math.max(8,Math.round(SR.w*0.024));
-  ctx.fillStyle='#000';ctx.font='bold '+fs+'px sans-serif';ctx.textBaseline='middle';
-  ctx.fillText('🍎',SR.x+Math.round(SR.w*0.022),SR.y+Math.round(SR.h*0.043));
-  ctx.font=Math.round(fs*0.8)+'px sans-serif';
-  ['Finder','File','Edit','View'].forEach(function(m,i){ctx.fillText(m,SR.x+Math.round(SR.w*(0.065+i*0.065)),SR.y+Math.round(SR.h*0.043));});
-  var dh=Math.round(SR.h*0.10),dw=Math.round(SR.w*0.34);
-  var dx=SR.x+Math.round((SR.w-dw)/2),dy=SR.y+SR.h-dh-Math.round(SR.h*0.015);
-  ctx.fillStyle='rgba(255,255,255,0.15)';ctx.fillRect(dx,dy,dw,dh);
-  ctx.font=Math.round(dh*0.6)+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
-  ['🔍','📁','🌐','✉️','🎵'].forEach(function(ic,i){ctx.fillText(ic,dx+Math.round(dw/6*(i+1)),dy+Math.round(dh*0.5));});
-  ctx.textAlign='left';ctx.textBaseline='alphabetic';
+  var sx=SR.x,sy=SR.y,sw=SR.w,sh=SR.h;
+  // 화면 전체를 검정으로 채움
+  ctx.fillStyle='#000';
+  ctx.fillRect(sx,sy,sw,sh);
+  // "줘패" 크게
+  var fs=Math.round(sh*0.55);
+  ctx.fillStyle='#fff';
+  ctx.font='900 '+fs+'px "Noto Sans KR", "Apple SD Gothic Neo", sans-serif';
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  ctx.fillText('줘패',sx+sw/2,sy+sh/2);
+  ctx.textAlign='left';
+  ctx.textBaseline='alphabetic';
 }
 
 // ─── 렌더 루프 ───────────────────────────────
