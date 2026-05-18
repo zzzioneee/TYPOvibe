@@ -51,33 +51,36 @@ var MSGS={claw:['으드득!!','찢어버려!!'],
           fist:['주먹이다!!','햄찌 어퍼컷!!','쾅쾅쾅!!']};
 
 // 불 파티클
+// 화염 경로 큐 (딜레이 후 불꽃)
+var flameQueue=[];
+var FLAME_DELAY=380;
+var flamePathPts=[];
+
 var fireParticles=[];
-function spawnFire(x,y){
-  var count=rndI(10,18);
+function spawnFireAt(x,y){
+  var count=rndI(5,10);
   for(var i=0;i<count;i++){
     var angle=rnd(-Math.PI*0.85,-Math.PI*0.15);
-    var speed=rnd(2,6);
+    var speed=rnd(2,5);
     fireParticles.push({
-      x:x+rnd(-10,10), y:y+rnd(-4,4),
-      vx:Math.cos(angle)*speed*0.3+rnd(-0.5,0.5),
+      x:x+rnd(-6,6), y:y+rnd(-3,3),
+      vx:Math.cos(angle)*speed*0.3+rnd(-0.4,0.4),
       vy:Math.sin(angle)*speed,
       life:1.0, maxLife:rnd(0.5,1.0),
-      size:rnd(10,28),
-      type:Math.random()<0.35?'ember':'flame',
+      size:rnd(10,24),
+      type:Math.random()<0.3?'ember':'flame',
     });
   }
-  withMBClip(function(){
-    dmgX.fillStyle='rgba(0,0,0,0.5)';
-    dmgX.beginPath();
-    var n=rndI(4,6);
-    for(var j=0;j<n;j++){
-      var a=(j/n)*Math.PI*2+rnd(-0.4,0.4);
-      var r=rndI(8,16)*rnd(0.6,1.0);
-      if(j===0)dmgX.moveTo(x+Math.cos(a)*r,y+Math.sin(a)*r);
-      else dmgX.lineTo(x+Math.cos(a)*r,y+Math.sin(a)*r);
-    }
-    dmgX.closePath();dmgX.fill();
-  });
+}
+
+function updateFlameQueue(){
+  var now=Date.now(), remaining=[];
+  for(var i=0;i<flameQueue.length;i++){
+    var q=flameQueue[i];
+    if(now-q.t>=FLAME_DELAY) spawnFireAt(q.x,q.y);
+    else remaining.push(q);
+  }
+  flameQueue=remaining;
 }
 
 function renderFireParticles(){
@@ -238,11 +241,34 @@ function endClaw(){}
 
 var flameAcc=0;
 function doFlame(x,y,drag){
-  if(!drag){flamePrev={x,y};flameAcc=0;return;}
+  if(!drag){flamePrev={x,y};flameAcc=0;flamePathPts=[];return;}
   if(!flamePrev)return;
-  flameAcc+=Math.hypot(x-flamePrev.x,y-flamePrev.y);
-  if(flameAcc>6){
-    spawnFire(x,y);
+  var dist=Math.hypot(x-flamePrev.x,y-flamePrev.y);
+  flameAcc+=dist;
+
+  // 그을음: 연속 선으로 (점점이 X)
+  flamePathPts.push({x,y});
+  if(flamePathPts.length>=2){
+    withMBClip(function(){
+      var p0=flamePathPts[flamePathPts.length-2];
+      var p1=flamePathPts[flamePathPts.length-1];
+      dmgX.save();
+      // 두꺼운 그을음 (부드럽게 이어짐)
+      dmgX.strokeStyle='rgba(0,0,0,0.6)';
+      dmgX.lineWidth=rnd(12,20);
+      dmgX.lineCap='round';dmgX.lineJoin='round';
+      dmgX.beginPath();dmgX.moveTo(p0.x,p0.y);dmgX.lineTo(p1.x,p1.y);dmgX.stroke();
+      // 바깥 퍼짐 (그라데이션 느낌)
+      dmgX.strokeStyle='rgba(20,15,10,0.25)';
+      dmgX.lineWidth=rnd(24,36);
+      dmgX.beginPath();dmgX.moveTo(p0.x,p0.y);dmgX.lineTo(p1.x,p1.y);dmgX.stroke();
+      dmgX.restore();
+    });
+  }
+
+  // 불꽃 큐 등록 (일정 간격마다)
+  if(flameAcc>8){
+    flameQueue.push({x,y,t:Date.now()});
     flameAcc=0;
   }
   damage(0.35,'flame');flamePrev={x,y};
@@ -346,6 +372,7 @@ function draw(){
   ctx.restore();
 
   // 불 파티클
+  updateFlameQueue();
   renderFireParticles();
 
   // 파티클 (충격 파편) — MB clip 안에서만
@@ -377,7 +404,7 @@ function draw(){
 
 // ─── 재시작 ──────────────────────────────────
 function fullReset(){
-  hp=100;stage=0;sparks=[];flamePrev=null;
+  hp=100;stage=0;sparks=[];flamePrev=null;flameQueue=[];flamePathPts=[];
   shakeX=0;shakeY=0;shakeAmt=0;flameAcc=0;
   hpBar.style.width='100%';hpBar.style.background='linear-gradient(90deg,#4caf50,#8bc34a)';
   hpNum.textContent='100';
