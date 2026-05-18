@@ -207,25 +207,7 @@ function applySlash(path){
   }
 }
 
-// 그을음 — mbX에 직접 (클리핑 보장)
-function scorch(x,y,sz){
-  if(!inMB(x,y))return;
-  // 맥북 바운딩 안으로 클램프
-  x=Math.max(MB.x+sz,Math.min(MB.x+MB.w-sz,x));
-  y=Math.max(MB.y+sz,Math.min(MB.y+MB.h-sz,y));
-  mbX.save();
-  mbX.fillStyle='rgba(5,4,2,0.92)';
-  mbX.beginPath();
-  var n=rndI(5,7);
-  for(var i=0;i<n;i++){
-    var a=(i/n)*Math.PI*2+rnd(-0.4,0.4);
-    var rv=sz*rnd(0.5,1.0);
-    var px=x+Math.cos(a)*rv,py=y+Math.sin(a)*rv;
-    if(i===0)mbX.moveTo(px,py);else mbX.lineTo(px,py);
-  }
-  mbX.closePath();mbX.fill();
-  mbX.restore();
-}
+// (scorch 제거 — displacement가 충분히 표현)
 
 // ════════════════════════════════════════
 // 툴 동작
@@ -236,8 +218,7 @@ function endClaw(){if(slashPath&&slashPath.length>=2)applySlash(slashPath);slash
 
 function doBomb(x,y){
   if(!inMB(x,y))return;
-  radialDisplace(x,y,70,28);  // 반경/밀기 강화
-  scorch(x,y,rndI(40,60));
+  radialDisplace(x,y,70,28);
   for(var i=0;i<rndI(10,16);i++){
     var a=(i/16)*Math.PI*2+rnd(-0.2,0.2);
     sparks.push({x,y,vx:Math.cos(a)*rnd(4,12),vy:Math.sin(a)*rnd(4,12)-rnd(0,3),
@@ -252,7 +233,11 @@ function doFlame(x,y,drag){
   if(!flamePrev)return;
   flameAcc+=Math.hypot(x-flamePrev.x,y-flamePrev.y);
   if(flameAcc>8&&inMB(x,y)){
-    scorch(x,y,rndI(10,18));
+    // 화염: 작은 검정 사각형만 (곰팡이 없이)
+    mbX.save();
+    mbX.fillStyle='rgba(0,0,0,0.85)';
+    mbX.fillRect(x-rndI(4,8),y-rndI(4,8),rndI(8,16),rndI(8,16));
+    mbX.restore();
     sparks.push({x,y,vx:rnd(-1,1),vy:rnd(-3,-0.5),life:1,sz:rndI(6,12),
       col:Math.random()<0.6?'#ff8800':'#ffee00',fire:true});
     flameAcc=0;
