@@ -789,14 +789,16 @@ function drawFrame(){
 
   ctx.clearRect(0,0,canvasW,canvasH);
 
-  var mbX = canvasW*0.055, mbY = canvasH*0.048;
-  var mbW = canvasW*0.854, mbH = canvasH*0.909;
+  // 맥북 bounding box (canvas 절대 좌표)
+  var mbX=canvasW*0.055, mbY=canvasH*0.048;
+  var mbW=canvasW*0.854, mbH=canvasH*0.909;
   var br=[1,0.98,0.95,0.90,0.80,0.60][Math.min(damageStage,5)];
 
+  // 모든 요소에 shake 적용: save → translate(shake) → 그리기 → restore
   ctx.save();
   ctx.translate(shakeX, shakeY);
 
-  // 1. 화면 영역: macOS 바탕화면 (macbook.png 아래에)
+  // 1. 화면 영역 (macbook.png 아래)
   if(macbookLoaded){
     var poly=getScreenPoly(damageStage);
     ctx.save();
@@ -808,15 +810,14 @@ function drawFrame(){
     ctx.restore();
   }
 
-  // 2. macbook.png — 화면 위에 덮어서 베젤이 화면을 가림
+  // 2. macbook.png (베젤이 화면 위를 덮음)
   if(macbookLoaded){
     ctx.filter='brightness('+br+')';
     ctx.drawImage(macbookImg, 0, 0, canvasW, canvasH);
     ctx.filter='none';
   }
 
-  // 3. damageCanvas + crackCanvas — macbook 전체 위에 합성
-  // rect clip으로 맥북 bounding box 밖은 제거
+  // 3. damageCanvas + crackCanvas (맥북 bounding box clip)
   ctx.save();
   ctx.beginPath();
   ctx.rect(mbX, mbY, mbW, mbH);
@@ -825,50 +826,61 @@ function drawFrame(){
   ctx.drawImage(crackCanvas,  0, 0);
   ctx.restore();
 
-  // 5. 블랙아웃 패치
-  ctx.save();ctx.translate(shakeX,shakeY);
+  // 4. 블랙아웃 패치
   blackoutPatches.forEach(function(p){
     var a=p.flicker&&Math.random()<0.15?rnd(0.3,0.7):p.alpha;
-    ctx.fillStyle='rgba(0,0,0,'+a+')';ctx.fillRect(p.x,p.y,p.w,p.h);
+    ctx.fillStyle='rgba(0,0,0,'+a+')';
+    ctx.fillRect(p.x,p.y,p.w,p.h);
   });
-  ctx.restore();
 
-  // 6. 글리치 라인
-  ctx.save();ctx.translate(shakeX,shakeY);
+  // 5. 글리치 라인
+  ctx.save();
+  ctx.globalAlpha=1;
   glitchLines.forEach(function(gl){
     ctx.globalAlpha=gl.alpha;
     ctx.fillStyle='rgba('+gl.color[0]+','+gl.color[1]+','+gl.color[2]+','+gl.alpha+')';
     ctx.fillRect(screenRect.x+gl.shift,gl.y,screenRect.w,gl.h*0.4);
   });
-  ctx.globalAlpha=1;
   ctx.restore();
 
-  // 7. 비네팅 오버레이
+  // 6. 비네팅 오버레이
   if(damageStage>=1){
-    ctx.save();ctx.translate(shakeX,shakeY);
+    ctx.save();
     var ovA=Math.pow(1-hp/100,1.6)*0.7;
-    ctx.beginPath();ctx.rect(screenRect.x,screenRect.y,screenRect.w,screenRect.h);ctx.clip();
+    ctx.beginPath();
+    ctx.rect(screenRect.x,screenRect.y,screenRect.w,screenRect.h);
+    ctx.clip();
     var vg=ctx.createRadialGradient(
       screenRect.x+screenRect.w/2,screenRect.y+screenRect.h/2,screenRect.w*0.1,
       screenRect.x+screenRect.w/2,screenRect.y+screenRect.h/2,screenRect.w*0.7
     );
-    vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,'+ovA+')');
-    ctx.fillStyle=vg;ctx.fillRect(screenRect.x,screenRect.y,screenRect.w,screenRect.h);
+    vg.addColorStop(0,'rgba(0,0,0,0)');
+    vg.addColorStop(1,'rgba(0,0,0,'+ovA+')');
+    ctx.fillStyle=vg;
+    ctx.fillRect(screenRect.x,screenRect.y,screenRect.w,screenRect.h);
     ctx.restore();
   }
 
-  // 8. 노이즈 (stage 4+)
+  // 7. 노이즈 (stage 4+)
   if(damageStage>=4&&Math.random()<0.6){
-    ctx.save();ctx.translate(shakeX,shakeY);
-    ctx.beginPath();ctx.rect(screenRect.x,screenRect.y,screenRect.w,screenRect.h);ctx.clip();
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(screenRect.x,screenRect.y,screenRect.w,screenRect.h);
+    ctx.clip();
     for(var ni=0;ni<80;ni++){
-      ctx.fillStyle=Math.random()<0.5?'rgba(255,255,255,'+rnd(0.1,0.5)+')':'rgba(0,0,0,'+rnd(0.1,0.4)+')';
-      ctx.fillRect(rnd(screenRect.x,screenRect.x+screenRect.w),rnd(screenRect.y,screenRect.y+screenRect.h),rnd(1,4),rnd(1,3));
+      ctx.fillStyle=Math.random()<0.5
+        ?'rgba(255,255,255,'+rnd(0.1,0.5)+')'
+        :'rgba(0,0,0,'+rnd(0.1,0.4)+')';
+      ctx.fillRect(
+        rnd(screenRect.x,screenRect.x+screenRect.w),
+        rnd(screenRect.y,screenRect.y+screenRect.h),
+        rnd(1,4),rnd(1,3)
+      );
     }
     ctx.restore();
   }
 
-  ctx.restore(); // shakeX/Y translate 복원
+  ctx.restore(); // shake translate 복원
 }
 
 // 도구 선택
