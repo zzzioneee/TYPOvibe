@@ -16,7 +16,7 @@ var finalMsg = document.getElementById('final-msg');
 var restartBtn = document.getElementById('restart-btn');
 
 // ── 오프스크린: macbook 픽셀 데이터 보관 ──
-var mbC=document.createElement('canvas'); var mbX=mbC.getContext('2d');
+var mbC=document.createElement('canvas'); var mbX=mbC.getContext('2d',{willReadFrequently:true});
 // 스탬프 누적 레이어 (검정 구멍, 흰 테두리)
 var stC=document.createElement('canvas'); var stX=stC.getContext('2d');
 
