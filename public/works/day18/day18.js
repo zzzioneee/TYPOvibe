@@ -24,7 +24,7 @@ var bgImg=null; var bgLoaded=false;
 var CW=0,CH=0,SR={},MB={};
 function resize(){
   var vw=window.innerWidth,vh=window.innerHeight,ratio=MB_W/MB_H,w,h;
-  if(vw/vh>ratio){h=vh*0.88;w=h*ratio;}else{w=vw*0.88;h=w/ratio;}
+  if(vw/vh>ratio){h=vh*0.72;w=h*ratio;}else{w=vw*0.72;h=w/ratio;}
   CW=Math.round(w);CH=Math.round(h);
   canvas.width=CW;canvas.height=CH;
   canvas.style.width=CW+'px';canvas.style.height=CH+'px';
