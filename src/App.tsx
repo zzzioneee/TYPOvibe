@@ -256,6 +256,7 @@ export default function App() {
           {view === 'day14' && <Day014 />}
           {view === 'day15' && <Day015 />}
           {view === 'day16' && <Day016 />}
+          {view === 'day17' && <Day017 />}
         </main>
       </div>
     )
