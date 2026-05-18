@@ -232,7 +232,7 @@ function doClaw(x,y){
       dmgX.restore();
     }
   });
-  damage(rndI(2,4)); // claw
+  damage(rndI(1,2)); // claw
   doShake(6);
   showBubble('claw');
   doShake(6);
@@ -274,7 +274,7 @@ function doFlame(x,y,drag){
     flameQueue.push({x,y,t:Date.now()});
     flameAcc=0;
   }
-  damage(0.15); // flame
+  damage(0.07); // flame
   // 화염은 0.5초에 한 번만 말풍선
   if(!doFlame._lastMsg||Date.now()-doFlame._lastMsg>500){
     showBubble('flame');
@@ -289,7 +289,7 @@ function doFist(x,y){
     sparks.push({x,y,vx:Math.cos(a)*rnd(3,9),vy:Math.sin(a)*rnd(3,9)-1,
       life:1,sz:rnd(2,6),col:i%2===0?'#fff':'#ccaa88'});
   }
-  damage(rndI(6,10));
+  damage(rndI(3,5));
   doShake(26);
   showBubble('fist'); // 펀치할 때마다 항상
 }
