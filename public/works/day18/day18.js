@@ -290,74 +290,90 @@ function redrawCracks(){
   needCrackRedraw=false;
 }
 
-// 베젤/프레임 데미지 — 타격점 주변에 직접 그림 (damageCanvas)
+// 베젤/프레임 데미지 — 타격점 주변 금속 변형 (damageCanvas에 강하게)
 function drawBezelDamage(cx, cy, type){
-  var isInScreen = (cx >= screenRect.x && cx <= screenRect.x+screenRect.w &&
-                    cy >= screenRect.y && cy <= screenRect.y+screenRect.h);
-
-  // 화면 안 타격이면 베젤 바깥 쪽으로 효과 퍼트림
-  // 화면 밖(베젤) 타격이면 그 자리에 효과
-  var bx = cx, by = cy;
-
   if(type==='claw'){
-    // 베젤 긁힘 — 타격점 주변 밝은 금속 스크래치
-    for(var i=0;i<6;i++){
-      var ang=rnd(0,Math.PI*2), len=rnd(20,55);
+    // 베젤 깊은 스크래치 — 두껍고 명확한 선
+    for(var i=0;i<8;i++){
+      var ang=rnd(0,Math.PI*2), len=rnd(25,70);
       dCtx.save();
-      dCtx.translate(bx,by); dCtx.rotate(ang);
-      var sg=dCtx.createLinearGradient(0,0,len,0);
-      sg.addColorStop(0,'rgba(255,255,255,0.8)');
-      sg.addColorStop(0.3,'rgba(200,200,200,0.5)');
-      sg.addColorStop(1,'rgba(100,100,100,0)');
-      dCtx.strokeStyle=sg; dCtx.lineWidth=rnd(0.8,2.5); dCtx.lineCap='round';
-      dCtx.beginPath(); dCtx.moveTo(0,0); dCtx.lineTo(len+rnd(-5,5),rnd(-4,4)); dCtx.stroke();
-      // 어두운 그림자 바로 아래
-      dCtx.strokeStyle='rgba(0,0,0,0.5)'; dCtx.lineWidth=rnd(0.5,1.5);
-      dCtx.beginPath(); dCtx.moveTo(0,1.5); dCtx.lineTo(len,rnd(2,5)); dCtx.stroke();
+      dCtx.translate(cx,cy); dCtx.rotate(ang);
+      // 어두운 긁힘
+      dCtx.strokeStyle='rgba(0,0,0,0.85)';
+      dCtx.lineWidth=rnd(1.5,4); dCtx.lineCap='round';
+      dCtx.beginPath(); dCtx.moveTo(0,0); dCtx.lineTo(len+rnd(-8,8),rnd(-6,6)); dCtx.stroke();
+      // 금속 하이라이트
+      dCtx.strokeStyle='rgba(255,255,255,0.6)';
+      dCtx.lineWidth=rnd(0.5,1.5);
+      dCtx.beginPath(); dCtx.moveTo(0,-1); dCtx.lineTo(len*0.8,rnd(-4,0)); dCtx.stroke();
       dCtx.restore();
     }
+    // 중심 긁힘 자국
+    dCtx.fillStyle='rgba(0,0,0,0.7)';
+    dCtx.beginPath(); dCtx.arc(cx,cy,rnd(5,10),0,Math.PI*2); dCtx.fill();
+
   } else if(type==='bomb'){
-    // 베젤 찌그러짐 — 타격점 주변 금속 변형
-    var cr=rnd(18,32);
-    // 찌그러진 원형 — 불규칙 다각형
-    dCtx.save();
+    // 베젤 폭발 함몰 — 불규칙 검은 원 + 금속 파편
+    var cr=rnd(24,42);
+    // 불규칙 구멍
     dCtx.beginPath();
-    var pts=12;
+    var pts=16;
     for(var j=0;j<pts;j++){
       var a=(j/pts)*Math.PI*2;
-      var r2=cr*(0.6+Math.sin(j*2.3+1.5)*0.4+rnd(-0.1,0.1));
-      if(j===0) dCtx.moveTo(bx+Math.cos(a)*r2,by+Math.sin(a)*r2);
-      else dCtx.lineTo(bx+Math.cos(a)*r2,by+Math.sin(a)*r2);
+      var r2=cr*(0.55+Math.sin(j*2.7+0.8)*0.45);
+      if(j===0) dCtx.moveTo(cx+Math.cos(a)*r2, cy+Math.sin(a)*r2);
+      else       dCtx.lineTo(cx+Math.cos(a)*r2, cy+Math.sin(a)*r2);
     }
     dCtx.closePath();
-    var rg=dCtx.createRadialGradient(bx,by,0,bx,by,cr);
-    rg.addColorStop(0,'rgba(0,0,0,0.95)');
-    rg.addColorStop(0.6,'rgba(40,35,30,0.7)');
-    rg.addColorStop(1,'rgba(0,0,0,0)');
-    dCtx.fillStyle=rg; dCtx.fill();
-    // 테두리 금속 하이라이트
-    dCtx.strokeStyle='rgba(180,180,180,0.6)'; dCtx.lineWidth=2;
-    dCtx.stroke();
-    dCtx.restore();
-  } else if(type==='fist'){
-    // 베젤 함몰 — 타격점 중심 어두운 dent
-    var dr=rnd(14,26);
-    var dg=dCtx.createRadialGradient(bx,by,0,bx,by,dr*2);
-    dg.addColorStop(0,'rgba(0,0,0,0.88)');
-    dg.addColorStop(0.4,'rgba(20,18,15,0.55)');
-    dg.addColorStop(1,'rgba(0,0,0,0)');
-    dCtx.fillStyle=dg;
-    dCtx.beginPath(); dCtx.arc(bx,by,dr*2,0,Math.PI*2); dCtx.fill();
-    // 주름 하이라이트
-    for(var k=0;k<5;k++){
-      var ha=rnd(0,Math.PI*2), hl=rnd(dr,dr*1.8);
-      dCtx.strokeStyle='rgba(220,220,220,'+rnd(0.3,0.6)+')';
-      dCtx.lineWidth=rnd(0.8,2);
-      dCtx.beginPath();
-      dCtx.moveTo(bx+Math.cos(ha)*dr*0.4,by+Math.sin(ha)*dr*0.4);
-      dCtx.lineTo(bx+Math.cos(ha)*hl,by+Math.sin(ha)*hl);
-      dCtx.stroke();
+    dCtx.fillStyle='rgba(0,0,0,0.92)'; dCtx.fill();
+    // 테두리 금속 파편
+    dCtx.strokeStyle='rgba(200,200,200,0.7)';
+    dCtx.lineWidth=2.5; dCtx.stroke();
+    // 그을음 퍼짐
+    var sg=dCtx.createRadialGradient(cx,cy,cr,cx,cy,cr*2.8);
+    sg.addColorStop(0,'rgba(0,0,0,0.55)');
+    sg.addColorStop(1,'rgba(0,0,0,0)');
+    dCtx.fillStyle=sg;
+    dCtx.beginPath(); dCtx.arc(cx,cy,cr*2.8,0,Math.PI*2); dCtx.fill();
+    // 날아간 금속 조각
+    for(var k=0;k<12;k++){
+      var ba=rnd(0,Math.PI*2), bd=rnd(cr*0.8,cr*2.2);
+      var bw=rnd(4,14), bh=rnd(2,6);
+      dCtx.save();
+      dCtx.translate(cx+Math.cos(ba)*bd, cy+Math.sin(ba)*bd);
+      dCtx.rotate(ba+rnd(-0.5,0.5));
+      var mg=dCtx.createLinearGradient(-bw/2,0,bw/2,bh);
+      mg.addColorStop(0,'rgba(210,210,210,0.9)');
+      mg.addColorStop(0.5,'rgba(140,140,140,0.75)');
+      mg.addColorStop(1,'rgba(20,20,20,0.6)');
+      dCtx.fillStyle=mg;
+      dCtx.fillRect(-bw/2, 0, bw, bh);
+      dCtx.restore();
     }
+
+  } else if(type==='fist'){
+    // 베젤 주먹 함몰 — 선명한 dent + 주름
+    var dr=rnd(18,32);
+    dCtx.fillStyle='rgba(0,0,0,0.82)';
+    dCtx.beginPath(); dCtx.arc(cx,cy,dr,0,Math.PI*2); dCtx.fill();
+    // 주변 금속 주름
+    for(var m=0;m<10;m++){
+      var wa=rnd(0,Math.PI*2), wd=rnd(dr,dr*2.2), wl=rnd(12,35);
+      var wx=cx+Math.cos(wa)*wd, wy=cy+Math.sin(wa)*wd;
+      dCtx.save();
+      dCtx.translate(wx,wy); dCtx.rotate(wa+Math.PI/2);
+      dCtx.strokeStyle='rgba(220,220,220,0.65)';
+      dCtx.lineWidth=rnd(1,2.5); dCtx.lineCap='round';
+      dCtx.beginPath(); dCtx.moveTo(-wl/2,0); dCtx.lineTo(wl/2,rnd(-2,2)); dCtx.stroke();
+      dCtx.strokeStyle='rgba(0,0,0,0.5)';
+      dCtx.lineWidth=rnd(0.8,1.8);
+      dCtx.beginPath(); dCtx.moveTo(-wl/2,rnd(1,3)); dCtx.lineTo(wl/2,rnd(3,6)); dCtx.stroke();
+      dCtx.restore();
+    }
+    // 바깥 ring 하이라이트
+    dCtx.strokeStyle='rgba(180,180,180,0.5)';
+    dCtx.lineWidth=1.5;
+    dCtx.beginPath(); dCtx.arc(cx,cy,dr*1.4,0,Math.PI*2); dCtx.stroke();
   }
 }
 
@@ -725,20 +741,18 @@ function drawFrame(){
   drawDesktop(ctx,damageStage);
   ctx.restore();
 
-  // 3. 데미지 레이어 — 맥북 바디 영역으로 클리핑
+  // 3 & 4. 데미지/균열 레이어 — 맥북 바디 영역으로 클리핑
   var mbX = canvasW*0.055, mbY = canvasH*0.048;
   var mbW = canvasW*0.854, mbH = canvasH*0.909;
-  ctx.save();
-  ctx.translate(shakeX, shakeY);
-  ctx.beginPath(); ctx.rect(mbX, mbY, mbW, mbH); ctx.clip();
-  ctx.drawImage(damageCanvas,0,0);
-  ctx.restore();
 
-  // 4. 균열 레이어 — 맥북 바디 영역으로 클리핑
   ctx.save();
+  // 클리핑을 먼저 화면 좌표로 설정, 그 다음 translate
+  ctx.beginPath();
+  ctx.rect(mbX, mbY, mbW, mbH);
+  ctx.clip();
   ctx.translate(shakeX, shakeY);
-  ctx.beginPath(); ctx.rect(mbX, mbY, mbW, mbH); ctx.clip();
-  ctx.drawImage(crackCanvas,0,0);
+  ctx.drawImage(damageCanvas, 0, 0);
+  ctx.drawImage(crackCanvas, 0, 0);
   ctx.restore();
 
   // 5. 블랙아웃 패치
