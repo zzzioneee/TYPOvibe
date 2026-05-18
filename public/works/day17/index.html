@@ -1,160 +1,220 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Day 17 — REDRED / GREENGREEN</title>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Day 17 — COLONY</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { width: 100%; height: 100%; overflow: hidden; background: #fff; }
-canvas { display: block; }
+* { margin:0; padding:0; overflow:hidden; box-sizing:border-box; }
+html, body { width:100%; height:100%; background:#000; }
+canvas { position:fixed; top:0; left:0; }
+.from-wrap { position:fixed; top:24px; left:50%; transform:translateX(-50%); z-index:100; }
+.from-link { font-family:'Pretendard',sans-serif; font-size:20px; font-weight:500;
+  color:#fff; text-decoration:none; letter-spacing:0.15em; }
+.from-link:hover { color:rgba(255,255,255,0.75); }
+.hint { position:fixed; bottom:28px; left:50%; transform:translateX(-50%);
+  color:rgba(255,255,255,0.28); font-family:monospace; font-size:11px;
+  letter-spacing:0.25em; pointer-events:none; }
 </style>
 </head>
 <body>
-<canvas id="c"></canvas>
+<div class="from-wrap">
+  <a href="https://www.koreadaily.com/article/20260517013149944" target="_blank" rel="noopener" class="from-link">FROM</a>
+</div>
+<div class="hint">CLICK BETWEEN LETTERS</div>
 <script>
-const IS_THUMB = new URLSearchParams(location.search).has('thumb');
-const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d');
+'use strict';
+var IS_THUMB = new URLSearchParams(location.search).has('thumb');
+var W = innerWidth, H = innerHeight;
+var FONT    = "'Bebas Neue', Impact, 'Arial Black', sans-serif";
+var FS      = Math.round(Math.min(W * 0.17, H * 0.28));
+var SPACING = Math.round(FS * 0.55);
+var TEXT    = 'COLONY';
+var TY      = H * 0.57;
+var TX      = 0; // 폰트 로드 후 계산
 
-const RED   = '#ff0000';
-const GREEN = '#11b300';
-const FONT  = "'Barlow Condensed', 'Arial Narrow', sans-serif";
-const FW    = 900;
+// ── 캔버스 2개 ──
+var bgC = document.createElement('canvas');
+var fgC = document.createElement('canvas');
+bgC.width = fgC.width  = W;
+bgC.height= fgC.height = H;
+bgC.style.cssText = 'position:fixed;top:0;left:0;';
+fgC.style.cssText = 'position:fixed;top:0;left:0;';
+document.body.append(bgC, fgC);
+var bg = bgC.getContext('2d');
+var fg = fgC.getContext('2d');
+fgC.style.pointerEvents = 'all';
 
-let W, H, dpr;
-function resize() {
-  dpr = Math.min(window.devicePixelRatio || 1, 2);
-  W = window.innerWidth; H = window.innerHeight;
-  canvas.width = W * dpr; canvas.height = H * dpr;
-  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
-  ctx.scale(dpr, dpr);
-}
-resize();
-window.addEventListener('resize', resize);
+// ── 글자 엣지 쌍 ──
+var pairs = [];
 
-// ── 씬 파라미터 ──
-const LINES = [
-  { text: 'REDRED',     color: RED,    dir:  1 },
-  { text: 'GREENGREEN', color: GREEN,  dir: -1 },
-];
+function buildEdgePairs() {
+  var ocH = Math.ceil(FS * 2.2);
+  var oc  = document.createElement('canvas');
+  oc.width = W; oc.height = ocH;
+  var c2 = oc.getContext('2d');
+  c2.font = FS + 'px ' + FONT;
+  c2.letterSpacing = SPACING + 'px';
+  c2.fillStyle = '#fff';
+  c2.textAlign = 'left';
+  c2.textBaseline = 'middle';
+  c2.fillText(TEXT, TX, ocH / 2);
+  var offY = TY - ocH / 2;
+  var data = c2.getImageData(0, 0, W, ocH).data;
 
-const CYCLE    = 3600;  // 전체 루프 ms
-const IN_DUR   = 900;   // 등장 구간
-const OUT_DUR  = 700;   // 퇴장 구간
-const HOLD_DUR = CYCLE - IN_DUR - OUT_DUR; // 슬라이드 구간
-const STAGGER  = 70;    // 글자 간 딜레이 ms
-const SLIDE_V  = IS_THUMB ? 60 : 110; // px/s
-
-function getFontSize() {
-  return Math.round(Math.min(W, H) * (IS_THUMB ? 0.20 : 0.25));
-}
-
-function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
-function easeInCubic(t)  { return Math.pow(t, 3); }
-
-let startTime = null;
-
-function draw(now) {
-  if (!startTime) startTime = now;
-  const t = (now - startTime) % CYCLE;
-
-  ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, W, H);
-
-  const fs = getFontSize();
-  const lineH = fs * 1.08;
-  const totalH = lineH * LINES.length;
-  const baseY = (H - totalH) / 2 + fs * 0.88;
-
-  ctx.font = `${FW} ${fs}px ${FONT}`;
-  ctx.textBaseline = 'alphabetic';
-
-  LINES.forEach((line, li) => {
-    const lineY = baseY + li * lineH;
-    const lineW = ctx.measureText(line.text).width;
-    const startX = (W - lineW) / 2;
-
-    // ── 슬라이드 구간: 무한 스크롤 ──
-    if (t >= IN_DUR && t < IN_DUR + HOLD_DUR) {
-      const elapsed = (t - IN_DUR) / 1000; // seconds
-      const raw = line.dir * elapsed * SLIDE_V;
-      // wrap: lineW 단위로 반복
-      const wrap = ((raw % lineW) + lineW) % lineW;
-      const ox = line.dir > 0 ? wrap : -wrap;
-
-      ctx.save();
-      ctx.fillStyle = line.color;
-      ctx.globalAlpha = 1;
-      ctx.filter = 'none';
-      // 3벌 그려서 끊김 없이
-      for (let c = -1; c <= 1; c++) {
-        const dx = startX + ox + c * lineW;
-        if (dx + lineW < -lineW || dx > W + lineW) continue;
-        ctx.fillText(line.text, dx, lineY);
-      }
-      ctx.restore();
-      return;
+  function isC(px, py) {
+    if (px<0||px>=W||py<0||py>=ocH) return false;
+    return data[(py*W+px)*4] > 20;
+  }
+  var colChar = new Uint8Array(W);
+  for (var px=0;px<W;px++) for (var py=0;py<ocH;py++) if (isC(px,py)){colChar[px]=1;break;}
+  var filled = new Uint8Array(colChar);
+  for (var x=1;x<W-1;x++) {
+    if (!filled[x]) {
+      var end=x; while(end<W&&!filled[end])end++;
+      if (end-x<=8) for(var k=x;k<end;k++) filled[k]=1;
     }
+  }
+  var groups=[], inG=false, gs=0;
+  for (var x=0;x<W;x++) {
+    if (filled[x]&&!inG){inG=true;gs=x;}
+    if (!filled[x]&&inG){if(x-gs>8)groups.push({x1:gs,x2:x-1});inG=false;}
+  }
+  if (inG) groups.push({x1:gs,x2:W-1});
 
-    // ── 등장 / 퇴장: 글자별 stagger ──
-    const chars = line.text.split('');
-    const nChars = chars.length;
-
-    // 글자별 x 위치 미리 계산
-    const charXs = [];
-    let cx = startX;
-    chars.forEach(ch => {
-      charXs.push(cx);
-      cx += ctx.measureText(ch).width;
-    });
-
-    chars.forEach((ch, ci) => {
-      let alpha = 0, offsetY = 0, blurPx = 0;
-
-      if (t < IN_DUR) {
-        // 등장: 위에서 아래로, blur 걷힘
-        const delay = ci * STAGGER;
-        const localT = t - delay;
-        if (localT <= 0) return;
-        const prog = easeOutCubic(Math.min(localT / (IN_DUR - delay), 1));
-        alpha   = prog;
-        offsetY = (1 - prog) * fs * -1.4;
-        blurPx  = (1 - prog) * 14;
-      } else {
-        // 퇴장: 아래로, blur 증가
-        const delay = (nChars - 1 - ci) * STAGGER;
-        const localT = (t - IN_DUR - HOLD_DUR) - delay;
-        if (localT < 0) { alpha = 1; }
-        else {
-          const prog = easeInCubic(Math.min(localT / (OUT_DUR - delay), 1));
-          alpha   = 1 - prog;
-          offsetY = prog * fs * 1.2;
-          blurPx  = prog * 12;
-        }
-      }
-
-      if (alpha <= 0.01) return;
-
-      ctx.save();
-      ctx.fillStyle = line.color;
-      ctx.globalAlpha = Math.min(1, alpha);
-      ctx.filter = blurPx > 0.5 ? `blur(${blurPx.toFixed(1)}px)` : 'none';
-      ctx.fillText(ch, charXs[ci], lineY + offsetY);
-      ctx.restore();
-    });
-  });
-
-  requestAnimationFrame(draw);
+  var STEP=IS_THUMB?4:2;
+  pairs=[];
+  for (var gi=0;gi<groups.length-1;gi++) {
+    var gA=groups[gi], gB=groups[gi+1];
+    if (gB.x1-gA.x2<2) continue;
+    var rp=[], lp=[];
+    for (var px=gA.x1;px<=gA.x2;px++) for (var py=0;py<ocH;py+=STEP) if(isC(px,py)&&!isC(px+1,py)) rp.push({x:px,y:Math.round(py+offY)});
+    for (var px=gB.x1;px<=gB.x2;px++) for (var py=0;py<ocH;py+=STEP) if(isC(px,py)&&!isC(px-1,py)) lp.push({x:px,y:Math.round(py+offY)});
+    if (rp.length>0&&lp.length>0) pairs.push({rightPts:rp,leftPts:lp,gapX1:gA.x2,gapX2:gB.x1,midX:(gA.x2+gB.x1)/2});
+  }
 }
 
-document.fonts.ready.then(() => {
-  document.fonts.load(`${FW} 32px ${FONT}`).then(() => {
-    requestAnimationFrame(draw);
+// ── Branch ──
+var idx=0, branchers={};
+setInterval(function(){
+  for(var i in branchers) for(var j in branchers[i]) try{branchers[i][j]();}catch(e){}
+},16);
+
+function branch(lidx,x,y,ang,a,clipX1,clipX2){
+  var rr=Math.random()*1.8+0.5;
+  var af=0.001+Math.random()*0.005;
+  if(Math.random()<0.007)af=0.8;
+  var death=30+Math.random()*50;
+  var life=0,asf=0;
+  var yMin=TY-FS*0.55, yMax=TY+FS*0.25;
+  var t=function(){
+    a-=af; asf+=(a-asf)/8;
+    ang+=Math.random()*0.03-0.015;
+    x+=Math.cos(ang)*rr+(Math.random()-0.5)*1.0;
+    y+=Math.sin(ang)*rr+(Math.random()-0.5)*0.8;
+    if(x<clipX1-FS*0.3||x>clipX2+FS*0.3){delete branchers[lidx][t.id];return;}
+    // x 경계 근처 fade
+    var xFade=1;
+    var xFadeZone=FS*0.3;
+    if(x<clipX1) xFade=Math.max(0,(x-(clipX1-xFadeZone))/xFadeZone);
+    if(x>clipX2) xFade=Math.max(0,((clipX2+xFadeZone)-x)/xFadeZone);
+    // y는 소멸만, 클리핑 없이 fade로 처리
+    if(y<yMin-FS*0.4||y>yMax+FS*0.4){delete branchers[lidx][t.id];return;}
+    // y 경계 근처에서 부드럽게 fade
+    var yFade=1;
+    var fadeZone=FS*0.4;
+    if(y<yMin) yFade=Math.max(0,(y-(yMin-fadeZone))/fadeZone);
+    if(y>yMax) yFade=Math.max(0,((yMax+fadeZone)-y)/fadeZone);
+    var thickness=life<12?3.0:1.5;
+    fg.fillStyle='rgba(255,255,255,'+Math.max(0,asf*yFade*xFade)+')';
+    fg.fillRect(x,y,thickness,thickness);
+    life++;
+    if(life>death){
+      if(a>0){branch(lidx,x,y,ang,a,clipX1,clipX2);branch(lidx,x,y,ang-Math.random()*0.7+0.35,asf,clipX1,clipX2);}
+      delete branchers[lidx][t.id];
+    }
+  };
+  t.id=idx;
+  if(!branchers[lidx])branchers[lidx]={};
+  branchers[lidx][idx]=t; idx++;
+}
+
+var lidx=0;
+function spawnAtClick(cx,cy){
+  if(!pairs.length)return;
+  var bestPair=0,bestSide='right',bestDist=Infinity;
+  for(var i=0;i<pairs.length;i++){
+    var p=pairs[i];
+    for(var j=0;j<p.rightPts.length;j+=3){var d=Math.hypot(p.rightPts[j].x-cx,(p.rightPts[j].y-cy)*0.5);if(d<bestDist){bestDist=d;bestPair=i;bestSide='right';}}
+    for(var j=0;j<p.leftPts.length;j+=3){var d=Math.hypot(p.leftPts[j].x-cx,(p.leftPts[j].y-cy)*0.5);if(d<bestDist){bestDist=d;bestPair=i;bestSide='left';}}
+  }
+  var p=pairs[bestPair];
+  var count=IS_THUMB?5:10;
+  for(var i=0;i<count;i++){
+    var pts=bestSide==='right'?p.rightPts:p.leftPts;
+    var baseAng=bestSide==='right'?0:Math.PI;
+    var yRange=FS*0.15;
+    var nearby=pts.filter(function(pt){return Math.abs(pt.y-cy)<yRange;});
+    var pool=nearby.length>2?nearby:pts;
+    var pt=pool[Math.floor(Math.random()*pool.length)];
+    var nudge=1+Math.random()*2;
+    var startX=bestSide==='right'?pt.x-nudge:pt.x+nudge;
+    // 수평 ±20° — 너무 직선도 너무 사선도 아니게
+    var ang=baseAng+(Math.random()-0.5)*0.5;
+    // 마지막/첫 글자 끝은 클리핑 확장
+    var clipX1=bestPair===0&&bestSide==='left'?-W:p.gapX1-FS*0.25;
+    var clipX2=bestPair===pairs.length-1&&bestSide==='right'?W*2:p.gapX2+FS*0.25;
+    branch(lidx,startX,pt.y,ang,0.4+Math.random()*0.6,clipX1,clipX2);
+  }
+  lidx++;
+}
+
+fgC.addEventListener('click',function(e){spawnAtClick(e.clientX,e.clientY);});
+fgC.addEventListener('touchstart',function(e){e.preventDefault();spawnAtClick(e.touches[0].clientX,e.touches[0].clientY);},{passive:false});
+
+// ── 초기화 ──
+document.fonts.ready.then(function(){
+  document.fonts.load(FS+'px "Bebas Neue"').then(function(){
+    // 폰트 로드 후 실제 너비 측정
+    var sp=document.createElement('span');
+    sp.style.cssText='position:fixed;visibility:hidden;white-space:nowrap;font-family:'+FONT+';font-size:'+FS+'px;letter-spacing:'+SPACING+'px;';
+    sp.textContent=TEXT;
+    document.body.appendChild(sp);
+    var realW=sp.getBoundingClientRect().width;
+    document.body.removeChild(sp);
+    TX=Math.round((W-realW)/2+SPACING/2);
+
+    // 배경 이미지
+    var bgImg=new Image();
+    bgImg.onload=function(){
+      var r=Math.max(W/bgImg.width,H/bgImg.height);
+      var bw=bgImg.width*r,bh=bgImg.height*r;
+      bg.drawImage(bgImg,(W-bw)/2,(H-bh)/2,bw,bh);
+      // 텍스트
+      bg.font=FS+'px '+FONT;
+      bg.letterSpacing=SPACING+'px';
+      bg.fillStyle='#fff';
+      bg.textAlign='left';
+      bg.textBaseline='middle';
+      bg.fillText(TEXT,TX,TY);
+      buildEdgePairs();
+    };
+    bgImg.onerror=function(){
+      // 배경 없으면 검정
+      bg.fillStyle='#000';
+      bg.fillRect(0,0,W,H);
+      bg.font=FS+'px '+FONT;
+      bg.letterSpacing=SPACING+'px';
+      bg.fillStyle='#fff';
+      bg.textAlign='left';
+      bg.textBaseline='middle';
+      bg.fillText(TEXT,TX,TY);
+      buildEdgePairs();
+    };
+    bgImg.src='colony.png';
   });
 });
 </script>

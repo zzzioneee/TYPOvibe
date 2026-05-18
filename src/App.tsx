@@ -15,6 +15,7 @@ import Day013 from './works/day13'
 import Day014 from './works/day14'
 import Day015 from './works/day15'
 import Day016 from './works/day16'
+import Day017 from './works/day17'
 
 type View = 'home' | string
 
@@ -178,6 +179,16 @@ const WORKS = [
     tags: ['Canvas', 'Particle', 'Simplex Noise'],
     ratio: '4 / 3',
     bgTheme: 'light' as const,
+  },
+  {
+    id: 'day17',
+    day: '17',
+    date: '2026.05.18',
+    title: 'COLONY',
+    desc: '글자 아웃라인에서 거미줄이 뻗어나오는 인터랙티브 타이포그래피. 클릭하면 branch 생성.',
+    tags: ['Canvas', 'Interactive', 'Branch'],
+    ratio: '4 / 3',
+    bgTheme: 'dark' as const,
   },
 ]
 
