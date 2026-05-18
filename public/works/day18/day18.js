@@ -102,35 +102,32 @@ function radialDisplace(cx,cy,radius,pushDist){
   sharpHole(cx,cy,Math.round(radius*0.5));
 }
 
-// 날카로운 각진 구멍 (stC에 그림, 그라디언트/원 없음)
+// 날카로운 각진 구멍 — mbX에 직접 그림 (stC 아님)
 function sharpHole(cx,cy,r){
+  if(!inMB(cx,cy))return;
   var n=rndI(6,8);
-  stX.save();
-  stX.beginPath();
+  mbX.save();
+  mbX.beginPath();
   for(var i=0;i<n;i++){
     var a=(i/n)*Math.PI*2+rnd(-0.3,0.3);
     var rv=r*rnd(0.65,1.0);
     var px=cx+Math.cos(a)*rv,py=cy+Math.sin(a)*rv;
-    if(i===0)stX.moveTo(px,py);else stX.lineTo(px,py);
+    if(i===0)mbX.moveTo(px,py);else mbX.lineTo(px,py);
   }
-  stX.closePath();
-  stX.fillStyle='#000000';
-  stX.fill();
-  // 흰색 날카로운 테두리 1px (금속 찢김 하이라이트)
-  stX.strokeStyle='#ffffff';
-  stX.lineWidth=1.2;
-  stX.stroke();
-  // 내부 어두운 그림자 (그라디언트 없음, 단색 삼각형들로 표현)
+  mbX.closePath();
+  mbX.fillStyle='#000000';mbX.fill();
+  mbX.strokeStyle='#ffffff';mbX.lineWidth=1.2;mbX.stroke();
+  // 내부 단색 단면
   for(var j=0;j<3;j++){
     var a2=rnd(0,Math.PI*2);
-    stX.fillStyle='rgba(60,50,40,0.6)';
-    stX.beginPath();
-    stX.moveTo(cx,cy);
-    stX.lineTo(cx+Math.cos(a2)*r*0.6,cy+Math.sin(a2)*r*0.6);
-    stX.lineTo(cx+Math.cos(a2+0.8)*r*0.4,cy+Math.sin(a2+0.8)*r*0.4);
-    stX.closePath();stX.fill();
+    mbX.fillStyle='rgba(50,40,30,0.7)';
+    mbX.beginPath();
+    mbX.moveTo(cx,cy);
+    mbX.lineTo(cx+Math.cos(a2)*r*0.55,cy+Math.sin(a2)*r*0.55);
+    mbX.lineTo(cx+Math.cos(a2+0.9)*r*0.35,cy+Math.sin(a2+0.9)*r*0.35);
+    mbX.closePath();mbX.fill();
   }
-  stX.restore();
+  mbX.restore();
 }
 
 // ════════════════════════════════════════
@@ -194,21 +191,24 @@ function applySlash(path){
   }
 }
 
-// 그을음 (단색 각진 패치, stC에)
+// 그을음 — mbX에 직접 (클리핑 보장)
 function scorch(x,y,sz){
   if(!inMB(x,y))return;
-  stX.save();
-  stX.fillStyle='rgba(5,4,2,0.9)';
-  stX.beginPath();
+  // 맥북 바운딩 안으로 클램프
+  x=Math.max(MB.x+sz,Math.min(MB.x+MB.w-sz,x));
+  y=Math.max(MB.y+sz,Math.min(MB.y+MB.h-sz,y));
+  mbX.save();
+  mbX.fillStyle='rgba(5,4,2,0.92)';
+  mbX.beginPath();
   var n=rndI(5,7);
   for(var i=0;i<n;i++){
     var a=(i/n)*Math.PI*2+rnd(-0.4,0.4);
-    var rv=sz*rnd(0.55,1.0);
+    var rv=sz*rnd(0.5,1.0);
     var px=x+Math.cos(a)*rv,py=y+Math.sin(a)*rv;
-    if(i===0)stX.moveTo(px,py);else stX.lineTo(px,py);
+    if(i===0)mbX.moveTo(px,py);else mbX.lineTo(px,py);
   }
-  stX.closePath();stX.fill();
-  stX.restore();
+  mbX.closePath();mbX.fill();
+  mbX.restore();
 }
 
 // ════════════════════════════════════════
@@ -347,15 +347,14 @@ function draw(){
   ctx.beginPath();ctx.rect(SR.x,SR.y,SR.w,SR.h);ctx.clip();
   drawScreen();ctx.restore();
 
-  // macbook (displacement 적용)
+  // macbook (displacement + 구멍 + 그을음 모두 mbC에 누적)
   if(macLoaded){
     var br=[1,0.98,0.93,0.87,0.74,0.52][Math.min(stage,5)];
     ctx.filter='brightness('+br+')';
     ctx.drawImage(mbC,0,0);
     ctx.filter='none';
   }
-  // 스탬프 레이어 (구멍, 그을음)
-  ctx.drawImage(stC,0,0);
+  // stC 제거 — 모든 이펙트를 mbC에 직접 그림
 
   ctx.restore(); // ← 여기서 restore, 이 뒤 파티클은 클립 밖
 
@@ -395,8 +394,7 @@ function fullReset(){
   hpNum.textContent='100';
   finalMsg.classList.remove('show');bubbleEl.classList.remove('show');
   if(macLoaded)initMb();
-}
-restartBtn.addEventListener('click',fullReset);
+}restartBtn.addEventListener('click',fullReset);
 
 var TB={claw:document.getElementById('btn-claw'),bomb:document.getElementById('btn-bomb'),
         flame:document.getElementById('btn-flame'),fist:document.getElementById('btn-fist')};
