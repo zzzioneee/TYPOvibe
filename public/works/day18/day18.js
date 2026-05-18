@@ -19,7 +19,7 @@ var dmgX=dmgC.getContext('2d');
 var macImg=new Image(); macImg.src='macbook.png'; var macLoaded=false;
 macImg.onload=function(){macLoaded=true;};
 
-var bgImg=new Image(); bgImg.src='Background.png'; var bgLoaded=false;
+var bgImg=new Image(); bgImg.src='macbook-text.png'; var bgLoaded=false;
 bgImg.onload=function(){bgLoaded=true;};
 
 var CW=0,CH=0,SR={},MB={};
