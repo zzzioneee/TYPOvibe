@@ -240,13 +240,6 @@ function draw(){
   ctx.rect(MB.x, MB.y, MB.w, MB.h);
   ctx.clip();
 
-  // 화면 내용
-  ctx.save();
-  ctx.translate(shakeX,shakeY);
-  ctx.beginPath();ctx.rect(SR.x,SR.y,SR.w,SR.h);ctx.clip();
-  drawScreen();
-  ctx.restore();
-
   // macbook.png (shake 적용)
   if(macLoaded){
     var br=[1,0.98,0.93,0.87,0.74,0.52][Math.min(stage,5)];
@@ -254,6 +247,13 @@ function draw(){
     ctx.drawImage(macImg, shakeX, shakeY, CW, CH);
     ctx.filter='none';
   }
+
+  // 화면 내용 — macbook 위에 그려서 흰 화면 영역 덮음
+  ctx.save();
+  ctx.translate(shakeX,shakeY);
+  ctx.beginPath();ctx.rect(SR.x,SR.y,SR.w,SR.h);ctx.clip();
+  drawScreen();
+  ctx.restore();
 
   // dmgC — shake 없이 (절대 좌표, MB clip 안에 있음)
   ctx.drawImage(dmgC, 0, 0);
