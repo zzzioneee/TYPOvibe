@@ -232,7 +232,9 @@ function doClaw(x,y){
       dmgX.restore();
     }
   });
-  damage(rndI(2,4)); // claw — 말풍선 없음
+  damage(rndI(2,4)); // claw
+  doShake(6);
+  showBubble('claw');
   doShake(6);
 }
 
@@ -272,7 +274,12 @@ function doFlame(x,y,drag){
     flameQueue.push({x,y,t:Date.now()});
     flameAcc=0;
   }
-  damage(0.15); // flame — 말풍선 없음flamePrev={x,y};
+  damage(0.15); // flame
+  // 화염은 0.5초에 한 번만 말풍선
+  if(!doFlame._lastMsg||Date.now()-doFlame._lastMsg>500){
+    showBubble('flame');
+    doFlame._lastMsg=Date.now();
+  }flamePrev={x,y};
 }
 
 function doFist(x,y){
