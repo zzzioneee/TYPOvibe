@@ -120,15 +120,56 @@ function addScorch(x,y){
 }
 
 // ─── 툴 동작 ─────────────────────────────────
-var prevClawPt=null;
-function startClaw(x,y){prevClawPt={x,y};}
-function moveClaw(x,y){
-  if(!prevClawPt)return;
-  addClawSeg(prevClawPt.x,prevClawPt.y,x,y);
-  prevClawPt={x,y};
-  damage(0.5,'claw');
+// 발톱: 클릭 시 3~4줄 대각선 긁힘 자국
+function doClaw(x,y){
+  withMBClip(function(){
+    var numLines=rndI(3,4);
+    var angle=rnd(Math.PI*0.55,Math.PI*0.75); // 우상→좌하 대각선
+    var len=rnd(80,140);
+    var spacing=rnd(12,20); // 줄 간격
+    var perpAngle=angle-Math.PI/2;
+
+    for(var li=0;li<numLines;li++){
+      var offset=(li-(numLines-1)/2)*spacing;
+      var ox=Math.cos(perpAngle)*offset;
+      var oy=Math.sin(perpAngle)*offset;
+      var sx=x+ox-Math.cos(angle)*len*0.45;
+      var sy=y+oy-Math.sin(angle)*len*0.45;
+      var ex=x+ox+Math.cos(angle)*len*0.55;
+      var ey=y+oy+Math.sin(angle)*len*0.55;
+
+      // 두꺼운 검정 긁힘선
+      dmgX.save();
+      dmgX.strokeStyle='#000';
+      dmgX.lineWidth=rnd(3,6);
+      dmgX.lineCap='round';
+      dmgX.beginPath();
+      dmgX.moveTo(sx,sy);
+      // 중간에 약간 지그재그
+      var mid1x=(sx+ex)/2+rnd(-6,6);
+      var mid1y=(sy+ey)/2+rnd(-6,6);
+      dmgX.lineTo(mid1x,mid1y);
+      dmgX.lineTo(ex,ey);
+      dmgX.stroke();
+
+      // 흰 하이라이트 (찢긴 단면)
+      dmgX.strokeStyle='rgba(255,255,255,0.7)';
+      dmgX.lineWidth=1;
+      dmgX.beginPath();
+      dmgX.moveTo(sx+rnd(-2,2),sy+rnd(-2,2));
+      dmgX.lineTo(mid1x+1,mid1y+1);
+      dmgX.lineTo(ex+rnd(-1,1),ey+rnd(-1,1));
+      dmgX.stroke();
+      dmgX.restore();
+    }
+  });
+  damage(rndI(4,7),'claw');
+  doShake(6);
 }
-function endClaw(){prevClawPt=null;}
+
+function startClaw(x,y){doClaw(x,y);}
+function moveClaw(){} // 클릭 방식이므로 drag 없음
+function endClaw(){}
 
 function doBomb(x,y){
   stampImpact(x,y,rndI(40,65));
@@ -277,7 +318,7 @@ function draw(){
 
 // ─── 재시작 ──────────────────────────────────
 function fullReset(){
-  hp=100;stage=0;sparks=[];flamePrev=null;prevClawPt=null;
+  hp=100;stage=0;sparks=[];flamePrev=null;
   shakeX=0;shakeY=0;shakeAmt=0;flameAcc=0;
   hpBar.style.width='100%';hpBar.style.background='linear-gradient(90deg,#4caf50,#8bc34a)';
   hpNum.textContent='100';
@@ -314,8 +355,7 @@ canvas.addEventListener('mousedown',function(e){
 });
 canvas.addEventListener('mousemove',function(e){
   if(!isDown||hp<=0)return;var p=toC(e);
-  if(tool==='claw')moveClaw(p.x,p.y);
-  else if(tool==='flame')doFlame(p.x,p.y,true);
+  if(tool==='flame')doFlame(p.x,p.y,true);
 });
 document.addEventListener('mouseup',function(){
   if(!isDown)return;isDown=false;flamePrev=null;cursorEl.src='Hamster.png';
@@ -331,8 +371,7 @@ canvas.addEventListener('touchstart',function(e){
 },{passive:false});
 canvas.addEventListener('touchmove',function(e){
   e.preventDefault();if(!isDown||hp<=0)return;var p=toC(e);
-  if(tool==='claw')moveClaw(p.x,p.y);
-  else if(tool==='flame')doFlame(p.x,p.y,true);
+  if(tool==='flame')doFlame(p.x,p.y,true);
 },{passive:false});
 document.addEventListener('touchend',function(){
   if(!isDown)return;isDown=false;flamePrev=null;
