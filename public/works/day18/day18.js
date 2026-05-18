@@ -231,7 +231,7 @@ function doClaw(x,y){
       dmgX.restore();
     }
   });
-  damage(rndI(4,7),'claw');
+  damage(rndI(2,4),'claw');
   doShake(6);
 }
 
@@ -271,7 +271,7 @@ function doFlame(x,y,drag){
     flameQueue.push({x,y,t:Date.now()});
     flameAcc=0;
   }
-  damage(0.35,'flame');flamePrev={x,y};
+  damage(0.15,'flame');flamePrev={x,y};
 }
 
 function doFist(x,y){
@@ -281,7 +281,7 @@ function doFist(x,y){
     sparks.push({x,y,vx:Math.cos(a)*rnd(3,9),vy:Math.sin(a)*rnd(3,9)-1,
       life:1,sz:rnd(2,6),col:i%2===0?'#fff':'#ccaa88'});
   }
-  damage(rndI(13,20),'fist');doShake(26);showBubble('fist');
+  damage(rndI(6,10),'fist');doShake(26);showBubble('fist');
 }
 
 // ─── HP ─────────────────────────────────────
