@@ -281,40 +281,104 @@ function redrawCracks(){
   needCrackRedraw=false;
 }
 
-// 발톱
+// 발톱: 타격점 중심 방사형 찢김 + 벌어진 틈
 function triggerClaw(cx,cy){
-  var baseAng=rnd(Math.PI*0.35,Math.PI*0.65),len=rnd(40,80),sp=9;
-  cCtx.save();cCtx.lineCap='round';
-  for(var i=0;i<4;i++){
-    var off=(i-1.5)*sp;
-    var ox=Math.cos(baseAng+Math.PI/2)*off,oy=Math.sin(baseAng+Math.PI/2)*off;
-    var flare=(i-1.5)*5;
-    var ex=cx+ox+Math.cos(baseAng)*len+Math.cos(baseAng+Math.PI/2)*flare;
-    var ey=cy+oy+Math.sin(baseAng)*len+Math.sin(baseAng+Math.PI/2)*flare;
-    var sx2=cx+ox-Math.cos(baseAng)*len*0.18,sy2=cy+oy-Math.sin(baseAng)*len*0.18;
-    var grad=cCtx.createLinearGradient(sx2,sy2,ex,ey);
-    grad.addColorStop(0,'rgba(80,0,0,0.95)');grad.addColorStop(0.5,'rgba(130,20,0,0.75)');grad.addColorStop(1,'rgba(80,0,0,0.1)');
-    cCtx.strokeStyle=grad;cCtx.lineWidth=rnd(1.5,2.8);
-    cCtx.beginPath();cCtx.moveTo(sx2,sy2);cCtx.lineTo(ex,ey);cCtx.stroke();
+  var numRips = 4;
+  var baseAng = rnd(0, Math.PI*2);
+  var ripLen  = rnd(55, 95);
+
+  for(var i=0;i<numRips;i++){
+    var ang = baseAng + (i/numRips)*Math.PI*2 + rnd(-0.25,0.25);
+    // 찢김선
+    var segs = rndInt(4,7);
+    var x=cx,y=cy,a=ang;
+    for(var s=0;s<segs;s++){
+      var sl = ripLen/segs * rnd(0.6,1.4);
+      var nx2 = x+Math.cos(a)*sl+rnd(-5,5);
+      var ny2 = y+Math.sin(a)*sl+rnd(-5,5);
+      var w = rnd(2,5)*(1-s/segs)+1;
+      dCtx.strokeStyle='rgba(0,0,0,'+rnd(0.7,1.0)+')';
+      dCtx.lineWidth=w; dCtx.lineCap='round';
+      dCtx.beginPath(); dCtx.moveTo(x,y); dCtx.lineTo(nx2,ny2); dCtx.stroke();
+      // 찢김 틈새 (검은 삼각형)
+      if(s<segs-1 && Math.random()<0.5){
+        var side=w*2.5;
+        var pa=a+Math.PI/2;
+        dCtx.fillStyle='rgba(0,0,0,0.85)';
+        dCtx.beginPath();
+        dCtx.moveTo(nx2,ny2);
+        dCtx.lineTo(nx2+Math.cos(pa)*side,ny2+Math.sin(pa)*side);
+        dCtx.lineTo(nx2+Math.cos(a)*side*0.5,ny2+Math.sin(a)*side*0.5);
+        dCtx.closePath(); dCtx.fill();
+      }
+      x=nx2; y=ny2; a+=rnd(-0.4,0.4);
+    }
   }
-  cCtx.restore();
-  for(var j=0;j<10;j++){dCtx.fillStyle='rgba(160,0,0,'+rnd(0.4,0.9)+')';dCtx.beginPath();dCtx.arc(cx+rnd(-18,18),cy+rnd(-12,22),rnd(1,3),0,Math.PI*2);dCtx.fill();}
-  addCrackPoint(cx,cy,rnd(18,38),false);
-  damage(rnd(4,7),'claw');shake(rnd(5,10));
+  // 타격 중심 구멍
+  dCtx.fillStyle='rgba(0,0,0,0.9)';
+  dCtx.beginPath(); dCtx.arc(cx,cy,rnd(6,12),0,Math.PI*2); dCtx.fill();
+
+  // 은박지 찢긴 느낌 — 밝은 하이라이트 선
+  for(var j=0;j<6;j++){
+    var ha=rnd(0,Math.PI*2), hl=rnd(10,40);
+    dCtx.strokeStyle='rgba(255,255,255,'+rnd(0.3,0.6)+')';
+    dCtx.lineWidth=rnd(0.5,1.5);
+    dCtx.beginPath();
+    dCtx.moveTo(cx,cy);
+    dCtx.lineTo(cx+Math.cos(ha)*hl,cy+Math.sin(ha)*hl);
+    dCtx.stroke();
+  }
+
+  addCrackPoint(cx,cy,rnd(25,45),false);
+  damage(rnd(4,7),'claw'); shake(rnd(5,9));
 }
-// 씨폭탄
+// 폭탄: 구멍 + 주변 금속 조각 튀어나오는 느낌
 function triggerBomb(cx,cy){
-  var r=rnd(28,52);
-  var g=dCtx.createRadialGradient(cx,cy,0,cx,cy,r);
-  g.addColorStop(0,'rgba(0,0,0,0.92)');g.addColorStop(0.5,'rgba(15,8,0,0.55)');g.addColorStop(1,'rgba(0,0,0,0)');
-  dCtx.fillStyle=g;dCtx.beginPath();dCtx.arc(cx,cy,r,0,Math.PI*2);dCtx.fill();
-  var count=rndInt(14,22);
-  for(var i=0;i<count;i++){
-    var ang=(i/count)*Math.PI*2+rnd(-0.2,0.2),spd=rnd(5,16);
-    seedParts.push({x:cx,y:cy,vx:Math.cos(ang)*spd,vy:Math.sin(ang)*spd-rnd(1,4),rot:rnd(0,Math.PI*2),rotV:rnd(-0.4,0.4),life:1,size:rnd(3.5,8)});
+  var holeR = rnd(20,38);
+  // 구멍 (완전 검은 원)
+  dCtx.fillStyle='#000';
+  dCtx.beginPath(); dCtx.arc(cx,cy,holeR,0,Math.PI*2); dCtx.fill();
+
+  // 구멍 테두리 — 찌그러진 금속 (밝은 반원 조각들)
+  var edgePieces = rndInt(10,16);
+  for(var i=0;i<edgePieces;i++){
+    var ang=(i/edgePieces)*Math.PI*2+rnd(-0.2,0.2);
+    var er=holeR+rnd(3,14);
+    var pw=rnd(6,18), pd=rnd(4,10);
+    dCtx.save();
+    dCtx.translate(cx+Math.cos(ang)*er, cy+Math.sin(ang)*er);
+    dCtx.rotate(ang+Math.PI/2+rnd(-0.5,0.5));
+    // 금속 조각 — 밝은 회색에서 어두운 그라디언트
+    var mg=dCtx.createLinearGradient(-pw/2,0,pw/2,pd);
+    mg.addColorStop(0,'rgba(200,200,200,0.9)');
+    mg.addColorStop(0.4,'rgba(140,140,140,0.8)');
+    mg.addColorStop(1,'rgba(30,30,30,0.7)');
+    dCtx.fillStyle=mg;
+    dCtx.beginPath();
+    dCtx.moveTo(-pw/2,0);
+    dCtx.lineTo(pw/2,0);
+    dCtx.lineTo(pw/2*0.6,pd);
+    dCtx.lineTo(-pw/2*0.6,pd);
+    dCtx.closePath(); dCtx.fill();
+    dCtx.restore();
   }
-  addCrackPoint(cx,cy,rnd(38,65),false);
-  damage(rnd(9,15),'bomb');shake(rnd(12,20));showBubble('bomb');
+
+  // 그을음 퍼짐
+  var sg=dCtx.createRadialGradient(cx,cy,holeR,cx,cy,holeR*3.5);
+  sg.addColorStop(0,'rgba(0,0,0,0.7)');
+  sg.addColorStop(0.5,'rgba(10,5,0,0.3)');
+  sg.addColorStop(1,'rgba(0,0,0,0)');
+  dCtx.fillStyle=sg;
+  dCtx.beginPath(); dCtx.arc(cx,cy,holeR*3.5,0,Math.PI*2); dCtx.fill();
+
+  // 씨앗 파편
+  var count=rndInt(12,20);
+  for(var j=0;j<count;j++){
+    var ba=(j/count)*Math.PI*2+rnd(-0.2,0.2), spd=rnd(5,16);
+    seedParts.push({x:cx,y:cy,vx:Math.cos(ba)*spd,vy:Math.sin(ba)*spd-rnd(1,4),rot:rnd(0,Math.PI*2),rotV:rnd(-0.4,0.4),life:1,size:rnd(3.5,8)});
+  }
+  addCrackPoint(cx,cy,rnd(55,90),true);
+  damage(rnd(10,16),'bomb'); shake(rnd(14,22)); showBubble('bomb');
 }
 function renderBomb(){
   seedParts=seedParts.filter(function(p){
@@ -327,12 +391,15 @@ function renderBomb(){
   });
 }
 
-// 화염
+// 화염: 그을음 + 녹아내리는 드립 효과
 function drawFlame(cx,cy){
   if(!flamePrev){flamePrev={x:cx,y:cy};return;}
   var dist=Math.hypot(cx-flamePrev.x,cy-flamePrev.y);
   if(dist<3)return;
-  var ang=Math.atan2(cy-flamePrev.y,cx-flamePrev.x),radius=rnd(18,32);
+  var ang=Math.atan2(cy-flamePrev.y,cx-flamePrev.x);
+
+  // 그을음 스프레이 (디더 픽셀)
+  var radius=rnd(16,28);
   var steps=Math.max(1,Math.ceil(dist/4));
   for(var s=0;s<=steps;s++){
     var t=s/steps,mx=flamePrev.x+(cx-flamePrev.x)*t,my=flamePrev.y+(cy-flamePrev.y)*t;
@@ -344,14 +411,36 @@ function drawFlame(cx,cy){
       var density=1-d/radius;
       var di=((wy/PIXEL_SIZE)|0)&3,dj=((wx/PIXEL_SIZE)|0)&3;
       if(density<BAYER[di][dj]/16)continue;
-      flamePixBuf.push({x:wx,y:wy,s:PIXEL_SIZE,hot:density>0.55,a:rnd(0.55,1.0)});
+      // 중심은 어두운 그을음, 가장자리는 그을린 갈색
+      if(density>0.6){
+        dCtx.fillStyle='rgba(5,3,0,'+rnd(0.7,0.95)+')';
+      } else {
+        dCtx.fillStyle='rgba(30,15,0,'+rnd(0.3,0.6)+')';
+      }
+      dCtx.fillRect(wx,wy,PIXEL_SIZE,PIXEL_SIZE);
     }}
   }
-  for(var i=0;i<5;i++){
-    var sp=rnd(-0.5,0.5);
-    flameParts.push({x:cx+rnd(-5,5),y:cy+rnd(-5,5),vx:Math.cos(ang+sp)*rnd(2,6),vy:Math.sin(ang+sp)*rnd(2,6)-rnd(1,3),life:1,size:rnd(8,22),hot:Math.random()>0.35});
+
+  // 녹아내리는 드립 — 불꽃 경로 아래로 방울 생성
+  if(Math.random()<0.25){
+    flameParts.push({
+      x:cx+rnd(-8,8), y:cy,
+      vx:rnd(-0.5,0.5), vy:rnd(1.5,3.5), // 아래로만
+      life:1, size:rnd(4,10), drip:true,
+    });
   }
-  damage(0.5,'flame');flamePrev={x:cx,y:cy};
+
+  // 불꽃 파티클 (진행 방향)
+  for(var i=0;i<3;i++){
+    var sp=rnd(-0.5,0.5);
+    flameParts.push({
+      x:cx+rnd(-4,4), y:cy+rnd(-4,4),
+      vx:Math.cos(ang+sp)*rnd(1,4),
+      vy:Math.sin(ang+sp)*rnd(1,4)-rnd(0.5,2),
+      life:1, size:rnd(6,16), hot:Math.random()>0.4, drip:false,
+    });
+  }
+  damage(0.45,'flame');flamePrev={x:cx,y:cy};
 }
 function renderFlame(){
   flamePixBuf.forEach(function(p){
@@ -359,102 +448,87 @@ function renderFlame(){
     dCtx.fillRect(p.x,p.y,p.s,p.s);
   });
   flamePixBuf=[];
+
   flameParts=flameParts.filter(function(p){
-    p.x+=p.vx;p.y+=p.vy;p.vy-=0.12;p.vx*=0.94;p.life-=0.045;
-    if(p.life<=0)return false;
+    p.x+=p.vx; p.y+=p.vy; p.life-=0.045;
+    if(p.drip){
+      // 드립: 아래로 흘러내리며 점점 좁아짐
+      p.vy+=0.08;
+      if(p.life<=0) return false;
+      dCtx.fillStyle='rgba(0,0,0,'+p.life*0.85+')';
+      var w=p.size*p.life;
+      dCtx.beginPath();
+      dCtx.ellipse(p.x,p.y,w*0.3,w*0.55,0,0,Math.PI*2);
+      dCtx.fill();
+      return true;
+    }
+    p.vx*=0.94; p.vy-=0.08;
+    if(p.life<=0) return false;
     var r=p.size*p.life;
     var g=dCtx.createRadialGradient(p.x,p.y,0,p.x,p.y,r);
-    if(p.hot){g.addColorStop(0,'rgba(255,255,100,'+p.life+')');g.addColorStop(0.5,'rgba(255,120,0,'+(p.life*0.8)+')');g.addColorStop(1,'rgba(0,0,0,0)');}
-    else{g.addColorStop(0,'rgba(180,50,0,'+p.life+')');g.addColorStop(1,'rgba(0,0,0,0)');}
-    dCtx.fillStyle=g;dCtx.beginPath();dCtx.arc(p.x,p.y,r,0,Math.PI*2);dCtx.fill();
+    if(p.hot){
+      g.addColorStop(0,'rgba(255,255,100,'+p.life+')');
+      g.addColorStop(0.5,'rgba(255,120,0,'+(p.life*0.8)+')');
+      g.addColorStop(1,'rgba(0,0,0,0)');
+    } else {
+      g.addColorStop(0,'rgba(60,30,0,'+p.life+')');
+      g.addColorStop(1,'rgba(0,0,0,0)');
+    }
+    dCtx.fillStyle=g;
+    dCtx.beginPath(); dCtx.arc(p.x,p.y,r,0,Math.PI*2); dCtx.fill();
     return true;
   });
 }
 
-// 주먹
+// 주먹: 함몰 dent + 베젤 찌그러짐
 function triggerFist(cx,cy){
-  var r=rnd(32,52);
-  var g=dCtx.createRadialGradient(cx,cy,4,cx,cy,r);
-  g.addColorStop(0,'rgba(0,0,0,0.75)');g.addColorStop(0.6,'rgba(0,0,0,0.3)');g.addColorStop(1,'rgba(0,0,0,0)');
-  dCtx.fillStyle=g;dCtx.beginPath();dCtx.arc(cx,cy,r,0,Math.PI*2);dCtx.fill();
-  // 주먹은 균열이 바디로 크게 번짐
-  addCrackPoint(cx,cy,rnd(80,140),true);
-  damage(rnd(13,19),'fist');shake(rnd(18,28));showBubble('fist');
-}
+  var dentR = rnd(22,38);
+  // 함몰 원 — 어두운 중심 + 주변 찌그러짐
+  var dg=dCtx.createRadialGradient(cx,cy,0,cx,cy,dentR);
+  dg.addColorStop(0,'rgba(0,0,0,0.9)');
+  dg.addColorStop(0.5,'rgba(30,25,20,0.6)');
+  dg.addColorStop(1,'rgba(0,0,0,0)');
+  dCtx.fillStyle=dg;
+  dCtx.beginPath(); dCtx.arc(cx,cy,dentR*1.5,0,Math.PI*2); dCtx.fill();
 
-// macbook.png 조각 분할 시스템
-var FRAG_COLS = 6, FRAG_ROWS = 4;
-var fragments = [];
-
-function initFragments(){
-  fragments = [];
-  var fw = canvasW/FRAG_COLS, fh = canvasH/FRAG_ROWS;
-  for(var r=0;r<FRAG_ROWS;r++){
-    for(var c=0;c<FRAG_COLS;c++){
-      fragments.push({
-        sx: (MB_W/FRAG_COLS)*c,  sy: (MB_H/FRAG_ROWS)*r,
-        sw: MB_W/FRAG_COLS,       sh: MB_H/FRAG_ROWS,
-        dx: fw*c, dy: fh*r, dw: fw, dh: fh,
-        ox:0, oy:0, rot:0,
-        targetOx:0, targetOy:0, targetRot:0,
-        col:c, row:r,
-      });
-    }
+  // 베젤 찌그러짐 — 타격점에서 방사형으로 짧은 금속 주름선
+  var numDents = rndInt(8,14);
+  for(var i=0;i<numDents;i++){
+    var ang=rnd(0,Math.PI*2);
+    var dr=dentR+rnd(4,18);
+    var dl=rnd(8,25);
+    // 주름선: 밝은 하이라이트 + 어두운 그림자
+    dCtx.save();
+    dCtx.translate(cx+Math.cos(ang)*dr, cy+Math.sin(ang)*dr);
+    dCtx.rotate(ang);
+    dCtx.strokeStyle='rgba(255,255,255,'+rnd(0.3,0.6)+')';
+    dCtx.lineWidth=rnd(1,2.5);
+    dCtx.beginPath(); dCtx.moveTo(-dl*0.3,0); dCtx.lineTo(dl*0.7,rnd(-3,3)); dCtx.stroke();
+    dCtx.strokeStyle='rgba(0,0,0,'+rnd(0.4,0.7)+')';
+    dCtx.lineWidth=rnd(0.8,2);
+    dCtx.beginPath(); dCtx.moveTo(-dl*0.3,rnd(1,3)); dCtx.lineTo(dl*0.7,rnd(2,5)); dCtx.stroke();
+    dCtx.restore();
   }
-}
-initFragments();
-window.addEventListener('resize',function(){resizeCanvas();initFragments();updateFragmentTargets(damageStage);});
 
-function updateFragmentTargets(stage){
-  if(stage<=0){
-    fragments.forEach(function(f){f.targetOx=0;f.targetOy=0;f.targetRot=0;});
-    return;
-  }
-  // 조각마다 중앙에서 바깥 방향으로 밀려나는 벡터 계산
-  var cx=FRAG_COLS/2-0.5, cy=FRAG_ROWS/2-0.5;
-  // intensity: stage 1=미세, 5=폭발
-  var dist    = [0, canvasW*0.005, canvasW*0.018, canvasW*0.045, canvasW*0.09, canvasW*0.16][Math.min(stage,5)];
-  var maxRot  = [0, 0.008,          0.022,          0.05,          0.10,          0.18        ][Math.min(stage,5)];
-
-  fragments.forEach(function(f,i){
-    var dx = f.col - cx, dy = f.row - cy;
-    var d  = Math.hypot(dx,dy) || 1;
-    // 중앙 조각은 조금, 가장자리는 많이
-    var edgeMul = 0.4 + (d / Math.hypot(cx,cy)) * 0.8;
-    // 방향: 중앙에서 바깥으로
-    var nx = dx/d, ny = dy/d;
-    // 결정론적 노이즈로 약간의 불규칙성 추가
-    var noise = Math.sin(i*7.3+stage*13.7)*0.35;
-    f.targetOx  = (nx + Math.sin(i*3.1)*0.3) * dist * edgeMul;
-    f.targetOy  = (ny + Math.cos(i*3.1)*0.3) * dist * edgeMul;
-    f.targetRot = noise * maxRot * edgeMul;
-  });
+  addCrackPoint(cx,cy,rnd(40,70),false);
+  damage(rnd(13,19),'fist'); shake(rnd(18,28)); showBubble('fist');
 }
 
-function updateFragments(){
-  var lr = 0.06;
-  fragments.forEach(function(f){
-    f.ox  += (f.targetOx  - f.ox)  * lr;
-    f.oy  += (f.targetOy  - f.oy)  * lr;
-    f.rot += (f.targetRot - f.rot) * lr;
-  });
-}
-
+// ── fragment 시스템 완전 제거, macbook.png 통째로 그리기 ──
 function drawMacbook(){
   if(!macbookLoaded) return;
-  var br=[1,0.98,0.94,0.88,0.78,0.55][Math.min(damageStage,5)];
+  var br=[1,0.98,0.95,0.90,0.80,0.60][Math.min(damageStage,5)];
   ctx.filter='brightness('+br+')';
-  fragments.forEach(function(f){
-    var cx2 = f.dx + f.dw/2 + f.ox + shakeX;
-    var cy2 = f.dy + f.dh/2 + f.oy + shakeY;
-    ctx.save();
-    ctx.translate(cx2, cy2);
-    ctx.rotate(f.rot);
-    ctx.drawImage(macbookImg, f.sx, f.sy, f.sw, f.sh, -f.dw/2, -f.dh/2, f.dw, f.dh);
-    ctx.restore();
-  });
+  ctx.save();
+  ctx.translate(shakeX, shakeY);
+  ctx.drawImage(macbookImg, 0, 0, canvasW, canvasH);
+  ctx.restore();
   ctx.filter='none';
 }
+// stub — fragment 시스템 제거됨
+function initFragments(){}
+function updateFragments(){}
+function updateFragmentTargets(){}
 
 // 흔들기
 function shake(v){shakeAmt=Math.max(shakeAmt,v);}
