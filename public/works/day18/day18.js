@@ -12,22 +12,24 @@ var bubbleEl=document.getElementById('bubble');
 var finalMsg=document.getElementById('final-msg');
 var restartBtn=document.getElementById('restart-btn');
 
-// offscreen: macbook 픽셀 (displacement 소스)
+// offscreen: macbook 원본 픽셀 (절대 수정 안 함 — displacement 소스)
+var srcC=document.createElement('canvas');
+var srcX=srcC.getContext('2d',{willReadFrequently:true});
+// offscreen: 렌더용 맥북 (displacement 결과 + 구멍 스탬프 누적)
 var mbC=document.createElement('canvas');
-var mbX=mbC.getContext('2d',{willReadFrequently:true});
-// offscreen: 스탬프 누적 (구멍, 그을음)
-var stC=document.createElement('canvas');
-var stX=stC.getContext('2d');
+var mbX=mbC.getContext('2d');
+// (stC 제거 — mbC에 직접 합성)
 
 var macImg=new Image(); macImg.src='macbook.png'; var macLoaded=false;
 macImg.onload=function(){ macLoaded=true; initMb(); };
 
 var CW=0,CH=0,SR={},MB={};
 function initMb(){
-  mbC.width=stC.width=CW; mbC.height=stC.height=CH;
+  srcC.width=mbC.width=CW; srcC.height=mbC.height=CH;
+  srcX.clearRect(0,0,CW,CH);
+  srcX.drawImage(macImg,0,0,CW,CH); // 원본 — 절대 수정 안 함
   mbX.clearRect(0,0,CW,CH);
-  mbX.drawImage(macImg,0,0,CW,CH);
-  stX.clearRect(0,0,CW,CH);
+  mbX.drawImage(macImg,0,0,CW,CH); // 렌더용 — 여기에 누적
 }
 
 function resize(){
@@ -71,13 +73,12 @@ function radialDisplace(cx,cy,radius,pushDist){
   if(x1<=x0||y1<=y0)return;
   var w=x1-x0,h=y1-y0;
 
-  // src 읽기
-  var src=mbX.getImageData(x0,y0,w,h);
+  // 원본(srcX)에서 읽기
+  var src=srcX.getImageData(x0,y0,w,h);
   var sd=src.data;
   // dst는 별도 버퍼
   var dst=new Uint8ClampedArray(sd.length);
-  // 기본: src 그대로 복사
-  dst.set(sd);
+  dst.set(sd); // 기본값: 원본 복사
 
   for(var py=0;py<h;py++){
     for(var px=0;px<w;px++){
@@ -85,7 +86,6 @@ function radialDisplace(cx,cy,radius,pushDist){
       var dx=wx-cx,dy=wy-cy;
       var dist=Math.sqrt(dx*dx+dy*dy);
       if(dist<1||dist>r)continue;
-      // 중심에서 바깥 방향으로 pd만큼 밀어낼 목적지 계산
       var nx=dx/dist,ny=dy/dist;
       var destX=Math.round(wx+nx*pd),destY=Math.round(wy+ny*pd);
       var dpx=destX-x0,dpy=destY-y0;
@@ -93,29 +93,27 @@ function radialDisplace(cx,cy,radius,pushDist){
       var si=(py*w+px)*4;
       var di=(dpy*w+dpx)*4;
       dst[di]=sd[si];dst[di+1]=sd[si+1];dst[di+2]=sd[si+2];dst[di+3]=sd[si+3];
-      // 원래 자리 검정 (텅 빈 자리)
-      dst[py*w*4+px*4]=0;dst[py*w*4+px*4+1]=0;dst[py*w*4+px*4+2]=0;dst[py*w*4+px*4+3]=255;
+      // 원래 자리 검정
+      var oi=(py*w+px)*4;
+      dst[oi]=0;dst[oi+1]=0;dst[oi+2]=0;dst[oi+3]=255;
     }
   }
+  // 결과를 mbX(렌더용)에만 씀 — srcX 원본은 변경 없음
   mbX.putImageData(new ImageData(dst,w,h),x0,y0);
   // 구멍 + 찢긴 단면 흰 테두리
   sharpHole(cx,cy,Math.round(radius*0.55));
-  // 경계 흰 선 (찢긴 금속 단면)
+  // 경계 흰 선
   mbX.save();
-  mbX.strokeStyle='#cccccc';
-  mbX.lineWidth=1.5;
+  mbX.strokeStyle='#cccccc';mbX.lineWidth=1.5;
   mbX.beginPath();
   var nEdge=rndI(5,8);
   for(var k=0;k<nEdge;k++){
     var ea=(k/nEdge)*Math.PI*2+rnd(-0.3,0.3);
     var er=Math.round(radius*rnd(0.45,0.65));
-    var ep1x=cx+Math.cos(ea)*er, ep1y=cy+Math.sin(ea)*er;
-    var ep2x=cx+Math.cos(ea+rnd(0.3,0.7))*(er*rnd(0.8,1.1));
-    var ep2y=cy+Math.sin(ea+rnd(0.3,0.7))*(er*rnd(0.8,1.1));
-    mbX.moveTo(ep1x,ep1y); mbX.lineTo(ep2x,ep2y);
+    mbX.moveTo(cx+Math.cos(ea)*er,cy+Math.sin(ea)*er);
+    mbX.lineTo(cx+Math.cos(ea+rnd(0.3,0.7))*(er*rnd(0.8,1.1)),cy+Math.sin(ea+rnd(0.3,0.7))*(er*rnd(0.8,1.1)));
   }
-  mbX.stroke();
-  mbX.restore();
+  mbX.stroke();mbX.restore();
 }
 
 // 날카로운 각진 구멍 — mbX에 직접 그림 (stC 아님)
@@ -157,7 +155,7 @@ function applySlash(path){
   var HW=2; // 경로 반폭
 
   var imgData=mbX.getImageData(0,0,CW,CH);
-  var src=new Uint8ClampedArray(imgData.data); // 원본 복사
+  var src=new Uint8ClampedArray(srcX.getImageData(0,0,CW,CH).data); // 원본에서 읽기
   var dst=imgData.data; // 결과에 직접 쓰기
 
   for(var pi=1;pi<path.length;pi++){
