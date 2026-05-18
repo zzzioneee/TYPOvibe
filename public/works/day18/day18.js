@@ -19,6 +19,10 @@ var restartBtn = document.getElementById('restart-btn');
 var dmgC = document.createElement('canvas');
 var dmgX = dmgC.getContext('2d');
 
+// 데미지 마스킹용 오프스크린
+var maskOffscreen = document.createElement('canvas');
+var maskOffCtx = maskOffscreen.getContext('2d');
+
 // ── 이미지 ──
 var macImg = new Image(); macImg.src='macbook.png'; var macLoaded=false;
 macImg.onload=function(){macLoaded=true;};
@@ -394,10 +398,25 @@ function draw(){
 
   ctx.restore(); // shake 복원
 
-  // 4. 데미지 레이어 — shake 없이 (dmgC 좌표 = canvas 좌표)
-  // clip 없이 전체 그리고, macbook.png 알파로 배경은 가려짐
-  ctx.drawImage(dmgC, 0, 0);
-}
+  // 4. 데미지 레이어 + 맥북 외부 마스킹
+  // offscreen에 dmgC 그리고, macbook.png 위에서 source-atop으로 합성
+  // → macbook.png 불투명 픽셀 위에만 데미지 표시
+  if(macLoaded){
+    maskOffscreen.width = CW; maskOffscreen.height = CH;
+    maskOffCtx.clearRect(0,0,CW,CH);
+    // macbook.png (shake 적용)
+    maskOffCtx.save();
+    maskOffCtx.translate(shake.x, shake.y);
+    maskOffCtx.drawImage(macImg, 0, 0, CW, CH);
+    maskOffCtx.restore();
+    // 데미지를 source-atop으로: macbook 불투명 위에만
+    maskOffCtx.globalCompositeOperation = 'source-atop';
+    maskOffCtx.drawImage(dmgC, 0, 0);
+    maskOffCtx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(maskOffscreen, 0, 0);
+  } else {
+    ctx.drawImage(dmgC, 0, 0);
+  }}
 
 // ── 재시작 ──
 restartBtn.addEventListener('click',function(){
