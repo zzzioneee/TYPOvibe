@@ -7,9 +7,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-html,body{width:100%;height:100%;overflow:hidden;background:#f0f0f0;font-family:'Noto Sans KR',sans-serif;cursor:none;}
+html,body{width:100%;height:100%;overflow:hidden;background:#f5f5f5;font-family:'Noto Sans KR',sans-serif;cursor:none;}
 
-/* ── 흰 배경 씬 ── */
+/* ── 씬: 흰 배경 전체 ── */
 #scene{
   position:fixed;inset:0;
   background:#fff;
@@ -19,222 +19,175 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f0f0f0;font-family:
 /* ── 맥북 래퍼 ── */
 #macbook-wrap{
   position:relative;
-  /* 맥북 전체 비율 유지 */
-  width:min(80vw, 70vh * 1.6);
-  aspect-ratio: 1.6 / 1.08;
+  /* 이미지 원본 비율 2912:1632 = 16:9 */
+  width: min(88vw, 88vh * 1.784);
+  aspect-ratio: 2912 / 1632;
 }
 
-/* ── 맥북 바디 (CSS로 그림) ── */
-#macbook-body{
+/* 맥북 이미지 — 최상단 z-index로 항상 위에 */
+#macbook-img{
   position:absolute;
-  inset:0;
+  inset:0;width:100%;height:100%;
   pointer-events:none;
+  z-index:20;
+  user-select:none;
+  -webkit-user-drag:none;
 }
 
-/* 맥북 화면 베젤 */
-#screen-bezel{
-  position:absolute;
-  top:0; left:4%; right:4%;
-  height:72%;
-  background:#1a1a1a;
-  border-radius:8px 8px 0 0;
-}
-
-/* 맥북 화면 영역 — 파괴 일어나는 곳 */
+/* ── 화면 영역 ──
+   픽셀 분석: x 25.5~74.5%, y 16.2~68.7%
+*/
 #screen{
   position:absolute;
-  top:3.5%; left:5.5%; right:5.5%;
-  bottom:5%;
-  background:#e8f0fe;
+  left:25.5%; right:25.5%;
+  top:16.2%; bottom:31.3%;
   overflow:hidden;
-  /* macOS 바탕화면 같은 느낌 */
-  background: linear-gradient(160deg, #5b8fd4 0%, #3a6fc7 40%, #2d5aa8 100%);
+  /* macOS 바탕화면 */
+  background:linear-gradient(160deg,#4a7ec7 0%,#3567b8 50%,#2a56a0 100%);
+  z-index:1;
 }
 
 /* 화면 안 바탕화면 UI */
 #desktop-ui{
   position:absolute;inset:0;
-  pointer-events:none;
-  user-select:none;
+  pointer-events:none;user-select:none;
 }
+#menubar{
+  position:absolute;top:0;left:0;right:0;height:14%;
+  background:rgba(255,255,255,0.82);backdrop-filter:blur(4px);
+  display:flex;align-items:center;padding:0 6%;gap:8%;
+  font-size:clamp(6px,1.2vw,11px);color:#000;font-weight:700;
+}
+.menu-apple{font-size:1.4em;}
+#dock{
+  position:absolute;bottom:3%;left:50%;transform:translateX(-50%);
+  background:rgba(255,255,255,0.22);backdrop-filter:blur(6px);
+  border-radius:12px;padding:2% 3%;
+  display:flex;gap:4%;align-items:flex-end;
+  border:1px solid rgba(255,255,255,0.3);
+}
+.dock-icon{font-size:clamp(10px,2.5vw,22px);line-height:1;}
 .desktop-icon{
   position:absolute;
   display:flex;flex-direction:column;align-items:center;gap:2px;
-  color:#fff;font-size:10px;text-align:center;width:50px;
-  text-shadow:1px 1px 2px rgba(0,0,0,0.7);
+  color:#fff;font-size:clamp(7px,1.1vw,10px);text-align:center;width:12%;
+  text-shadow:1px 1px 2px rgba(0,0,0,0.8);
 }
-.desktop-icon .di{font-size:22px;}
+.desktop-icon .di{font-size:clamp(12px,2.5vw,22px);}
 
-/* macOS menubar */
-#menubar{
-  position:absolute;top:0;left:0;right:0;height:18px;
-  background:rgba(255,255,255,0.85);backdrop-filter:blur(4px);
-  display:flex;align-items:center;padding:0 8px;gap:12px;
-  font-size:9px;color:#000;font-weight:700;
-}
-.menu-apple{font-size:11px;}
-
-/* macOS dock */
-#dock{
-  position:absolute;bottom:4px;left:50%;transform:translateX(-50%);
-  background:rgba(255,255,255,0.25);backdrop-filter:blur(8px);
-  border-radius:12px;padding:3px 6px;
-  display:flex;gap:4px;align-items:flex-end;
-  border:1px solid rgba(255,255,255,0.3);
-}
-.dock-icon{font-size:16px;line-height:1;}
-
-/* 파괴 캔버스 — 화면 위에 겹침 */
+/* ── 파괴 캔버스들 ── */
 #destruction{
   position:absolute;inset:0;
-  pointer-events:none;
-  z-index:5;
+  pointer-events:none;z-index:5;
 }
-
-/* 유리 균열 오버레이 캔버스 */
 #cracks-canvas{
   position:absolute;inset:0;
-  pointer-events:none;
-  z-index:6;
+  pointer-events:none;z-index:6;
 }
 
-/* 화면 완전 박살 오버레이 */
-#smashed-overlay{
-  position:absolute;inset:0;
-  z-index:7;
-  opacity:0;
-  pointer-events:none;
+/* 화면 손상 효과 — HP에 따라 opacity 증가 */
+#damage-overlay{
+  position:absolute;inset:0;z-index:7;
+  opacity:0;pointer-events:none;
   background:
     repeating-linear-gradient(
-      45deg,
-      rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px,
-      transparent 1px, transparent 8px
+      -45deg,
+      rgba(0,0,0,0.06) 0px,rgba(0,0,0,0.06) 1px,
+      transparent 1px,transparent 7px
     );
-  transition:opacity 0.5s;
+  transition:opacity 0.3s;
+  mix-blend-mode:multiply;
 }
 
-/* 화면 클릭 이벤트 받는 투명 레이어 */
+/* 화면 완전 꺼짐 (HP 0) */
+#screen-dead{
+  position:absolute;inset:0;z-index:8;
+  background:#000;
+  opacity:0;pointer-events:none;
+  transition:opacity 0.6s;
+}
+
+/* 히트레이어 */
 #hit-layer{
   position:absolute;inset:0;
-  z-index:8;
-  cursor:none;
-}
-
-/* 맥북 하단 힌지+팜레스트 */
-#palmrest{
-  position:absolute;
-  top:72%; left:0; right:0; bottom:0;
-  background:linear-gradient(180deg, #d0d0d0 0%, #b8b8b8 40%, #c8c8c8 100%);
-  border-radius:0 0 6px 6px;
-}
-#palmrest::after{
-  content:'';position:absolute;
-  top:28%;left:35%;right:35%;bottom:20%;
-  background:linear-gradient(180deg,#c0c0c0,#b0b0b0);
-  border-radius:3px;
-  border:1px solid #a0a0a0;
-}
-/* 키보드 느낌 */
-#keyboard{
-  position:absolute;
-  top:8%;left:8%;right:8%;height:55%;
-  display:grid;
-  grid-template-columns:repeat(13,1fr);
-  grid-template-rows:repeat(4,1fr);
-  gap:1.5px;
-}
-.key{background:#d8d8d8;border-radius:1px;border-bottom:1px solid #a0a0a0;}
-
-/* 맥북 하단 바닥 그림자 */
-#macbook-shadow{
-  position:absolute;
-  bottom:-8px;left:5%;right:5%;height:16px;
-  background:radial-gradient(ellipse,rgba(0,0,0,0.25) 0%,transparent 70%);
-  pointer-events:none;
+  z-index:10;cursor:none;
 }
 
 /* ── 햄스터 커서 ── */
 #hamster-cursor{
   position:fixed;
-  width:56px;height:56px;
+  width:180px;
   pointer-events:none;
   z-index:1000;
-  transform:translate(-50%,-50%);
+  transform:translate(-38%,-62%);
   transition:none;
   image-rendering:auto;
+  filter:drop-shadow(2px 4px 6px rgba(0,0,0,0.3));
 }
+
+/* ── HP 바 ── */
+#hp-wrap{
+  position:fixed;top:16px;left:50%;transform:translateX(-50%);
+  background:rgba(255,255,255,0.95);border:1px solid #ddd;
+  border-radius:20px;padding:6px 16px;
+  display:flex;align-items:center;gap:10px;
+  z-index:100;box-shadow:0 2px 12px rgba(0,0,0,0.1);
+  min-width:200px;
+}
+#hp-label{font-size:12px;font-weight:700;white-space:nowrap;}
+#hp-bar-outer{flex:1;height:10px;background:#e0e0e0;border-radius:5px;overflow:hidden;}
+#hp-bar{height:100%;width:100%;background:linear-gradient(90deg,#4caf50,#8bc34a);border-radius:5px;transition:width 0.15s,background 0.3s;}
+#hp-num{font-size:11px;font-weight:700;min-width:36px;text-align:right;}
 
 /* ── 툴바 ── */
 #toolbar{
-  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
   display:flex;gap:8px;align-items:center;
-  background:rgba(255,255,255,0.9);
-  border:1px solid #ddd;
-  border-radius:40px;
+  background:rgba(255,255,255,0.95);
+  border:1px solid #ddd;border-radius:40px;
   padding:8px 16px;
   box-shadow:0 4px 20px rgba(0,0,0,0.12);
   z-index:100;
 }
 .tool-btn{
+  position:relative;
   width:48px;height:48px;border-radius:50%;
   border:2px solid transparent;
-  background:#f5f5f5;
-  cursor:none;
+  background:#f5f5f5;cursor:none;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   font-size:20px;gap:1px;transition:background 0.15s,border-color 0.15s;
 }
 .tool-btn .tl{font-size:8px;font-weight:700;color:#555;}
 .tool-btn:hover{background:#ebebeb;}
 .tool-btn.selected{border-color:#333;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.15);}
-
-/* 단축키 뱃지 */
 .tool-btn .sk{
   position:absolute;top:-4px;right:-4px;
-  background:#333;color:#fff;
-  border-radius:50%;width:14px;height:14px;
-  font-size:8px;display:flex;align-items:center;justify-content:center;
-  font-family:monospace;
+  background:#333;color:#fff;border-radius:50%;
+  width:14px;height:14px;font-size:8px;
+  display:flex;align-items:center;justify-content:center;font-family:monospace;
 }
 
-/* ── HP 바 ── */
-#hp-wrap{
-  position:fixed;top:20px;left:50%;transform:translateX(-50%);
-  background:rgba(255,255,255,0.9);border:1px solid #ddd;
-  border-radius:20px;padding:6px 16px;
-  display:flex;align-items:center;gap:10px;
-  z-index:100;box-shadow:0 2px 12px rgba(0,0,0,0.1);
-  min-width:220px;
-}
-#hp-label{font-size:12px;font-weight:700;white-space:nowrap;}
-#hp-bar-outer{flex:1;height:10px;background:#e0e0e0;border-radius:5px;overflow:hidden;}
-#hp-bar{height:100%;width:100%;background:linear-gradient(90deg,#4caf50,#8bc34a);border-radius:5px;transition:width 0.2s,background 0.3s;}
-#hp-num{font-size:11px;font-weight:700;min-width:36px;text-align:right;}
-
-/* ── 햄찌 말풍선 ── */
+/* ── 말풍선 ── */
 #bubble{
-  position:fixed;bottom:96px;left:50%;transform:translateX(-50%) scale(0.8);
+  position:fixed;bottom:90px;left:50%;transform:translateX(-50%) scale(0.8);
   background:#ffff88;border:2px solid #333;border-radius:12px;
   padding:8px 14px;font-size:13px;font-weight:700;
   white-space:nowrap;z-index:200;
   opacity:0;transition:opacity 0.15s,transform 0.15s;
-  pointer-events:none;
-  box-shadow:2px 2px 0 #333;
+  pointer-events:none;box-shadow:2px 2px 0 #333;
 }
 #bubble.show{opacity:1;transform:translateX(-50%) scale(1);}
 
-/* 최종박살 메시지 */
+/* ── 최종 박살 ── */
 #final-msg{
   position:fixed;inset:0;
   display:flex;align-items:center;justify-content:center;
-  z-index:500;
-  opacity:0;pointer-events:none;
-  transition:opacity 0.5s;
+  z-index:500;opacity:0;pointer-events:none;transition:opacity 0.5s;
 }
-#final-msg.show{opacity:1;}
+#final-msg.show{opacity:1;pointer-events:all;}
 #final-msg-inner{
-  background:#fff;border:3px solid #000;
-  padding:24px 40px;text-align:center;
-  box-shadow:6px 6px 0 #000;
+  background:#fff;border:3px solid #000;padding:28px 44px;
+  text-align:center;box-shadow:6px 6px 0 #000;
 }
 #final-msg-inner h2{font-size:28px;font-weight:900;margin-bottom:8px;}
 #final-msg-inner p{font-size:14px;color:#555;margin-bottom:16px;}
@@ -243,60 +196,52 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f0f0f0;font-family:
   font-size:14px;font-weight:700;cursor:pointer;
   font-family:'Noto Sans KR',sans-serif;
 }
+#restart-btn:hover{background:#333;}
+
+/* 썸네일 모드 */
+body.is-thumb #toolbar,body.is-thumb #hp-wrap,
+body.is-thumb #bubble,body.is-thumb #final-msg{display:none!important;}
 </style>
 </head>
 <body>
 
-<!-- 씬 -->
 <div id="scene">
   <div id="macbook-wrap">
-    <!-- 그림자 -->
-    <div id="macbook-shadow"></div>
-    <!-- 베젤 -->
-    <div id="screen-bezel">
-      <!-- 화면 -->
-      <div id="screen">
-        <!-- 바탕화면 UI -->
-        <div id="desktop-ui">
-          <div id="menubar">
-            <span class="menu-apple">🍎</span>
-            <span>Finder</span><span>File</span><span>Edit</span><span>View</span><span>Go</span><span>Window</span>
-          </div>
-          <!-- 아이콘들 -->
-          <div class="desktop-icon" style="right:12px;top:28px"><div class="di">🗂️</div>내 작업물</div>
-          <div class="desktop-icon" style="right:12px;top:88px"><div class="di">🗑️</div>휴지통</div>
-          <div class="desktop-icon" style="right:12px;top:148px"><div class="di">📸</div>스크린샷</div>
-          <div id="dock">
-            <div class="dock-icon">🔍</div>
-            <div class="dock-icon">📁</div>
-            <div class="dock-icon">🌐</div>
-            <div class="dock-icon">✉️</div>
-            <div class="dock-icon">🎵</div>
-            <div class="dock-icon">📝</div>
-          </div>
+
+    <!-- 화면 영역 (맥북 이미지 뒤에 위치) -->
+    <div id="screen">
+      <div id="desktop-ui">
+        <div id="menubar">
+          <span class="menu-apple">🍎</span>
+          <span>Finder</span><span>File</span><span>Edit</span><span>View</span>
         </div>
-        <!-- 파괴 캔버스들 -->
-        <canvas id="destruction"></canvas>
-        <canvas id="cracks-canvas"></canvas>
-        <div id="smashed-overlay"></div>
-        <!-- 클릭 레이어 -->
-        <div id="hit-layer"></div>
+        <div class="desktop-icon" style="right:4%;top:16%"><div class="di">🗂️</div>작업물</div>
+        <div class="desktop-icon" style="right:4%;top:40%"><div class="di">🗑️</div>휴지통</div>
+        <div id="dock">
+          <div class="dock-icon">🔍</div>
+          <div class="dock-icon">📁</div>
+          <div class="dock-icon">🌐</div>
+          <div class="dock-icon">✉️</div>
+          <div class="dock-icon">🎵</div>
+        </div>
       </div>
+      <canvas id="destruction"></canvas>
+      <canvas id="cracks-canvas"></canvas>
+      <div id="damage-overlay"></div>
+      <div id="screen-dead"></div>
+      <div id="hit-layer"></div>
     </div>
-    <!-- 팜레스트 -->
-    <div id="palmrest">
-      <div id="keyboard">
-        <!-- 키 60개 정도 -->
-        <script>for(var _k=0;_k<52;_k++) document.write('<div class="key"></div>');</script>
-      </div>
-    </div>
+
+    <!-- 맥북 이미지 (화면 위에 올라와 베젤 가림) -->
+    <img id="macbook-img" src="macbook.png" alt="macbook" draggable="false"/>
+
   </div>
 </div>
 
 <!-- 햄스터 커서 -->
-<img id="hamster-cursor" src="Hamster.png" alt="hamster"/>
+<img id="hamster-cursor" src="Hamster.png" alt="hamster" draggable="false"/>
 
-<!-- HP 바 -->
+<!-- HP -->
 <div id="hp-wrap">
   <div id="hp-label">🖥️ 맥북 HP</div>
   <div id="hp-bar-outer"><div id="hp-bar"></div></div>
@@ -305,22 +250,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f0f0f0;font-family:
 
 <!-- 툴바 -->
 <div id="toolbar">
-  <div style="position:relative">
-    <button class="tool-btn selected" id="btn-claw" title="발톱 (Q)">🐾<div class="tl">발톱</div>
-    <span class="sk">Q</span></button>
-  </div>
-  <div style="position:relative">
-    <button class="tool-btn" id="btn-bomb" title="씨폭탄 (W)">🌻<div class="tl">씨폭탄</div>
-    <span class="sk">W</span></button>
-  </div>
-  <div style="position:relative">
-    <button class="tool-btn" id="btn-flame" title="화염 (E)">🔥<div class="tl">화염</div>
-    <span class="sk">E</span></button>
-  </div>
-  <div style="position:relative">
-    <button class="tool-btn" id="btn-fist" title="주먹 (R)">👊<div class="tl">주먹</div>
-    <span class="sk">R</span></button>
-  </div>
+  <div><button class="tool-btn selected" id="btn-claw">🐾<div class="tl">발톱</div><span class="sk">Q</span></button></div>
+  <div><button class="tool-btn" id="btn-bomb">🌻<div class="tl">씨폭탄</div><span class="sk">W</span></button></div>
+  <div><button class="tool-btn" id="btn-flame">🔥<div class="tl">화염</div><span class="sk">E</span></button></div>
+  <div><button class="tool-btn" id="btn-fist">👊<div class="tl">주먹</div><span class="sk">R</span></button></div>
 </div>
 
 <!-- 말풍선 -->
