@@ -72,6 +72,82 @@ function applyShake(){
 }
 
 // ── HP & 데미지 ──
+// 손상 단계: 0=정상, 1=약손상(~75), 2=중손상(~50), 3=심손상(~25), 4=붕괴(~10), 5=사망(0)
+var damageStage = 0;
+
+// 맥북 이미지 단계별 변형
+var STAGE_TRANSFORMS = [
+  // stage 0: 정상
+  { img: 'none', screen: 'linear-gradient(160deg,#4a7ec7 0%,#3567b8 50%,#2a56a0 100%)' },
+  // stage 1: 약손상 — 살짝 기울기
+  { img: 'rotate(-0.8deg) skewX(0.5deg)', screen: 'linear-gradient(160deg,#5a7ec0 0%,#4060aa 50%,#3050a0 100%)' },
+  // stage 2: 중손상 — 더 기울고 찌그러짐
+  { img: 'rotate(-2deg) skewX(1.5deg) scaleY(0.97)', screen: 'linear-gradient(160deg,#7060b0 0%,#6050a8 50%,#5040a0 100%)' },
+  // stage 3: 심손상 — 크게 뒤틀림
+  { img: 'rotate(-4deg) skewX(3deg) skewY(-1deg) scaleY(0.94)', screen: 'linear-gradient(160deg,#903060 0%,#802878 50%,#601870 100%)' },
+  // stage 4: 붕괴 — 심하게 변형
+  { img: 'rotate(-7deg) skewX(5deg) skewY(-2deg) scaleY(0.88) scaleX(0.97)', screen: 'linear-gradient(160deg,#400010 0%,#300020 50%,#200030 100%)' },
+  // stage 5: 사망
+  { img: 'rotate(-10deg) skewX(8deg) skewY(-3deg) scaleY(0.80) scaleX(0.93)', screen: '#000' },
+];
+
+function updateDamageStage() {
+  var newStage;
+  if      (hp > 75) newStage = 0;
+  else if (hp > 50) newStage = 1;
+  else if (hp > 25) newStage = 2;
+  else if (hp > 10) newStage = 3;
+  else if (hp > 0)  newStage = 4;
+  else              newStage = 5;
+
+  if (newStage !== damageStage) {
+    damageStage = newStage;
+    applyDamageStage();
+    if (newStage > 0) autoScreenCrack(newStage);
+  }
+}
+
+function applyDamageStage() {
+  var s = STAGE_TRANSFORMS[damageStage];
+  var macImg = document.getElementById('macbook-img');
+
+  // 맥북 이미지 변형
+  macImg.style.transition = 'transform 0.3s cubic-bezier(0.25,0.46,0.45,0.94), filter 0.3s';
+  if (s.img === 'none') {
+    macImg.style.transform = '';
+    macImg.style.filter = '';
+  } else {
+    macImg.style.transform = s.img;
+    // 손상 단계별 필터 추가
+    var blur   = [0, 0, 0.3, 0.6, 1.0, 1.5][damageStage];
+    var bright = [1, 0.97, 0.93, 0.88, 0.75, 0.5][damageStage];
+    macImg.style.filter = 'blur('+blur+'px) brightness('+bright+')';
+  }
+
+  // 화면 배경색 변화
+  screenEl.style.transition = 'background 0.5s';
+  screenEl.style.background = s.screen;
+
+  // 화면 깜빡임 효과 (stage 2 이상)
+  if (damageStage >= 2) {
+    screenFlicker();
+  }
+}
+
+var flickerTimer = null;
+function screenFlicker() {
+  clearTimeout(flickerTimer);
+  var times = damageStage >= 4 ? 6 : 3;
+  var interval = 80;
+  var count = 0;
+  function doFlicker() {
+    if (count++ >= times * 2) return;
+    screenEl.style.opacity = (count % 2 === 0) ? '1' : String(0.3 + Math.random() * 0.4);
+    flickerTimer = setTimeout(doFlicker, interval + Math.random() * 60);
+  }
+  doFlicker();
+}
+
 function damage(v, tool){
   if(hp<=0) return;
   hp = Math.max(0, hp-v);
@@ -82,40 +158,38 @@ function damage(v, tool){
   else if(pct>30) hpBar.style.background='linear-gradient(90deg,#ff9800,#ffc107)';
   else hpBar.style.background='linear-gradient(90deg,#f44336,#e91e63)';
 
-  // 화면 손상 오버레이 (HP 낮을수록 강해짐)
-  damageOv.style.opacity = Math.pow(1-pct/100, 1.5) * 0.85;
+  // 화면 손상 오버레이
+  damageOv.style.opacity = Math.pow(1-pct/100, 1.8) * 0.9;
 
-  // HP 단계별 자동 균열 추가
-  if(pct<=75 && pct>70) autoScreenCrack(1);
-  else if(pct<=50 && pct>45) autoScreenCrack(2);
-  else if(pct<=25 && pct>20) autoScreenCrack(3);
+  updateDamageStage();
 
   if(hp<=0) triggerDeath();
   if(tool && Math.random()<0.22) showBubble(tool);
 }
 
 function autoScreenCrack(level){
-  var count = level*3;
+  var count = level * 2 + 2;
   for(var i=0;i<count;i++){
-    var x=rnd(SW*0.1,SW*0.9), y=rnd(SH*0.1,SH*0.9);
-    addCrackPoint(x,y,rnd(30+level*15,60+level*20),level>=3);
+    var x=rnd(SW*0.08,SW*0.92), y=rnd(SH*0.08,SH*0.92);
+    addCrackPoint(x,y,rnd(25+level*12,50+level*18),level>=3);
   }
   redrawCracks();
 }
 
 function triggerDeath(){
   // 화면 전체 균열 + 꺼짐
-  for(var i=0;i<16;i++){
-    addCrackPoint(rnd(SW*0.05,SW*0.95),rnd(SH*0.05,SH*0.95),rnd(40,100),true);
+  for(var i=0;i<20;i++){
+    addCrackPoint(rnd(SW*0.05,SW*0.95),rnd(SH*0.05,SH*0.95),rnd(40,110),true);
   }
   redrawCracks();
-  // 화면 꺼짐 (검게)
   setTimeout(function(){
-    screenDead.style.opacity='0.92';
-  }, 400);
+    screenDead.style.opacity='0.95';
+  }, 600);
+  // 맥북 최종 변형 적용
+  applyDamageStage();
   bubbleEl.textContent='🐹 개박살!!';
   bubbleEl.classList.add('show');
-  setTimeout(function(){ finalMsg.classList.add('show'); }, 1200);
+  setTimeout(function(){ finalMsg.classList.add('show'); }, 1400);
 }
 
 function showBubble(tool){
@@ -127,17 +201,22 @@ function showBubble(tool){
 }
 
 restartBtn.addEventListener('click', function(){
-  hp=100; crackPoints=[]; clawMarks=[]; seedParts=[]; flameParts=[]; flamePixBuf=[]; flamePrev=null;
+  hp=100; damageStage=0; crackPoints=[]; clawMarks=[]; seedParts=[]; flameParts=[]; flamePixBuf=[]; flamePrev=null;
   hpBar.style.width='100%';
   hpBar.style.background='linear-gradient(90deg,#4caf50,#8bc34a)';
   hpNum.textContent='100';
   damageOv.style.opacity='0';
   screenDead.style.opacity='0';
+  screenEl.style.opacity='1';
   finalMsg.classList.remove('show');
   bubbleEl.classList.remove('show');
   dCtx.clearRect(0,0,SW,SH);
   cCtx.clearRect(0,0,SW,SH);
   macbookWrap.style.transform='';
+  // 맥북 이미지 초기화
+  var macImg = document.getElementById('macbook-img');
+  macImg.style.transform=''; macImg.style.filter='';
+  screenEl.style.background='linear-gradient(160deg,#4a7ec7 0%,#3567b8 50%,#2a56a0 100%)';
 });
 
 // ══════════════════════════════
