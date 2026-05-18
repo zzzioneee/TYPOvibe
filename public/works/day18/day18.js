@@ -81,6 +81,10 @@ function spawnFire(x,y){
 }
 
 function renderFireParticles(){
+  if(fireParticles.length===0)return;
+  // MB clip 안에서만 불꽃 표시
+  ctx.save();
+  ctx.beginPath();ctx.rect(MB.x,MB.y,MB.w,MB.h);ctx.clip();
   fireParticles=fireParticles.filter(function(p){
     p.x+=p.vx; p.y+=p.vy;
     p.vy-=0.14; p.vx*=0.96;
@@ -107,6 +111,7 @@ function renderFireParticles(){
     ctx.globalAlpha=1;ctx.restore();
     return true;
   });
+  ctx.restore();
 }
 
 // ─── 타격 효과 (dmgC에 누적) ─────────────────
@@ -343,7 +348,9 @@ function draw(){
   // 불 파티클
   renderFireParticles();
 
-  // 파티클 (충격 파편)
+  // 파티클 (충격 파편) — MB clip 안에서만
+  ctx.save();
+  ctx.beginPath();ctx.rect(MB.x,MB.y,MB.w,MB.h);ctx.clip();
   sparks=sparks.filter(function(p){
     p.x+=p.vx;p.y+=p.vy;
     if(p.seed){p.vy+=0.4;p.vx*=0.96;}
@@ -365,6 +372,7 @@ function draw(){
     }
     ctx.globalAlpha=1;return true;
   });
+  ctx.restore(); // sparks MB clip 해제
 }
 
 // ─── 재시작 ──────────────────────────────────
