@@ -19,6 +19,9 @@ var dmgX=dmgC.getContext('2d');
 var macImg=new Image(); macImg.src='macbook.png'; var macLoaded=false;
 macImg.onload=function(){macLoaded=true;};
 
+var bgImg=new Image(); bgImg.src='Background.png'; var bgLoaded=false;
+bgImg.onload=function(){bgLoaded=true;};
+
 var CW=0,CH=0,SR={},MB={};
 function resize(){
   var vw=window.innerWidth,vh=window.innerHeight,ratio=MB_W/MB_H,w,h;
@@ -211,21 +214,15 @@ function updShake(){
 }
 
 // ─── 화면 내용 ───────────────────────────────
-var SCL=['#3d6bb5','#5a4a9a','#7a2555','#200010','#000000'];
 function drawScreen(){
   var sx=SR.x,sy=SR.y,sw=SR.w,sh=SR.h;
-  // 화면 전체를 검정으로 채움
+  // 검정 배경
   ctx.fillStyle='#000';
   ctx.fillRect(sx,sy,sw,sh);
-  // "줘패" 크게
-  var fs=Math.round(sh*0.55);
-  ctx.fillStyle='#fff';
-  ctx.font='900 '+fs+'px "Noto Sans KR", "Apple SD Gothic Neo", sans-serif';
-  ctx.textAlign='center';
-  ctx.textBaseline='middle';
-  ctx.fillText('줘패',sx+sw/2,sy+sh/2);
-  ctx.textAlign='left';
-  ctx.textBaseline='alphabetic';
+  // Background.png를 화면에 꽉 차게
+  if(bgLoaded){
+    ctx.drawImage(bgImg,sx,sy,sw,sh);
+  }
 }
 
 // ─── 렌더 루프 ───────────────────────────────
