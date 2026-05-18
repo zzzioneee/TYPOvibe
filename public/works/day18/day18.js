@@ -46,10 +46,11 @@ var shakeX=0,shakeY=0,shakeAmt=0;
 var sparks=[];
 var slashSegs=[]; // {x1,y1,x2,y2} 발톱 자국 선분
 
-var MSGS={claw:['으드득!!','찢어버려!!'],
-          flame:['불이야!!','화염방사!!','타버려!!'],
-          fist:['주먹이다!!','햄찌 어퍼컷!!','쾅쾅쾅!!']};
-
+var MSGS={
+  claw: ['앵그리빡빡','줘패버려','학씨!','앵그리 그리뱅뱅','시무룩물나'],
+  flame:['불이야!!','앵그리빡빡','줘패버려'],
+  fist: ['앵그리빡빡','앵그리 그리뱅뱅','줘패버려','학씨!','시무룩물나','시르시르 시르탱'],
+};
 // 불 파티클
 // 화염 경로 큐 (딜레이 후 불꽃)
 var flameQueue=[];
@@ -430,7 +431,13 @@ document.addEventListener('keydown',function(e){
   if(k==='w')TB.flame.click();
   if(k==='e')TB.fist.click();
 });
-document.addEventListener('mousemove',function(e){cursorEl.style.left=e.clientX+'px';cursorEl.style.top=e.clientY+'px';});
+document.addEventListener('mousemove',function(e){
+  cursorEl.style.left=e.clientX+'px';
+  cursorEl.style.top=e.clientY+'px';
+  // 말풍선: 햄스터 오른쪽 상단에 고정으로 따라다님
+  bubbleEl.style.left=(e.clientX+55)+'px';
+  bubbleEl.style.top=(e.clientY-115)+'px';
+});
 
 function toC(e){var t=e.touches?e.touches[0]:e;return toCv(t.clientX,t.clientY);}
 canvas.addEventListener('mousedown',function(e){
