@@ -46,8 +46,68 @@ var shakeX=0,shakeY=0,shakeAmt=0;
 var sparks=[];
 var slashSegs=[]; // {x1,y1,x2,y2} 발톱 자국 선분
 
-var MSGS={claw:['으드득!!','찢어버려!!'],bomb:['쾅!!','폭발이다!!'],
-          flame:['불이야!!','타버려!!'],fist:['주먹이다!!','햄찌 어퍼컷!!']};
+var MSGS={claw:['으드득!!','찢어버려!!'],
+          flame:['불이야!!','화염방사!!','타버려!!'],
+          fist:['주먹이다!!','햄찌 어퍼컷!!','쾅쾅쾅!!']};
+
+// 불 파티클
+var fireParticles=[];
+function spawnFire(x,y){
+  var count=rndI(10,18);
+  for(var i=0;i<count;i++){
+    var angle=rnd(-Math.PI*0.85,-Math.PI*0.15);
+    var speed=rnd(2,6);
+    fireParticles.push({
+      x:x+rnd(-10,10), y:y+rnd(-4,4),
+      vx:Math.cos(angle)*speed*0.3+rnd(-0.5,0.5),
+      vy:Math.sin(angle)*speed,
+      life:1.0, maxLife:rnd(0.5,1.0),
+      size:rnd(10,28),
+      type:Math.random()<0.35?'ember':'flame',
+    });
+  }
+  withMBClip(function(){
+    dmgX.fillStyle='rgba(0,0,0,0.5)';
+    dmgX.beginPath();
+    var n=rndI(4,6);
+    for(var j=0;j<n;j++){
+      var a=(j/n)*Math.PI*2+rnd(-0.4,0.4);
+      var r=rndI(8,16)*rnd(0.6,1.0);
+      if(j===0)dmgX.moveTo(x+Math.cos(a)*r,y+Math.sin(a)*r);
+      else dmgX.lineTo(x+Math.cos(a)*r,y+Math.sin(a)*r);
+    }
+    dmgX.closePath();dmgX.fill();
+  });
+}
+
+function renderFireParticles(){
+  fireParticles=fireParticles.filter(function(p){
+    p.x+=p.vx; p.y+=p.vy;
+    p.vy-=0.14; p.vx*=0.96;
+    p.life-=0.030/p.maxLife;
+    if(p.life<=0)return false;
+    var t=p.life;
+    ctx.save();
+    if(p.type==='ember'){
+      ctx.globalAlpha=t;
+      ctx.fillStyle=t>0.5?'#ffffff':'#ffdd00';
+      ctx.beginPath();ctx.arc(p.x,p.y,p.size*0.2*t,0,Math.PI*2);ctx.fill();
+    }else{
+      var sz=p.size*t;
+      ctx.globalAlpha=t*0.9;
+      ctx.fillStyle='#ffffff';
+      ctx.beginPath();ctx.arc(p.x,p.y,sz*0.3,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=t*0.65;
+      ctx.fillStyle=t>0.5?'#ffee44':'#ff8800';
+      ctx.beginPath();ctx.arc(p.x,p.y,sz*0.6,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=t*0.3;
+      ctx.fillStyle='#ff2200';
+      ctx.beginPath();ctx.arc(p.x,p.y,sz,0,Math.PI*2);ctx.fill();
+    }
+    ctx.globalAlpha=1;ctx.restore();
+    return true;
+  });
+}
 
 // ─── 타격 효과 (dmgC에 누적) ─────────────────
 // 공통: 맥북 안에만 그리도록 dmgX에 clip 적용
@@ -171,25 +231,13 @@ function startClaw(x,y){doClaw(x,y);}
 function moveClaw(){} // 클릭 방식이므로 drag 없음
 function endClaw(){}
 
-function doBomb(x,y){
-  stampImpact(x,y,rndI(40,65));
-  for(var i=0;i<rndI(10,16);i++){
-    var a=(i/16)*Math.PI*2+rnd(-0.2,0.2);
-    sparks.push({x,y,vx:Math.cos(a)*rnd(4,12),vy:Math.sin(a)*rnd(4,12)-rnd(0,3),
-      life:1,sz:rnd(2,6),col:'#3a2200',seed:true});
-  }
-  damage(rndI(10,16),'bomb');doShake(20);showBubble('bomb');
-}
-
 var flameAcc=0;
 function doFlame(x,y,drag){
   if(!drag){flamePrev={x,y};flameAcc=0;return;}
   if(!flamePrev)return;
   flameAcc+=Math.hypot(x-flamePrev.x,y-flamePrev.y);
-  if(flameAcc>8){
-    addScorch(x,y);
-    sparks.push({x,y,vx:rnd(-1,1),vy:rnd(-3,-0.5),life:1,sz:rndI(5,11),
-      col:Math.random()<0.6?'#ff8800':'#ffee00',fire:true});
+  if(flameAcc>6){
+    spawnFire(x,y);
     flameAcc=0;
   }
   damage(0.35,'flame');flamePrev={x,y};
@@ -292,7 +340,10 @@ function draw(){
 
   ctx.restore();
 
-  // 파티클
+  // 불 파티클
+  renderFireParticles();
+
+  // 파티클 (충격 파편)
   sparks=sparks.filter(function(p){
     p.x+=p.vx;p.y+=p.vy;
     if(p.seed){p.vy+=0.4;p.vx*=0.96;}
@@ -328,8 +379,9 @@ function fullReset(){
 restartBtn.addEventListener('click',fullReset);
 
 // ─── 툴 & 이벤트 ─────────────────────────────
-var TB={claw:document.getElementById('btn-claw'),bomb:document.getElementById('btn-bomb'),
-        flame:document.getElementById('btn-flame'),fist:document.getElementById('btn-fist')};
+var TB={claw:document.getElementById('btn-claw'),
+        flame:document.getElementById('btn-flame'),
+        fist:document.getElementById('btn-fist')};
 Object.keys(TB).forEach(function(k){
   TB[k].addEventListener('click',function(){
     tool=k;Object.keys(TB).forEach(function(j){TB[j].classList.toggle('selected',j===k);});
@@ -339,8 +391,9 @@ Object.keys(TB).forEach(function(k){
 });
 document.addEventListener('keydown',function(e){
   var k=e.key.toLowerCase();
-  if(k==='q')TB.claw.click();if(k==='w')TB.bomb.click();
-  if(k==='e')TB.flame.click();if(k==='r')TB.fist.click();
+  if(k==='q')TB.claw.click();
+  if(k==='w')TB.flame.click();
+  if(k==='e')TB.fist.click();
 });
 document.addEventListener('mousemove',function(e){cursorEl.style.left=e.clientX+'px';cursorEl.style.top=e.clientY+'px';});
 
@@ -349,7 +402,7 @@ canvas.addEventListener('mousedown',function(e){
   if(hp<=0)return;isDown=true;flamePrev=null;cursorEl.src='Hamster-punch.png';
   var p=toC(e);
   if(tool==='claw')startClaw(p.x,p.y);
-  else if(tool==='bomb')doBomb(p.x,p.y);
+  
   else if(tool==='flame')doFlame(p.x,p.y,false);
   else if(tool==='fist')doFist(p.x,p.y);
 });
@@ -365,7 +418,7 @@ canvas.addEventListener('touchstart',function(e){
   e.preventDefault();if(hp<=0)return;isDown=true;flamePrev=null;
   var p=toC(e);
   if(tool==='claw')startClaw(p.x,p.y);
-  else if(tool==='bomb')doBomb(p.x,p.y);
+  
   else if(tool==='flame')doFlame(p.x,p.y,false);
   else if(tool==='fist')doFist(p.x,p.y);
 },{passive:false});
