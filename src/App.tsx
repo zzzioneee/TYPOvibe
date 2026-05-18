@@ -16,6 +16,7 @@ import Day014 from './works/day14'
 import Day015 from './works/day15'
 import Day016 from './works/day16'
 import Day017 from './works/day17'
+import Day018 from './works/day18'
 
 type View = 'home' | string
 
@@ -190,6 +191,16 @@ const WORKS = [
     ratio: '4 / 3',
     bgTheme: 'dark' as const,
   },
+  {
+    id: 'day18',
+    day: '18',
+    date: '2026.05.19',
+    title: '말하면 그려줌',
+    desc: '음성으로 장면을 설명하면 GPT-Image-1이 세상에서 가장 하찮은 그림판 스타일로 그려준다.',
+    tags: ['Voice', 'GPT-Image-1', 'Web Speech API'],
+    ratio: '4 / 3',
+    bgTheme: 'light' as const,
+  },
 ]
 
 export default function App() {
@@ -257,6 +268,7 @@ export default function App() {
           {view === 'day15' && <Day015 />}
           {view === 'day16' && <Day016 />}
           {view === 'day17' && <Day017 />}
+          {view === 'day18' && <Day018 />}
         </main>
       </div>
     )
