@@ -444,7 +444,7 @@ export default function App() {
                     background: 'rgba(255,255,255,0.8)',
                     pointerEvents: 'none',
                     opacity: selectedId && selectedId !== work.id ? 1 : 0,
-                    transition: 'opacity 0.4s ease-in-out',
+                    transition: 'opacity 0.6s ease-in-out',
                   }} />
 
                   {/* 호버 오버레이 — 합의된 텍스트 규칙 */}
