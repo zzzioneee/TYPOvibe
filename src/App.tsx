@@ -17,6 +17,7 @@ import Day015 from './works/day15'
 import Day016 from './works/day16'
 import Day017 from './works/day17'
 import Day018 from './works/day18'
+import Day019 from './works/day19'
 
 type View = 'home' | string
 
@@ -201,6 +202,16 @@ const WORKS = [
     ratio: '4 / 3',
     bgTheme: 'light' as const,
   },
+  {
+    id: 'day19',
+    day: '19',
+    date: '2026.05.20',
+    title: '똑똑, 울산에 자리 있나요?',
+    desc: '태화강 철새 36.5% 증가. 방사형 이동경로를 따라 111종의 철새들이 날아다니는 인터랙티브.',
+    tags: ['Canvas', 'Leaflet', 'Data'],
+    ratio: '4 / 3',
+    bgTheme: 'dark' as const,
+  },
 ]
 
 export default function App() {
@@ -271,6 +282,7 @@ export default function App() {
           {view === 'day16' && <Day016 />}
           {view === 'day17' && <Day017 />}
           {view === 'day18' && <Day018 />}
+          {view === 'day19' && <Day019 />}
         </main>
       </div>
     )

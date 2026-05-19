@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Day 19 — 똑똑, 울산에 자리 있나요?</title>
+
+  <!-- Google Fonts Pretendard -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { overflow:hidden; background:#0a0f1a; }
+    #map { position:fixed; inset:0; z-index:0; }
+
+    /* 지도 타일 필터 제거 (CartoDB Dark이 이미 어두움) */
+    /* .leaflet-tile { filter:brightness(0.35) saturate(0.6) hue-rotate(180deg); } */
+
+    #cvs {
+      position:fixed; inset:0; z-index:10;
+      pointer-events:none;
+    }
+
+    /* ── 컨트롤 패널 ── */
+    #panel {
+      position:fixed; top:20px; right:20px; z-index:100;
+      background:rgba(0,0,0,0.6);
+      backdrop-filter:blur(12px);
+      border:1px solid rgba(255,255,255,0.1);
+      border-radius:12px; padding:16px 18px; width:200px;
+      color:#fff; font:12px/1.6 'Helvetica Neue',sans-serif;
+    }
+    #panel h3 { font-size:10px; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.45); margin-bottom:12px; }
+    .ctrl { margin-bottom:11px; }
+    .ctrl label { display:flex; justify-content:space-between; font-size:11px; color:rgba(255,255,255,.7); margin-bottom:4px; }
+    .ctrl label span { color:rgba(255,255,255,.4); font-size:10px; }
+    input[type=range] { -webkit-appearance:none; width:100%; height:2px; background:rgba(255,255,255,.18); outline:none; cursor:pointer; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:10px; height:10px; border-radius:50%; background:#7de8c8; cursor:pointer; }
+
+
+    /* ── 타이틀 (좌상단) ── */
+    #title {
+      position:fixed; top:28px; left:48px; z-index:100;
+      pointer-events:none;
+      font-family: 'Noto Sans KR', 'Pretendard', sans-serif;
+    }
+    #title h1 {
+      font-size:clamp(32px, 4vw, 58px);
+      font-weight:900;
+      line-height:1.08;
+      color:#fff;
+      margin:0 0 12px 0;
+      letter-spacing:-0.01em;
+      word-break:keep-all;
+      font-stretch:expanded;
+    }
+    #title .stats {
+      font-size:14px; font-weight:700;
+      color:rgba(255,255,255,0.75);
+      line-height:2.0; letter-spacing:0.01em;
+    }
+
+    /* ── 하단 info 제거 ── */
+    #info { display:none; }
+
+    /* ── 목적지 마커 커스텀 ── */
+    .hub-marker { background:transparent; border:none; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <canvas id="cvs"></canvas>
+
+  <div id="panel">
+    <h3>✦ Controls</h3>
+    <div class="ctrl">
+      <label>Count <span id="lbl-count">200</span></label>
+      <input type="range" id="sl-count" min="20" max="400" value="200">
+    </div>
+    <div class="ctrl">
+      <label>Speed <span id="lbl-speed">1.0×</span></label>
+      <input type="range" id="sl-speed" min="0.2" max="5.0" step="0.1" value="1.0">
+    </div>
+    <div class="ctrl">
+      <label>Bird Size <span id="lbl-size">1.0×</span></label>
+      <input type="range" id="sl-size" min="0.3" max="3.0" step="0.1" value="1.0">
+    </div>
+
+    <button id="btn-reset">⌂ 울산으로 돌아가기</button>
+  </div>
+
+  <div id="title">
+    <h1>똑똑,<br>울산에 자리 있나요?</h1>
+    <div class="stats">
+      25년 기준 태화강 철새 36.5% 증가<br>
+      111종 총 121,733마리
+    </div>
+  </div>
+
+  <div id="info"></div>
+
+  <script src="./day19.js"></script>
+</body>
+</html>
