@@ -5,3 +5,9 @@ dist/
 *.mid
 2  1-2.md
 *.stl
+
+# 환경변수 / 시크릿
+.env
+.env.*
+*.env
+secrets/

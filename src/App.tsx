@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import Day001 from './works/day1'
 import Day002 from './works/day2'
 import Day003 from './works/day3'
@@ -211,6 +211,8 @@ export default function App() {
   }
   const [view, setView] = useState<View>(getViewFromHash)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const dimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // view 바뀌면 URL hash 업데이트
   const changeView = (v: View) => {
@@ -347,17 +349,20 @@ export default function App() {
                   onClick={() => {
                     const el = document.getElementById(`thumb-${item.id}`)
                     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                    if (dimTimerRef.current) clearTimeout(dimTimerRef.current)
+                    setSelectedId(item.id)
+                    dimTimerRef.current = setTimeout(() => setSelectedId(null), 600)
                   }}
                   style={{
                     fontSize: '16px',
-                    fontWeight: 400,
+                    fontWeight: selectedId === item.id ? 700 : 400,
                     color: '#111',
                     cursor: 'pointer',
-                    transition: 'font-weight 0.2s, font-size 0.2s',
+                    transition: 'font-weight 0.1s, font-size 0.1s',
                     wordBreak: 'keep-all',
                   }}
                   onMouseEnter={e => { e.currentTarget.style.fontWeight = '700'; e.currentTarget.style.fontSize = '18px'; }}
-                  onMouseLeave={e => { e.currentTarget.style.fontWeight = '400'; e.currentTarget.style.fontSize = '16px'; }}
+                  onMouseLeave={e => { e.currentTarget.style.fontWeight = selectedId === item.id ? '700' : '400'; e.currentTarget.style.fontSize = '16px'; }}
                 >
                   {item.title}
                 </li>
@@ -432,6 +437,15 @@ export default function App() {
                     tabIndex={-1}
                     title={work.title}
                   />
+
+                  {/* 선택 dim 오버레이 — 선택된 항목 외 나머지에 #fff 80% */}
+                  <div style={{
+                    position: 'absolute', inset: 0,
+                    background: 'rgba(255,255,255,0.8)',
+                    pointerEvents: 'none',
+                    opacity: selectedId && selectedId !== work.id ? 1 : 0,
+                    transition: 'opacity 0.4s ease-in-out',
+                  }} />
 
                   {/* 호버 오버레이 — 합의된 텍스트 규칙 */}
                   <div style={{
