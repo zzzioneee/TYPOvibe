@@ -52,7 +52,87 @@ var MSGS={
   fist: ['앵그리빡빡','앵그리 그리뱅뱅','줘패버려','학씨!','시무룩물나','시르시르 시르탱','날려버려','알아서 할게요','찢어버려'],
 };
 // 불 파티클
-// 화염 경로 큐 (딜레이 후 불꽃)
+// ── 효과음 (Web Audio API 합성) ──
+var audioCtx=null;
+function getAudioCtx(){
+  if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  return audioCtx;
+}
+
+// 발톱: 고주파 화이트노이즈 짧게 (삭삭)
+function playClaw(){
+  try{
+    var ac=getAudioCtx();
+    var buf=ac.createBuffer(1,ac.sampleRate*0.12,ac.sampleRate);
+    var d=buf.getChannelData(0);
+    for(var i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,1.5);
+    var src=ac.createBufferSource();
+    src.buffer=buf;
+    var filter=ac.createBiquadFilter();
+    filter.type='highpass'; filter.frequency.value=3000;
+    var gain=ac.createGain();
+    gain.gain.setValueAtTime(0.6,ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+0.12);
+    src.connect(filter);filter.connect(gain);gain.connect(ac.destination);
+    src.start();
+  }catch(e){}
+}
+
+// 불: 저주파 노이즈 연속 (우우웅)
+var fireSound=null;
+function startFire(){
+  try{
+    var ac=getAudioCtx();
+    if(fireSound)return;
+    var bufLen=ac.sampleRate*0.5;
+    var buf=ac.createBuffer(1,bufLen,ac.sampleRate);
+    var d=buf.getChannelData(0);
+    for(var i=0;i<d.length;i++) d[i]=Math.random()*2-1;
+    var src=ac.createBufferSource();
+    src.buffer=buf; src.loop=true;
+    var filter=ac.createBiquadFilter();
+    filter.type='lowpass'; filter.frequency.value=400;
+    var gain=ac.createGain();
+    gain.gain.setValueAtTime(0,ac.currentTime);
+    gain.gain.linearRampToValueAtTime(0.35,ac.currentTime+0.1);
+    src.connect(filter);filter.connect(gain);gain.connect(ac.destination);
+    src.start();
+    fireSound={src,gain};
+  }catch(e){}
+}
+function stopFire(){
+  try{
+    if(!fireSound)return;
+    var ac=getAudioCtx();
+    fireSound.gain.gain.linearRampToValueAtTime(0,ac.currentTime+0.2);
+    var fs=fireSound; fireSound=null;
+    setTimeout(function(){try{fs.src.stop();}catch(e){}},300);
+  }catch(e){}
+}
+
+// 펀치: 저주파 쿵 (퍽)
+function playFist(){
+  try{
+    var ac=getAudioCtx();
+    var osc=ac.createOscillator();
+    osc.type='sine';
+    osc.frequency.setValueAtTime(180,ac.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(40,ac.currentTime+0.15);
+    var gain=ac.createGain();
+    gain.gain.setValueAtTime(0.9,ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+0.18);
+    // 노이즈 레이어 (퍽 텍스처)
+    var buf=ac.createBuffer(1,ac.sampleRate*0.08,ac.sampleRate);
+    var d=buf.getChannelData(0);
+    for(var i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2);
+    var nSrc=ac.createBufferSource(); nSrc.buffer=buf;
+    var nGain=ac.createGain(); nGain.gain.value=0.5;
+    nSrc.connect(nGain);nGain.connect(ac.destination);
+    nSrc.start();
+    osc.connect(gain);gain.connect(ac.destination);
+    osc.start();osc.stop(ac.currentTime+0.2);
+  }catch(e){}
+}
 var flameQueue=[];
 var FLAME_DELAY=200;
 var flamePathPts=[];
@@ -234,6 +314,7 @@ function doClaw(x,y){
   });
   damage(rndI(1,2)); // claw
   doShake(6);
+  playClaw();
   showBubble('claw');
   doShake(6);
 }
@@ -244,7 +325,7 @@ function endClaw(){}
 
 var flameAcc=0;
 function doFlame(x,y,drag){
-  if(!drag){flamePrev={x,y};flameAcc=0;flamePathPts=[];return;}
+  if(!drag){flamePrev={x,y};flameAcc=0;flamePathPts=[];startFire();return;}
   if(!flamePrev)return;
   var dist=Math.hypot(x-flamePrev.x,y-flamePrev.y);
   flameAcc+=dist;
@@ -287,7 +368,8 @@ function doFist(x,y){
   }
   damage(rndI(3,5));
   doShake(26);
-  showBubble('fist'); // 펀치할 때마다 항상
+  playFist();
+  showBubble('fist');
 }
 
 // ─── HP ─────────────────────────────────────
@@ -463,7 +545,7 @@ canvas.addEventListener('mousemove',function(e){
 document.addEventListener('mouseup',function(){
   if(!isDown)return;isDown=false;flamePrev=null;cursorEl.src='Hamster.png';
   if(tool==='claw')endClaw();
-  if(tool==='flame')showBubble('flame'); // 손 뗄 때 문구 교체
+  if(tool==='flame'){stopFire();showBubble('flame');}// 손 뗄 때 문구 교체
 });
 canvas.addEventListener('touchstart',function(e){
   e.preventDefault();if(hp<=0)return;isDown=true;flamePrev=null;
