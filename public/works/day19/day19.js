@@ -6,9 +6,9 @@
 const TAEHWA = { lat: 35.548, lng: 129.317 };
 
 const map = L.map('map', {
-  center: [25, 100],
-  zoom: 3,
-  zoomControl: true,
+  center: [TAEHWA.lat, TAEHWA.lng],
+  zoom: 2,
+  zoomControl: false,
   attributionControl: false,
   minZoom: 2, maxZoom: 12,
 });
@@ -74,9 +74,13 @@ const ORIGINS = [
   { lat:39.7,lng:140.1,r:'japan' },{ lat:43.1,lng:141.4,r:'japan' },{ lat:37.5,lng:137.0,r:'japan' },
   { lat:35.0,lng:136.0,r:'japan' },{ lat:41.0,lng:145.0,r:'japan' },
 
-  // 캄차카 / 오호츠크해
+  // 캄차카 / 오호츠크해 / 알래스카 (태평양 횡단 느낌)
   { lat:53.0,lng:158.7,r:'kamchatka' },{ lat:56.0,lng:163.0,r:'kamchatka' },
   { lat:51.0,lng:153.0,r:'kamchatka' },{ lat:59.0,lng:150.0,r:'kamchatka' },
+  { lat:62.0,lng:168.0,r:'kamchatka' },{ lat:64.0,lng:175.0,r:'kamchatka' },
+  { lat:66.0,lng:-168.0,r:'kamchatka' },{ lat:64.5,lng:-158.0,r:'kamchatka' },
+  { lat:61.0,lng:-150.0,r:'kamchatka' },{ lat:58.0,lng:-136.0,r:'kamchatka' },
+  { lat:55.0,lng:-130.0,r:'kamchatka' },
 
   // 호주 / 뉴질랜드
   { lat:-27.5,lng:153.0,r:'oceania' },{ lat:-33.9,lng:151.2,r:'oceania' },
@@ -85,7 +89,7 @@ const ORIGINS = [
 ];
 
 // ── 파라미터 ─────────────────────────────────────
-const PARAMS = { count:200, speed:1.0, birdSize:1.0 };
+const PARAMS = { count:200, speed:1.0, birdSize:1.0, flock:3 };
 
 // ── SVG 새 ───────────────────────────────────────
 const BIRD_FILES=['noun-bird-13996.svg','noun-bird-2533760.svg','noun-bird-8046736.svg','noun-bird-8046737.svg','noun-bird-8046739.svg'];
@@ -130,13 +134,16 @@ let tracks=[];
 
 function buildTrack(origin, idx) {
   const col = REGION_COLOR[origin.r] || REGION_COLOR.russia;
+  const n = PARAMS.flock;
+  // flock: 같은 경로 위에 n마리, t 간격으로 줄지어 이동
+  const members = Array.from({length: n}, (_, k) => ({
+    t: (rnd(0,1) + k / n * 0.15) % 1,
+    scale: 0.7,
+  }));
   return {
-    origin,
-    col,
-    t: rnd(0,1),
+    origin, col, members,
     spd: rnd(.0003,.0008),
     birdIdx: idx%5,
-    scale: rnd(.5,1.0),
     liftRatio:  rnd(.06,.18),
     curveRatio: rnd(.12,.38) * (Math.random()>.5?1:-1),
   };
@@ -271,18 +278,20 @@ function animate(now){
 
   // 허브 제거
 
-  // 새들
+  // 새들 (flock: 경로당 여러 마리 줄지어 이동)
   tracks.forEach((tr,i)=>{
-    tr.t+=tr.spd*PARAMS.speed;
-    if(tr.t>1) tr.t=0;
     const {pts}=getSampledPath(tr,i);
-    const pos=crPoint(pts,tr.t);
-    const ang=crAngle(pts,tr.t);
-    const fi=.04,fo=.06;
-    let a=1;
-    if(tr.t<fi) a=tr.t/fi;
-    else if(tr.t>1-fo) a=(1-tr.t)/fo;
-    drawBird(pos.x,pos.y,ang,tr.scale,tr.birdIdx,a,tr.col);
+    tr.members.forEach(m=>{
+      m.t+=tr.spd*PARAMS.speed;
+      if(m.t>1) m.t=0;
+      const pos=crPoint(pts,m.t);
+      const ang=crAngle(pts,m.t);
+      const fi=.04,fo=.06;
+      let a=1;
+      if(m.t<fi) a=m.t/fi;
+      else if(m.t>1-fo) a=(1-m.t)/fo;
+      drawBird(pos.x,pos.y,ang,m.scale,tr.birdIdx,a,tr.col);
+    });
   });
 }
 requestAnimationFrame(animate);
@@ -298,10 +307,7 @@ function sl(id,lbl,fmt,cb){
 sl('sl-count','lbl-count',v=>`${v}`,    v=>{ PARAMS.count=Math.round(v); init(); });
 sl('sl-speed','lbl-speed',v=>`${parseFloat(v).toFixed(1)}×`, v=>{ PARAMS.speed=v; });
 sl('sl-size', 'lbl-size', v=>`${parseFloat(v).toFixed(1)}×`, v=>{ PARAMS.birdSize=v; });
-
-document.getElementById('btn-reset').addEventListener('click',()=>{
-  map.flyTo([TAEHWA.lat, TAEHWA.lng], 8, {duration:1.5});
-});
+sl('sl-flock','lbl-flock',v=>`${v}`,   v=>{ PARAMS.flock=Math.round(v); init(); });
 
 // 초기 줌: 이미지 화면 기준
 map.setZoom(3);
