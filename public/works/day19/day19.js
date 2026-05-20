@@ -89,7 +89,7 @@ const ORIGINS = [
 ];
 
 // ── 파라미터 ─────────────────────────────────────
-const PARAMS = { count:200, speed:1.0, birdSize:1.0, flock:3 };
+const PARAMS = { count:80, speed:1.0, birdSize:1.0, flock:1 };
 
 // ── SVG 새 ───────────────────────────────────────
 const BIRD_FILES=['noun-bird-13996.svg','noun-bird-2533760.svg','noun-bird-8046736.svg','noun-bird-8046737.svg','noun-bird-8046739.svg'];
@@ -182,25 +182,16 @@ function getPathPoints(track) {
   ];
 }
 
-// 경로 샘플 캐시 (지도 이동/줌 시 재계산)
+// 경로 캐시
 let pathCache = new Map();
-let lastMapState = '';
-
-function getMapState() {
-  const c=map.getCenter(), z=map.getZoom();
-  return `${c.lat.toFixed(4)},${c.lng.toFixed(4)},${z}`;
-}
+map.on('move zoom', ()=>{ pathCache.clear(); });
 
 function getSampledPath(track, idx) {
-  const state = getMapState();
-  const key = `${idx}_${state}`;
-  if (pathCache.has(key)) return pathCache.get(key);
+  if (pathCache.has(idx)) return pathCache.get(idx);
   const pts = getPathPoints(track);
   const S = 60;
   const sampled = Array.from({length:S+1},(_,k)=>crPoint(pts,k/S));
-  // 너무 커지면 오래된 거 제거
-  if(pathCache.size>500) pathCache.clear();
-  pathCache.set(key, {pts, sampled});
+  pathCache.set(idx, {pts, sampled});
   return {pts, sampled};
 }
 
@@ -295,9 +286,6 @@ function animate(now){
   });
 }
 requestAnimationFrame(animate);
-
-// 지도 이동시 경로 캐시 클리어
-map.on('move zoom', ()=>{ pathCache.clear(); });
 
 // ── 컨트롤 패널 ───────────────────────────────────
 function sl(id,lbl,fmt,cb){

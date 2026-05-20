@@ -18,6 +18,8 @@
 
     /* 지도 타일 필터 제거 (CartoDB Dark이 이미 어두움) */
     /* .leaflet-tile { filter:brightness(0.35) saturate(0.6) hue-rotate(180deg); } */
+    .leaflet-tile { transition: opacity 0.2s ease; }
+    .leaflet-zoom-animated { will-change: transform; }
 
     #cvs {
       position:fixed; inset:0; z-index:10;
@@ -85,8 +87,8 @@
   <div id="panel">
     <h3>✦ Controls</h3>
     <div class="ctrl">
-      <label>Count <span id="lbl-count">200</span></label>
-      <input type="range" id="sl-count" min="20" max="400" value="200">
+      <label>Count <span id="lbl-count">80</span></label>
+      <input type="range" id="sl-count" min="20" max="400" value="80">
     </div>
     <div class="ctrl">
       <label>Speed <span id="lbl-speed">1.0×</span></label>
@@ -98,7 +100,7 @@
     </div>
     <div class="ctrl">
       <label>Flock <span id="lbl-flock">3</span></label>
-      <input type="range" id="sl-flock" min="1" max="10" step="1" value="3">
+      <input type="range" id="sl-flock" min="1" max="10" step="1" value="1">
     </div>
   </div>
 

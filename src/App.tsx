@@ -363,7 +363,7 @@ export default function App() {
                     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
                     if (dimTimerRef.current) clearTimeout(dimTimerRef.current)
                     setSelectedId(item.id)
-                    dimTimerRef.current = setTimeout(() => setSelectedId(null), 600)
+                    dimTimerRef.current = setTimeout(() => setSelectedId(null), 1000)
                   }}
                   style={{
                     fontSize: '16px',
@@ -453,10 +453,10 @@ export default function App() {
                   {/* 선택 dim 오버레이 — 선택된 항목 외 나머지에 #fff 80% */}
                   <div style={{
                     position: 'absolute', inset: 0,
-                    background: 'rgba(255,255,255,0.8)',
+                    background: 'rgba(255,255,255,0.9)',
                     pointerEvents: 'none',
                     opacity: selectedId && selectedId !== work.id ? 1 : 0,
-                    transition: 'opacity 0.6s ease-in-out',
+                    transition: selectedId ? 'opacity 0.4s ease-in-out' : 'opacity 0.4s ease-in-out',
                   }} />
 
                   {/* 호버 오버레이 — 합의된 텍스트 규칙 */}
