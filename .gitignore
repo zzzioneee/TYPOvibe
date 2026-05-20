@@ -11,3 +11,6 @@ dist/
 .env.*
 *.env
 secrets/
+
+# Claude Code / Kiro 설정
+.claude/
