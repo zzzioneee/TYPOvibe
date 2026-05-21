@@ -129,15 +129,24 @@ function App() {
     root.style.setProperty('--mute', 'rgba(255,255,255,0.5)');
   }, []);
 
-  // typewriter timer — randomized speed for natural feel
+  // typewriter timer — varied rhythm: bursts of fast keys then slightly slower
   useEffect(() => {
     clearTimeout(timerRef.current);
     clearTimeout(loopRef.current);
     if (visible < totalSyllables) {
-      // Random delay: base speed ± 30%, no long pauses — just rhythmic variation
+      // Simulate real typing rhythm:
+      // - 2~4 fast keys in a row (burst), then 1~2 slightly slower keys
+      // - Use a simple pattern based on visible index
       const base = t.speed;
-      const jitter = base * 0.3;
-      const delay = base + (Math.random() - 0.5) * 2 * jitter;
+      const cycle = visible % 5; // 0,1,2 = fast burst, 3,4 = slower
+      let delay;
+      if (cycle <= 2) {
+        // fast burst: 55~75% of base
+        delay = base * (0.55 + Math.random() * 0.2);
+      } else {
+        // slightly slower: 110~160% of base
+        delay = base * (1.1 + Math.random() * 0.5);
+      }
       timerRef.current = setTimeout(() => {
         setVisible(v => v + 1);
       }, Math.max(60, delay));
