@@ -58,6 +58,8 @@ bgImg.src = './openbook.png';
 const canvas = document.getElementById('c');
 const ctx    = canvas.getContext('2d');
 let W, H, dpr;
+let bookX = 0, bookY = 0, bookW = 0, bookH = 0; // 전역으로 관리
+let fontReady = false; // 폰트 로드 완료 플래그
 
 function resize() {
   dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -65,7 +67,7 @@ function resize() {
   canvas.width  = W * dpr; canvas.height = H * dpr;
   canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
   ctx.scale(dpr, dpr);
-  render();
+  if (fontReady) render();
 }
 window.addEventListener('resize', resize);
 
@@ -494,10 +496,8 @@ function animStep(now) {
     }
   } else {
     animRunning = false;
-    // 애니메이션 완료 후 2초 대기 후 루프 재시작
-    setTimeout(() => {
-      render();
-    }, 2000);
+    // 루프 재시작 비활성화 (폰트 문제 디버깅용)
+    // setTimeout(() => { ... }, 2000);
   }
 }
 
@@ -511,14 +511,14 @@ function render() {
   ctx.fillRect(0, 0, W, H);
 
   // openbook.png — contain으로 중앙 배치
-  let bookX = 0, bookY = 0, bookW = W, bookH = H;
+  bookX = 0; bookY = 0; bookW = W; bookH = H;
   if (bgImg.complete && bgImg.naturalWidth) {
     const iw = bgImg.naturalWidth, ih = bgImg.naturalHeight;
     const scale = Math.min(W / iw, H / ih) * 1.1;
     bookW = iw * scale;
     bookH = ih * scale;
     bookX = (W - bookW) / 2;
-    bookY = (H - bookH) / 2 + 40; // 40px 아래로
+    bookY = (H - bookH) / 2; // 중앙 정렬
     ctx.drawImage(bgImg, bookX, bookY, bookW, bookH);
   }
 
@@ -553,34 +553,17 @@ function render() {
   ctx.restore();
 
   // 텍스트 렌더 + 단락 데이터 수집
-  const startY = topY + CFG.fontSize;
-  const leftColW   = 753 - 315;  // 왼쪽 페이지 너비
-  const leftResult  = renderTextAndCollect(TEXT_LEFT, 315, leftColW, 196 + CFG.fontSize);
-  const rightColW   = 430;  // 오른쪽 페이지 너비 (430px 고정)
-  const rightResult = renderTextAndCollect(TEXT, 916, rightColW, 196 + CFG.fontSize);
-
-  // ── 디버그: 텍스트 영역 표시 ──
-  ctx.save();
-  ctx.strokeStyle = 'rgba(255,0,0,0.6)';
-  ctx.lineWidth = 1.5;
-  ctx.setLineDash([4, 4]);
-  // 왼쪽 텍스트 영역
-  ctx.strokeRect(leftX, topY, textColW, bookH * 0.78);
-  // 오른쪽 텍스트 영역
-  ctx.strokeRect(rightX, topY, textColW, bookH * 0.78);
-  // 책 전체 영역
-  ctx.strokeStyle = 'rgba(0,255,0,0.4)';
-  ctx.strokeRect(bookX, bookY, bookW, bookH);
-  // 가운데 접힘선
-  ctx.strokeStyle = 'rgba(0,100,255,0.6)';
-  ctx.beginPath();
-  ctx.moveTo(spineCenterX, bookY);
-  ctx.lineTo(spineCenterX, bookY + bookH);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.restore();
-  const leftParas   = leftResult.paras;
+  // 직접 CSS px 고정값 (비율 계산 포기, 직접 좌표 지정)
+  const leftStartX = 467;
+  const leftStartY = 206;
+  const leftColW   = Math.round(bookW * 0.26);
+  const rightColW  = Math.round(bookW * 0.26);
+  const leftResult  = renderTextAndCollect(TEXT_LEFT, leftStartX, leftColW, leftStartY + CFG.fontSize);
+  const rightStartX = bookX + bookW * 0.56;
+  const rightStartY = 206;
+  const rightResult = renderTextAndCollect(TEXT, rightStartX, rightColW, rightStartY + CFG.fontSize);
   const rightParas   = rightResult.paras;
+  const leftParas    = leftResult.paras;
   const leftLastY    = leftResult.lastY;
   const rightLastY   = rightResult.lastY;
   const rightMaxRight = rightResult.maxRight;
@@ -605,35 +588,58 @@ function render() {
     requestAnimationFrame(animStep);
   }, ANIM_START_DELAY);
 
-  // 페이지 번호 — 양쪽 같은 Y 위치, 오른쪽 lastY 기준
-  const lineH   = Math.round(CFG.fontSize * CFG.lineHeight);
-  const pageNumY = rightLastY + lineH * 0.8;
-
+  // 페이지 번호 — bookX/bookW 기준 (CSS px)
   ctx.font      = `${CFG.fontSize - 2}px ${CFG.font}`;
   ctx.fillStyle = '#1a1008';
 
-  // 왼쪽: 좌측 정렬
   ctx.textAlign = 'left';
-  ctx.fillText('20', 315, 904);
+  ctx.fillText('20', 467, 894);
 
-  // 오른쪽: 텍스트 열 우측 끝 정렬 = rightX + textColW
-  const rightTextEnd = rightMaxRight;
   ctx.textAlign = 'right';
-  ctx.fillText('절창  21', 1381, 904);
+  ctx.fillText('절창  21', 1523, 894);
 }
 
 canvas.addEventListener('click', (e) => {
-  console.log(`클릭: x=${e.clientX}, y=${e.clientY}`);
+  if (!fontReady) return;
+  // bookX/W는 Canvas 픽셀, e.clientX는 CSS px → dpr로 나눠서 같은 단위로
+  const rx = ((e.clientX - bookX / dpr) / (bookW / dpr)).toFixed(4);
+  const ry = ((e.clientY - bookY / dpr) / (bookH / dpr)).toFixed(4);
+  console.log(`클릭: css(${e.clientX}, ${e.clientY}) → book비율(${rx}, ${ry})`);
   render();
 });
 canvas.addEventListener('touchend', render);
 
 document.fonts.ready.then(() => {
   document.fonts.load(`400 ${CFG.fontSize}px 'Noto Serif KR'`).then(() => {
-    bgImg.onload = () => resize();
-    if (bgImg.complete) resize();
+    fontReady = true;
+    // 이미지도 로드 완료 확인 후 렌더
+    const doRender = () => {
+      // 폰트가 실제로 사용 가능한지 한 번 더 확인
+      document.fonts.load(`400 ${CFG.fontSize}px 'Noto Serif KR'`).then(() => {
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        W = window.innerWidth; H = window.innerHeight;
+        canvas.width  = W * dpr; canvas.height = H * dpr;
+        canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+        ctx.scale(dpr, dpr);
+        render();
+      });
+    };
+    if (bgImg.complete && bgImg.naturalWidth) {
+      doRender();
+    } else {
+      bgImg.onload = () => doRender();
+    }
   }).catch(() => {
-    bgImg.onload = () => resize();
-    if (bgImg.complete) resize();
+    fontReady = true;
+    if (bgImg.complete && bgImg.naturalWidth) {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      W = window.innerWidth; H = window.innerHeight;
+      canvas.width  = W * dpr; canvas.height = H * dpr;
+      canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+      ctx.scale(dpr, dpr);
+      render();
+    } else {
+      bgImg.onload = () => { dpr = Math.min(window.devicePixelRatio || 1, 2); W = window.innerWidth; H = window.innerHeight; canvas.width = W*dpr; canvas.height = H*dpr; canvas.style.width=W+'px'; canvas.style.height=H+'px'; ctx.scale(dpr,dpr); render(); };
+    }
   });
 });
