@@ -5,8 +5,8 @@ const { useState, useEffect, useRef, useMemo } = React;
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "speed": 380,
-  "size": 170,
-  "lineGap": 4,
+  "size": 130,
+  "lineGap": 28,
   "wordGap": 0.5,
   "paper": "warm",
   "wobble": "strong",
@@ -75,17 +75,16 @@ function Poem({ visibleCount, size, lineGap, wordGap, wobble, showCaret, caretOn
               return (
                 <div key={ci} style={{
                   opacity: visible ? 1 : 0,
-                  transform: visible ? 'translateY(0)' : 'translateY(8px)',
-                  transition: visible ? 'opacity 240ms ease, transform 320ms cubic-bezier(.2,.7,.3,1)' : 'none',
-                  willChange: 'opacity, transform',
+                  transform: 'translateY(0)',
+                  willChange: 'opacity',
                 }}>
                   {visible && (
                     <Syllable
                       plan={plan}
                       size={size}
                       wobble={wobble}
-                      jamoAnimDelay={isLatest ? 40 : 0}
-                      jamoStagger={isLatest ? 90 : 0}
+                      jamoAnimDelay={0}
+                      jamoStagger={0}
                     />
                   )}
                 </div>
@@ -121,14 +120,14 @@ function App() {
   const timerRef = useRef(null);
   const loopRef = useRef(null);
 
-  // Apply paper palette as CSS variables
+  // Apply fixed dark-bg palette — ignore presets
   useEffect(() => {
     const root = document.documentElement;
-    root.style.setProperty('--paper', palette.paper);
-    root.style.setProperty('--paper-2', palette.paper2);
-    root.style.setProperty('--ink', palette.ink);
-    root.style.setProperty('--mute', palette.mute);
-  }, [palette]);
+    root.style.setProperty('--paper', '#111');
+    root.style.setProperty('--paper-2', '#1a1a1a');
+    root.style.setProperty('--ink', '#ffffff');
+    root.style.setProperty('--mute', 'rgba(255,255,255,0.5)');
+  }, []);
 
   // typewriter timer
   useEffect(() => {
@@ -209,8 +208,8 @@ function App() {
 
       <style>{`
         @keyframes jamoIn {
-          from { opacity: 0; transform: translateY(6px) scale(0.94); }
-          to   { opacity: 1; transform: translateY(0) scale(1); }
+          from { transform: scale(0.94); }
+          to   { transform: scale(1); }
         }
       `}</style>
     </div>

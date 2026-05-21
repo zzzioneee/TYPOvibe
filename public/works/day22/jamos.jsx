@@ -502,7 +502,7 @@ const Jamos = {
 function JamoSVG({ name, wobble = 'strong' }) {
   const content = Jamos[name];
   if (!content) return null;
-  const filter = wobble === 'off' ? null
+  const filter = wobble === 'off' ? 'url(#graffiti-noise)'
     : (wobble === 'soft' ? 'url(#hd-wobble-soft)' : 'url(#hd-wobble)');
   return (
     <svg

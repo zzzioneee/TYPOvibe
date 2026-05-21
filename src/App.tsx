@@ -232,7 +232,7 @@ const WORKS = [
     desc: '커뮤니티를 유기체로 바라보는 시선. 자모가 자연물 조형 활자로 타이핑되며 연결-연대-연속을 그린다.',
     tags: ['SVG', 'Typography', 'Organic'],
     ratio: '4 / 3',
-    bgTheme: 'light' as const,
+    bgTheme: 'dark' as const,
   },
 ]
 
