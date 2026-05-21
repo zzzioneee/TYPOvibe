@@ -141,11 +141,11 @@ function App() {
       const cycle = visible % 5; // 0,1,2 = fast burst, 3,4 = slower
       let delay;
       if (cycle <= 2) {
-        // fast burst: 55~75% of base
-        delay = base * (0.55 + Math.random() * 0.2);
+        // fast burst: 40~60% of base
+        delay = base * (0.4 + Math.random() * 0.2);
       } else {
-        // slightly slower: 110~160% of base
-        delay = base * (1.1 + Math.random() * 0.5);
+        // slightly slower: 140~200% of base
+        delay = base * (1.4 + Math.random() * 0.6);
       }
       timerRef.current = setTimeout(() => {
         setVisible(v => v + 1);
