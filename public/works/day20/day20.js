@@ -514,7 +514,7 @@ function render() {
   bookX = 0; bookY = 0; bookW = W; bookH = H;
   if (bgImg.complete && bgImg.naturalWidth) {
     const iw = bgImg.naturalWidth, ih = bgImg.naturalHeight;
-    const scale = Math.min(W / iw, H / ih) * 1.1;
+    const scale = Math.min(W / iw, H / ih) * 0.88;
     bookW = iw * scale;
     bookH = ih * scale;
     bookX = (W - bookW) / 2;
@@ -553,14 +553,14 @@ function render() {
   ctx.restore();
 
   // 텍스트 렌더 + 단락 데이터 수집
-  // 직접 CSS px 고정값 (비율 계산 포기, 직접 좌표 지정)
-  const leftStartX = 467;
-  const leftStartY = 206;
-  const leftColW   = Math.round(bookW * 0.26);
-  const rightColW  = Math.round(bookW * 0.26);
+  // W/H 비율 기반 — 클릭으로 찍은 정확한 값
+  const leftStartX  = W * 0.2315;
+  const leftStartY  = H * 0.1660;
+  const rightStartX = W * 0.5436;
+  const rightStartY = H * 0.1660;
+  const leftColW    = W * 0.2214;  // 0.4529 - 0.2315
+  const rightColW   = W * 0.2264;  // 0.7700 - 0.5436
   const leftResult  = renderTextAndCollect(TEXT_LEFT, leftStartX, leftColW, leftStartY + CFG.fontSize);
-  const rightStartX = bookX + bookW * 0.56;
-  const rightStartY = 206;
   const rightResult = renderTextAndCollect(TEXT, rightStartX, rightColW, rightStartY + CFG.fontSize);
   const rightParas   = rightResult.paras;
   const leftParas    = leftResult.paras;
@@ -588,24 +588,23 @@ function render() {
     requestAnimationFrame(animStep);
   }, ANIM_START_DELAY);
 
-  // 페이지 번호 — bookX/bookW 기준 (CSS px)
+  // 페이지 번호 — W/H 비율 기반
   ctx.font      = `${CFG.fontSize - 2}px ${CFG.font}`;
   ctx.fillStyle = '#1a1008';
 
   ctx.textAlign = 'left';
-  ctx.fillText('20', 467, 894);
+  ctx.fillText('20', W * 0.2315, H * 0.8494);
 
   ctx.textAlign = 'right';
-  ctx.fillText('절창  21', 1523, 894);
+  ctx.fillText('절창  21', W * 0.7644, H * 0.8494);
 }
 
 canvas.addEventListener('click', (e) => {
   if (!fontReady) return;
-  // bookX/W는 Canvas 픽셀, e.clientX는 CSS px → dpr로 나눠서 같은 단위로
-  const rx = ((e.clientX - bookX / dpr) / (bookW / dpr)).toFixed(4);
-  const ry = ((e.clientY - bookY / dpr) / (bookH / dpr)).toFixed(4);
-  console.log(`클릭: css(${e.clientX}, ${e.clientY}) → book비율(${rx}, ${ry})`);
-  render();
+  // 순수 CSS px 좌표 + W/H 비율
+  const ratioX = (e.clientX / W).toFixed(4);
+  const ratioY = (e.clientY / H).toFixed(4);
+  console.log(`클릭: css(${e.clientX}, ${e.clientY}) → W비율(${ratioX}, ${ratioY}) | W=${W}, H=${H}`);
 });
 canvas.addEventListener('touchend', render);
 
