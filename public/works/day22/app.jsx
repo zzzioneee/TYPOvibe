@@ -6,7 +6,7 @@ const { useState, useEffect, useRef, useMemo } = React;
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "speed": 200,
   "size": 130,
-  "lineGap": 38,
+  "lineGap": 46,
   "wordGap": 0.5,
   "paper": "warm",
   "wobble": "strong",
