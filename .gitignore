@@ -14,3 +14,6 @@ secrets/
 
 # Claude Code / Kiro 설정
 .claude/
+
+# 저작권 텍스트 포함 파일
+public/works/day20/day20.js
