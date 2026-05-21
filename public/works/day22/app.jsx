@@ -4,9 +4,9 @@
 const { useState, useEffect, useRef, useMemo } = React;
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
-  "speed": 380,
+  "speed": 200,
   "size": 130,
-  "lineGap": 28,
+  "lineGap": 38,
   "wordGap": 0.5,
   "paper": "warm",
   "wobble": "strong",
@@ -134,16 +134,14 @@ function App() {
     clearTimeout(timerRef.current);
     clearTimeout(loopRef.current);
     if (visible < totalSyllables) {
-      // Random delay: base speed ± 40%, occasionally longer pause
+      // Random delay: base speed ± 30%, no long pauses — just rhythmic variation
       const base = t.speed;
-      const jitter = base * 0.4;
-      const pause = Math.random() < 0.12 ? base * 1.8 : 0; // occasional longer pause
-      const delay = base + (Math.random() - 0.5) * 2 * jitter + pause;
+      const jitter = base * 0.3;
+      const delay = base + (Math.random() - 0.5) * 2 * jitter;
       timerRef.current = setTimeout(() => {
         setVisible(v => v + 1);
-      }, Math.max(80, delay));
+      }, Math.max(60, delay));
     } else {
-      // finished
       if (t.autoLoop) {
         loopRef.current = setTimeout(() => {
           setVisible(0);
