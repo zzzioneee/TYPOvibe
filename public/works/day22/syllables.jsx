@@ -80,7 +80,7 @@ const TEXT_LINES = [
     ['VB','ㄷ','ㅏ','ㅂ'],   // 답
     ['V', 'ㅇ','ㅣ'],         // 이
     null,
-    ['H', 'ㄷ','ㅗ'],         // 돼 (ㄷ+ㅙ → ㄷ+ㅗ로 표현, 한 글자 단위)
+    ['DOE'],                  // 돼 (커스텀: ㄷ+ㅗ+ㅐ)
     ['H', 'ㅇ','ㅛ'],         // 요
   ],
 ];
@@ -97,8 +97,18 @@ function renderDae(boxSize) {
 }
 
 function Syllable({ plan, size, wobble, jamoAnimDelay = 0, jamoStagger = 60 }) {
-  const [type, ch, jung, jong] = plan;
-  const boxes = SYLLABLE_LAYOUTS[type].boxes(ch, jung, jong);
+  let boxes;
+  if (plan[0] === 'DOE') {
+    // 돼: ㄷ(좌상) + ㅗ(하단 가로) + ㅐ(우측 세로)
+    boxes = [
+      { name: 'ㄷ', x: -6, y: -10, w: 62, h: 60 },
+      { name: 'ㅗ', x: -10, y: 40, w: 70, h: 58 },
+      { name: 'ㅐ', x: 48, y: -6, w: 56, h: 108 },
+    ];
+  } else {
+    const [type, ch, jung, jong] = plan;
+    boxes = SYLLABLE_LAYOUTS[type].boxes(ch, jung, jong);
+  }
   return (
     <div className="syllable" style={{
       position: 'relative',

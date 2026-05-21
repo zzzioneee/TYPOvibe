@@ -129,14 +129,19 @@ function App() {
     root.style.setProperty('--mute', 'rgba(255,255,255,0.5)');
   }, []);
 
-  // typewriter timer
+  // typewriter timer — randomized speed for natural feel
   useEffect(() => {
     clearTimeout(timerRef.current);
     clearTimeout(loopRef.current);
     if (visible < totalSyllables) {
+      // Random delay: base speed ± 40%, occasionally longer pause
+      const base = t.speed;
+      const jitter = base * 0.4;
+      const pause = Math.random() < 0.12 ? base * 1.8 : 0; // occasional longer pause
+      const delay = base + (Math.random() - 0.5) * 2 * jitter + pause;
       timerRef.current = setTimeout(() => {
         setVisible(v => v + 1);
-      }, t.speed);
+      }, Math.max(80, delay));
     } else {
       // finished
       if (t.autoLoop) {
