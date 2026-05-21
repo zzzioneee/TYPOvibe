@@ -80,7 +80,7 @@ const TEXT_LINES = [
     ['VB','ㄷ','ㅏ','ㅂ'],   // 답
     ['V', 'ㅇ','ㅣ'],         // 이
     null,
-    ['DAE'],                  // 돼
+    ['H', 'ㄷ','ㅗ'],         // 돼 (ㄷ+ㅙ → ㄷ+ㅗ로 표현, 한 글자 단위)
     ['H', 'ㅇ','ㅛ'],         // 요
   ],
 ];
@@ -97,13 +97,8 @@ function renderDae(boxSize) {
 }
 
 function Syllable({ plan, size, wobble, jamoAnimDelay = 0, jamoStagger = 60 }) {
-  let boxes;
-  if (plan[0] === 'DAE') {
-    boxes = renderDae(size);
-  } else {
-    const [type, ch, jung, jong] = plan;
-    boxes = SYLLABLE_LAYOUTS[type].boxes(ch, jung, jong);
-  }
+  const [type, ch, jung, jong] = plan;
+  const boxes = SYLLABLE_LAYOUTS[type].boxes(ch, jung, jong);
   return (
     <div className="syllable" style={{
       position: 'relative',
