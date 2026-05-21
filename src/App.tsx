@@ -19,6 +19,7 @@ import Day017 from './works/day17'
 import Day018 from './works/day18'
 import Day019 from './works/day19'
 import Day020 from './works/day20'
+import Day022 from './works/day22'
 
 type View = 'home' | string
 
@@ -221,6 +222,16 @@ const WORKS = [
     desc: '구병모 소설 『절창』의 조판 구조를 드로잉으로 재해석. 단락 외곽선과 행 체인이 텍스트를 구조물로 변환한다.',
     tags: ['Canvas', 'Typography', 'Editorial'],
     ratio: '4 / 3',
+    bgTheme: 'dark' as const,
+  },
+  {
+    id: 'day22',
+    day: '22',
+    date: '2026.05.22',
+    title: '낯선 사람들이 모이면',
+    desc: '커뮤니티를 유기체로 바라보는 시선. 자모가 자연물 조형 활자로 타이핑되며 연결-연대-연속을 그린다.',
+    tags: ['SVG', 'Typography', 'Organic'],
+    ratio: '4 / 3',
     bgTheme: 'light' as const,
   },
 ]
@@ -295,6 +306,7 @@ export default function App() {
           {view === 'day18' && <Day018 />}
           {view === 'day19' && <Day019 />}
           {view === 'day20' && <Day020 />}
+          {view === 'day22' && <Day022 />}
         </main>
       </div>
     )
