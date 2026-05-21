@@ -84,13 +84,10 @@ html, body {
   filter: drop-shadow(0 4px 16px rgba(0,0,0,0.5));
 }
 
-.from-link {
-  position:absolute; top:22px; left:50%; transform:translateX(-50%);
-  font-family:'Pretendard',sans-serif; font-size:16px; font-weight:600;
-  color:#fff; text-decoration:none; z-index:20;
-  letter-spacing:0.1em; mix-blend-mode:difference;
-}
-.from-link:hover { text-decoration:underline; }
+.from-wrap { position:absolute; top:24px; left:50%; transform:translateX(-50%); z-index:100; }
+.from-link { font-family:'Pretendard',sans-serif; font-size:20px; font-weight:500;
+  color:rgba(255,255,255,0.5); text-decoration:none; letter-spacing:0.15em; }
+.from-link:hover { color:rgba(255,255,255,0.9); }
 
 .play-hint {
   position:absolute; left:50%; bottom:28px; transform:translateX(-50%);
@@ -133,7 +130,9 @@ html, body {
 
   <div class="typo-wrap" id="typoWrap"></div>
 
-  <a href="https://www.youtube.com/watch?v=D54StAZFUrc" target="_blank" rel="noopener" class="from-link">FROM</a>
+  <div class="from-wrap">
+    <a href="https://www.youtube.com/watch?v=D54StAZFUrc" target="_blank" rel="noopener" class="from-link">FROM</a>
+  </div>
 
   <button class="unmute-btn" id="unmuteBtn" aria-label="소리 켜기"></button>
   <div class="play-hint" id="playHint">CLICK TO UNMUTE</div>

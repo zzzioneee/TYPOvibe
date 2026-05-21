@@ -13,8 +13,10 @@ html, body { width:100%; height:100%; overflow:hidden; background:#000; display:
 .paper { position:relative; width:auto; height:92vh; aspect-ratio:3/4; background:url('paper.png') center/cover no-repeat; box-shadow:0 4px 40px rgba(0,0,0,0.5); overflow:hidden; cursor:pointer; }
 .paper::after { content:''; position:absolute; inset:0; z-index:2; pointer-events:none; box-shadow:inset 0 0 60px rgba(0,0,0,0.06); }
 canvas { display:block; width:100%; height:100%; position:relative; z-index:3; }
-.from-link { font-family:'Pretendard',sans-serif; font-size:13px; font-weight:600; color:rgba(255,255,255,0.35); text-decoration:none; }
-.from-wrap { position:absolute; top:8px; left:50%; transform:translateX(-50%); z-index:10; }
+.from-wrap { position:fixed; top:24px; left:50%; transform:translateX(-50%); z-index:100; }
+.from-link { font-family:'Pretendard',sans-serif; font-size:20px; font-weight:500;
+  color:rgba(255,255,255,0.5); text-decoration:none; letter-spacing:0.15em; }
+.from-link:hover { color:rgba(255,255,255,0.9); }
 .play-hint { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-family:'Pretendard',sans-serif; font-size:18px; font-weight:600; color:#013DFD; opacity:0.4; z-index:10; pointer-events:none; transition:opacity 0.5s; }
 .credit { position:absolute; bottom:12px; right:20px; z-index:10; font-family:'Pretendard',sans-serif; font-size:11px; color:rgba(255,255,255,0.35); text-align:right; line-height:1.5; }
 </style>

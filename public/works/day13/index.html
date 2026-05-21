@@ -27,16 +27,17 @@
       border-radius:50%; background:#f0c040; cursor:pointer;
     }
     .sv { color:rgba(255,255,255,0.4); font-size:13px; font-weight:400; }
-    .from-link {
-      position:absolute; top:24px; left:50%; transform:translateX(-50%);
-      font-family:'Pretendard',sans-serif; font-size:20px; font-weight:500;
-      color:#fff; text-decoration:none; z-index:10; mix-blend-mode:difference;
-    }
+    .from-wrap { position:fixed; top:24px; left:50%; transform:translateX(-50%); z-index:100; }
+    .from-link { font-family:'Pretendard',sans-serif; font-size:20px; font-weight:500;
+      color:rgba(255,255,255,0.5); text-decoration:none; letter-spacing:0.15em; }
+    .from-link:hover { color:rgba(255,255,255,0.9); }
   </style>
 </head>
 <body>
   <canvas id="c"></canvas>
-  <a href="https://eopla.net/magazines/42269" target="_blank" rel="noopener" class="from-link">FROM</a>
+  <div class="from-wrap">
+    <a href="https://eopla.net/magazines/42269" target="_blank" rel="noopener" class="from-link">FROM</a>
+  </div>
   <div id="ui">
     <div class="sw"><div class="sl">Speed</div><input type="range" id="sl-speed" min="0" max="100" value="25"><div class="sv" id="val-speed">25</div></div>
     <div class="sw"><div class="sl">Dance</div><input type="range" id="sl-dance" min="0" max="100" value="0"><div class="sv" id="val-dance">0</div></div>

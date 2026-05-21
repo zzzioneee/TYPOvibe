@@ -77,11 +77,10 @@ html { height:100%; } body { background:#fff; height:100%; font-family:'Pretenda
 }
 
 /* FROM */
-.from-link {
-  position:absolute; top:20px; left:50%; transform:translateX(-50%);
-  font-size:18px; font-weight:400; color:rgba(0,0,0,0.3); text-decoration:none;
-  letter-spacing:0.1em; z-index:10;
-}
+.from-wrap { position:fixed; top:24px; left:50%; transform:translateX(-50%); z-index:100; }
+.from-link { font-family:'Pretendard',sans-serif; font-size:20px; font-weight:500;
+  color:rgba(0,0,0,0.4); text-decoration:none; letter-spacing:0.15em; }
+.from-link:hover { color:rgba(0,0,0,0.8); }
 
 /* 스크롤 힌트 */
 .scroll-hint {
@@ -94,7 +93,9 @@ html { height:100%; } body { background:#fff; height:100%; font-family:'Pretenda
 </head>
 <body>
 <div class="scene">
-  <a href="https://newneek.co/@pizzastation/article/39901" target="_blank" rel="noopener" class="from-link">FROM</a>
+  <div class="from-wrap">
+    <a href="https://newneek.co/@pizzastation/article/39901" target="_blank" rel="noopener" class="from-link">FROM</a>
+  </div>
   
   <!-- 좌상단: 헤드라인 -->
   <div id="headlineArea" style="position:absolute;top:40px;left:50px;z-index:10;">
