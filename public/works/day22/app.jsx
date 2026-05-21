@@ -157,15 +157,6 @@ function App() {
     return () => clearInterval(id);
   }, []);
 
-  const replay = () => {
-    clearTimeout(timerRef.current);
-    clearTimeout(loopRef.current);
-    setVisible(0);
-  };
-
-  // counts for top-right meta
-  const progress = Math.min(100, Math.round((visible / totalSyllables) * 100));
-
   return (
     <div style={{
       position: 'relative',
@@ -177,18 +168,6 @@ function App() {
       padding: '80px 40px',
       color: 'var(--ink)',
     }}>
-      {/* margin annotations */}
-      <div className="crosshair">
-        <span className="dot"></span>BMB ∙ 조형 활자 № 21
-      </div>
-      <div className="meta-r">
-        <div>낯선 사람들이 / 모이면 …</div>
-        <div style={{marginTop:4, opacity:0.7}}>typed {visible.toString().padStart(2,'0')} / {totalSyllables} ∙ {progress}%</div>
-      </div>
-
-      {/* subtle index/registration marks at corners */}
-      <CornerMarks/>
-
       <Poem
         visibleCount={visible}
         size={t.size}
@@ -199,13 +178,6 @@ function App() {
         caretOn={caretOn}
       />
 
-      <div className="footer">
-        <button className="replay-btn" onClick={replay}>↻ replay</button>
-        <div style={{marginTop:14, fontSize:9, letterSpacing:'0.3em'}}>연결 ∙ 연대 ∙ 연속 — connection ∙ solidarity ∙ continuity</div>
-      </div>
-
-      <TweaksDrawer t={t} setTweak={setTweak}/>
-
       <style>{`
         @keyframes jamoIn {
           from { transform: scale(0.94); }
@@ -213,53 +185,6 @@ function App() {
         }
       `}</style>
     </div>
-  );
-}
-
-function CornerMarks() {
-  const mark = (style) => (
-    <svg width="14" height="14" viewBox="0 0 14 14" style={{position:'absolute', ...style, color:'var(--mute)'}}>
-      <path d="M 0 7 L 14 7 M 7 0 L 7 14" stroke="currentColor" strokeWidth="1" />
-    </svg>
-  );
-  return (
-    <>
-      {mark({ top: 56, left: 56 })}
-      {mark({ top: 56, right: 56 })}
-      {mark({ bottom: 56, left: 56 })}
-      {mark({ bottom: 56, right: 56 })}
-    </>
-  );
-}
-
-function TweaksDrawer({ t, setTweak }) {
-  return (
-    <TweaksPanel title="Tweaks">
-      <TweakSection label="Animation">
-        <TweakSlider label="Speed (ms / 글자)" min={80} max={700} step={10}
-          value={t.speed} onChange={v => setTweak('speed', v)} />
-        <TweakToggle label="Auto-loop"
-          value={t.autoLoop} onChange={v => setTweak('autoLoop', v)} />
-        <TweakSlider label="Loop pause (ms)" min={600} max={6000} step={100}
-          value={t.loopDelay} onChange={v => setTweak('loopDelay', v)} />
-        <TweakToggle label="Caret"
-          value={t.showCaret} onChange={v => setTweak('showCaret', v)} />
-      </TweakSection>
-      <TweakSection label="Layout">
-        <TweakSlider label="글자 size (px)" min={48} max={160} step={2}
-          value={t.size} onChange={v => setTweak('size', v)} />
-        <TweakSlider label="Line gap (px)" min={4} max={80} step={2}
-          value={t.lineGap} onChange={v => setTweak('lineGap', v)} />
-        <TweakSlider label="Word gap (×size)" min={0.4} max={2.4} step={0.05}
-          value={t.wordGap} onChange={v => setTweak('wordGap', v)} />
-      </TweakSection>
-      <TweakSection label="Style">
-        <TweakRadio label="Paper" options={['warm','bone','cool','dusk']}
-          value={t.paper} onChange={v => setTweak('paper', v)} />
-        <TweakRadio label="Wobble" options={['off','soft','strong']}
-          value={t.wobble} onChange={v => setTweak('wobble', v)} />
-      </TweakSection>
-    </TweaksPanel>
   );
 }
 

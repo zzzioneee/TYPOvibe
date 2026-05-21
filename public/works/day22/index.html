@@ -37,51 +37,15 @@
     content: '';
     position: fixed; inset: 0;
     pointer-events: none;
-    background: rgba(0,0,0,0.2);
+    background: rgba(0,0,0,0.4);
     z-index: 1;
   }
   #root { position: relative; z-index: 2; }
 
   .from-wrap { position:fixed; top:24px; left:50%; transform:translateX(-50%); z-index:100; }
-  .from-link { font-family:'IBM Plex Mono', monospace; font-size:20px; font-weight:500;
+  .from-link { font-family:'Pretendard', sans-serif; font-size:20px; font-weight:500;
     color:#fff; text-decoration:none; letter-spacing:0.15em; }
   .from-link:hover { color:rgba(255,255,255,0.75); }
-
-  .crosshair {
-    position: fixed; top: 18px; left: 18px;
-    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
-    color: var(--mute);
-    z-index: 10;
-  }
-  .crosshair .dot { display:inline-block; width:6px; height:6px; background:var(--ink); border-radius:50%; vertical-align:middle; margin-right:8px; }
-  .meta-r {
-    position: fixed; top: 18px; right: 18px;
-    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
-    color: var(--mute);
-    text-align: right;
-    z-index: 10;
-  }
-  .footer {
-    position: fixed; left: 0; right: 0; bottom: 18px;
-    text-align: center;
-    font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase;
-    color: var(--mute);
-    z-index: 10;
-  }
-  .replay-btn {
-    background: transparent;
-    border: 1px solid var(--ink);
-    color: var(--ink);
-    padding: 8px 18px;
-    font-family: inherit;
-    font-size: 10px;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    cursor: pointer;
-    border-radius: 0;
-    transition: background 120ms, color 120ms;
-  }
-  .replay-btn:hover { background: var(--ink); color: var(--paper); }
 </style>
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
