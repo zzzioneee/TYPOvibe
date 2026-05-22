@@ -1,291 +1,152 @@
 // Day 22 v2 — Glory and Joy
-// Scene 1: Flowers pop in on white bg
-// Scene 2: "Glory and Joy" text appears, then radial blur spins like a record
+// Flowers + text with rotating circular regions (like vinyl records)
+// Each "disc" clips a portion and rotates it independently
 
 const canvas = document.getElementById('c');
-const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+const ctx = canvas.getContext('2d');
 const W = 1920, H = 1080;
 
-// ── Offscreen canvas for compositing flowers + text ─────
-const offCanvas = document.createElement('canvas');
-offCanvas.width = W; offCanvas.height = H;
-const ctx = offCanvas.getContext('2d');
+// ── Source canvas (flowers + text, static) ──────────────
+const srcCanvas = document.createElement('canvas');
+srcCanvas.width = W; srcCanvas.height = H;
+const srcCtx = srcCanvas.getContext('2d');
 
-// ── Flower definitions ──────────────────────────────────
+// ── Flower colors ───────────────────────────────────────
 const FLOWER_COLORS = [
-  ['#ff1493', '#ff8c00'], // hot pink → orange
-  ['#00bfff', '#0044ff'], // sky blue → deep blue
-  ['#7fff00', '#ffff00'], // chartreuse → yellow
-  ['#ff4500', '#ff69b4'], // red-orange → pink
-  ['#00ced1', '#00ff7f'], // teal → green
-  ['#ff1493', '#ff4500'], // pink → red
-  ['#4169e1', '#00bfff'], // royal blue → sky
-  ['#ff6600', '#ffcc00'], // orange → gold
+  ['#ff1493', '#ff8c00'],
+  ['#00bfff', '#0044ff'],
+  ['#7fff00', '#ffff00'],
+  ['#ff4500', '#ff69b4'],
+  ['#00ced1', '#00ff7f'],
+  ['#ff1493', '#ff4500'],
+  ['#4169e1', '#00bfff'],
+  ['#ff6600', '#ffcc00'],
 ];
 
-function drawFlower(cx, cy, size, petals, colorPair, rotation) {
+function drawFlower(c, cx, cy, size, petals, colorPair, rotation) {
   const [c1, c2] = colorPair;
-  const grad = ctx.createLinearGradient(cx - size, cy - size, cx + size, cy + size);
+  const grad = c.createLinearGradient(cx - size, cy - size, cx + size, cy + size);
   grad.addColorStop(0, c1);
   grad.addColorStop(1, c2);
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(rotation);
-  ctx.fillStyle = grad;
-  ctx.beginPath();
+  c.save();
+  c.translate(cx, cy);
+  c.rotate(rotation);
+  c.fillStyle = grad;
+  c.beginPath();
   for (let i = 0; i < petals; i++) {
     const angle = (i / petals) * Math.PI * 2;
-    const px = Math.cos(angle) * size * 0.5;
-    const py = Math.sin(angle) * size * 0.5;
-    ctx.moveTo(0, 0);
-    ctx.ellipse(px, py, size * 0.45, size * 0.22, angle, 0, Math.PI * 2);
+    const px = Math.cos(angle) * size * 0.45;
+    const py = Math.sin(angle) * size * 0.45;
+    c.moveTo(0, 0);
+    c.ellipse(px, py, size * 0.42, size * 0.2, angle, 0, Math.PI * 2);
   }
-  ctx.fill();
-  // white center
-  ctx.fillStyle = '#fff';
-  ctx.beginPath();
-  ctx.arc(0, 0, size * 0.12, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
+  c.fill();
+  c.fillStyle = '#fff';
+  c.beginPath();
+  c.arc(0, 0, size * 0.1, 0, Math.PI * 2);
+  c.fill();
+  c.restore();
 }
 
-// Generate random flower data
+// ── Generate flowers ────────────────────────────────────
 const flowers = [];
-for (let i = 0; i < 22; i++) {
+for (let i = 0; i < 20; i++) {
   flowers.push({
-    x: Math.random() * W,
-    y: Math.random() * H,
-    size: 120 + Math.random() * 350,
+    x: 80 + Math.random() * (W - 160),
+    y: 60 + Math.random() * (H - 120),
+    size: 100 + Math.random() * 300,
     petals: Math.floor(4 + Math.random() * 5),
     color: FLOWER_COLORS[Math.floor(Math.random() * FLOWER_COLORS.length)],
     rotation: Math.random() * Math.PI * 2,
-    scale: 0,
-    targetScale: 1,
-    delay: i * 80,
   });
 }
 
-// ── Radial blur centers ─────────────────────────────────
-// ── Radial blur centers — spread across screen, no overlap ──
-const BLUR_CENTERS = [
-  { x: 0.18, y: 0.22, radius: 0.38 },  // top-left
-  { x: 0.78, y: 0.18, radius: 0.32 },  // top-right
-  { x: 0.50, y: 0.55, radius: 0.35 },  // center
-  { x: 0.15, y: 0.80, radius: 0.30 },  // bottom-left
-  { x: 0.82, y: 0.78, radius: 0.33 },  // bottom-right
+// ── Draw static source (flowers + text) ─────────────────
+function drawSource() {
+  srcCtx.fillStyle = '#fff';
+  srcCtx.fillRect(0, 0, W, H);
+  for (const f of flowers) {
+    drawFlower(srcCtx, f.x, f.y, f.size, f.petals, f.color, f.rotation);
+  }
+  // Text
+  srcCtx.font = '900 200px "Inter", sans-serif';
+  srcCtx.fillStyle = '#111';
+  srcCtx.textBaseline = 'top';
+  srcCtx.textAlign = 'left';
+  srcCtx.fillText('Glory', 80, 180);
+  srcCtx.textAlign = 'center';
+  srcCtx.fillText('and', W * 0.55, 440);
+  srcCtx.textAlign = 'right';
+  srcCtx.fillText('Joy', W - 80, 700);
+}
+
+// ── Rotating discs — different sizes, speeds, positions ──
+// Placed so text is partially inside / partially outside discs
+const DISCS = [
+  { cx: 350,  cy: 250,  r: 280, speed: 0.3,  strength: 1.0 },  // over "Glo" part
+  { cx: 1500, cy: 200,  r: 220, speed: -0.4, strength: 0.7 },  // top-right
+  { cx: 900,  cy: 550,  r: 320, speed: 0.2,  strength: 0.9 },  // center, over "and"
+  { cx: 1550, cy: 750,  r: 260, speed: -0.25,strength: 0.8 },  // over "Joy" partial
+  { cx: 200,  cy: 850,  r: 200, speed: 0.35, strength: 0.6 },  // bottom-left
+  { cx: 1100, cy: 150,  r: 180, speed: -0.5, strength: 0.5 },  // small, top
 ];
 
-// ── WebGL setup for radial blur post-process ────────────
-let program, posBuffer, texCoordBuffer, texture;
-let uTexture, uTime, uBlurStrength, uCenters, uRadii, uResolution;
-
-const vsSource = `
-attribute vec2 a_position;
-attribute vec2 a_texCoord;
-varying vec2 v_texCoord;
-void main() {
-  gl_Position = vec4(a_position, 0.0, 1.0);
-  v_texCoord = a_texCoord;
-}`;
-
-const fsSource = `
-precision highp float;
-varying vec2 v_texCoord;
-uniform sampler2D u_texture;
-uniform float u_time;
-uniform float u_blurStrength;
-uniform vec2 u_centers[5];
-uniform float u_radii[5];
-uniform vec2 u_resolution;
-
-void main() {
-  vec2 uv = v_texCoord;
-  
-  if (u_blurStrength < 0.01) {
-    gl_FragColor = texture2D(u_texture, uv);
-    return;
-  }
-  
-  // Find closest blur center and apply only that one's radial blur
-  float minDist = 999.0;
-  vec2 center = u_centers[0];
-  float radius = u_radii[0];
-  
-  for (int i = 0; i < 5; i++) {
-    float d = length(uv - u_centers[i]);
-    if (d < minDist) {
-      minDist = d;
-      center = u_centers[i];
-      radius = u_radii[i];
-    }
-  }
-  
-  vec2 dir = uv - center;
-  float dist = length(dir);
-  
-  // Influence falls off from center
-  float influence = smoothstep(radius, radius * 0.1, dist) * u_blurStrength;
-  
-  if (influence < 0.01) {
-    gl_FragColor = texture2D(u_texture, uv);
-    return;
-  }
-  
-  // Radial motion blur: sample at different rotation angles around this center
-  vec4 color = vec4(0.0);
-  float maxAngle = influence * 0.4;
-  
-  for (int s = 0; s < 24; s++) {
-    float t = (float(s) / 23.0) * 2.0 - 1.0;
-    float angle = maxAngle * t;
-    float cosA = cos(angle);
-    float sinA = sin(angle);
-    vec2 rotDir = vec2(dir.x * cosA - dir.y * sinA, dir.x * sinA + dir.y * cosA);
-    vec2 sampleUV = center + rotDir;
-    color += texture2D(u_texture, clamp(sampleUV, 0.0, 1.0));
-  }
-  
-  gl_FragColor = color / 24.0;
-}`;
-
-function initGL() {
-  const vs = gl.createShader(gl.VERTEX_SHADER);
-  gl.shaderSource(vs, vsSource); gl.compileShader(vs);
-  if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) console.error('VS:', gl.getShaderInfoLog(vs));
-  const fs = gl.createShader(gl.FRAGMENT_SHADER);
-  gl.shaderSource(fs, fsSource); gl.compileShader(fs);
-  if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) console.error('FS:', gl.getShaderInfoLog(fs));
-  program = gl.createProgram();
-  gl.attachShader(program, vs); gl.attachShader(program, fs);
-  gl.linkProgram(program);
-  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) console.error('Link:', gl.getProgramInfoLog(program));
-  gl.useProgram(program);
-
-  // Full-screen quad
-  const positions = new Float32Array([-1,-1, 1,-1, -1,1, 1,1]);
-  posBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
-  const aPos = gl.getAttribLocation(program, 'a_position');
-  gl.enableVertexAttribArray(aPos);
-  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
-
-  const texCoords = new Float32Array([0,1, 1,1, 0,0, 1,0]);
-  texCoordBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, texCoords, gl.STATIC_DRAW);
-  const aTex = gl.getAttribLocation(program, 'a_texCoord');
-  gl.enableVertexAttribArray(aTex);
-  gl.vertexAttribPointer(aTex, 2, gl.FLOAT, false, 0, 0);
-
-  // Texture
-  texture = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, texture);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-
-  // Uniforms
-  uTexture = gl.getUniformLocation(program, 'u_texture');
-  uTime = gl.getUniformLocation(program, 'u_time');
-  uBlurStrength = gl.getUniformLocation(program, 'u_blurStrength');
-  uCenters = gl.getUniformLocation(program, 'u_centers');
-  uRadii = gl.getUniformLocation(program, 'u_radii');
-  uResolution = gl.getUniformLocation(program, 'u_resolution');
-}
-
-// ── Animation state ─────────────────────────────────────
+// ── Animation ───────────────────────────────────────────
 let startTime = 0;
-const SCENE1_DURATION = 2000; // flowers pop in
-const SCENE2_START = 2200;   // text appears
-const BLUR_START = 3000;     // blur begins
-const BLUR_FULL = 5000;      // blur at full strength
+let sourceReady = false;
 
-function renderFrame(now) {
-  const elapsed = now - startTime;
-  
-  // ── Draw to offscreen canvas ──────────────────────────
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(0, 0, W, H);
+function render(now) {
+  requestAnimationFrame(render);
+  if (!sourceReady) return;
 
-  // Draw flowers with pop-in animation
-  for (const f of flowers) {
-    const t = Math.max(0, elapsed - f.delay) / 400;
-    f.scale = Math.min(1, t < 1 ? t * t * (3 - 2 * t) : 1); // smoothstep
-    if (f.scale > 0.01) {
-      ctx.save();
-      ctx.translate(f.x, f.y);
-      ctx.scale(f.scale, f.scale);
-      ctx.translate(-f.x, -f.y);
-      drawFlower(f.x, f.y, f.size, f.petals, f.color, f.rotation);
-      ctx.restore();
-    }
+  const elapsed = (now - startTime) * 0.001; // seconds
+
+  ctx.clearRect(0, 0, W, H);
+
+  // 1. Draw original source as background (unrotated)
+  ctx.drawImage(srcCanvas, 0, 0);
+
+  // 2. For each disc, clip a circle and draw rotated source
+  for (const disc of DISCS) {
+    const angle = elapsed * disc.speed * disc.strength;
+
+    ctx.save();
+    // Clip to circle
+    ctx.beginPath();
+    ctx.arc(disc.cx, disc.cy, disc.r, 0, Math.PI * 2);
+    ctx.clip();
+
+    // Rotate around disc center
+    ctx.translate(disc.cx, disc.cy);
+    ctx.rotate(angle);
+    ctx.translate(-disc.cx, -disc.cy);
+
+    // Draw the source image (rotated within the clip)
+    ctx.drawImage(srcCanvas, 0, 0);
+
+    ctx.restore();
   }
-
-  // Draw text after scene1
-  if (elapsed > SCENE2_START) {
-    const textAlpha = Math.min(1, (elapsed - SCENE2_START) / 800);
-    ctx.globalAlpha = textAlpha;
-    ctx.font = '900 180px "Inter", sans-serif';
-    ctx.fillStyle = '#111';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    ctx.fillText('Glory', 120, 280);
-    ctx.textAlign = 'right';
-    ctx.fillText('and', W - 200, 480);
-    ctx.textAlign = 'right';
-    ctx.fillText('Joy', W - 120, 680);
-    ctx.globalAlpha = 1;
-  }
-
-  // ── Upload to WebGL and apply radial blur ─────────────
-  gl.viewport(0, 0, canvas.width, canvas.height);
-  gl.bindTexture(gl.TEXTURE_2D, texture);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, offCanvas);
-
-  gl.useProgram(program);
-  gl.uniform1i(uTexture, 0);
-  gl.uniform1f(uTime, elapsed * 0.001);
-  gl.uniform2f(uResolution, canvas.width, canvas.height);
-
-  // Blur strength ramps up
-  let blurStr = 0;
-  if (elapsed > BLUR_START) {
-    blurStr = Math.min(1.0, (elapsed - BLUR_START) / (BLUR_FULL - BLUR_START));
-    blurStr = blurStr * blurStr * 1.8; // stronger blur
-  }
-  gl.uniform1f(uBlurStrength, blurStr);
-
-  // Fixed blur centers (no drift)
-  const centers = [];
-  const radii = [];
-  for (const bc of BLUR_CENTERS) {
-    centers.push(bc.x);
-    centers.push(bc.y);
-    radii.push(bc.radius);
-  }
-  gl.uniform2fv(uCenters, new Float32Array(centers));
-  gl.uniform1fv(uRadii, new Float32Array(radii));
-
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-
-  requestAnimationFrame(renderFrame);
 }
 
-// ── Resize ──────────────────────────────────────────────
+// ── Resize (fit to viewport) ────────────────────────────
 function resize() {
-  canvas.width = window.innerWidth * Math.min(devicePixelRatio, 2);
-  canvas.height = window.innerHeight * Math.min(devicePixelRatio, 2);
-  canvas.style.width = window.innerWidth + 'px';
-  canvas.style.height = window.innerHeight + 'px';
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const scale = Math.min(vw / W, vh / H);
+  canvas.width = W;
+  canvas.height = H;
+  canvas.style.width = (W * scale) + 'px';
+  canvas.style.height = (H * scale) + 'px';
+  canvas.style.position = 'absolute';
+  canvas.style.left = ((vw - W * scale) / 2) + 'px';
+  canvas.style.top = ((vh - H * scale) / 2) + 'px';
 }
 
 // ── Start ───────────────────────────────────────────────
 document.fonts.ready.then(() => {
   resize();
   window.addEventListener('resize', resize);
-  initGL();
+  drawSource();
+  sourceReady = true;
   startTime = performance.now();
-  requestAnimationFrame(renderFrame);
+  requestAnimationFrame(render);
 });
