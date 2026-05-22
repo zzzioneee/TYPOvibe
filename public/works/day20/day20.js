@@ -63,13 +63,13 @@ let fontReady = false; // 폰트 로드 완료 플래그
 
 function resize() {
   dpr = Math.min(window.devicePixelRatio || 1, 2);
-  W = window.innerWidth; H = window.innerHeight;
+  W = 1920; H = 1080;
   canvas.width  = W * dpr; canvas.height = H * dpr;
   canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
   ctx.scale(dpr, dpr);
   if (fontReady) render();
 }
-window.addEventListener('resize', resize);
+// resize disabled — fixed 1920x1080 layout
 
 // ── 삐뚤빼뚤 선: 시작→끝을 n 세그먼트로 나눠 각각 흔들기 ──
 function wobblyLine(x1, y1, x2, y2, n) {
@@ -616,7 +616,7 @@ document.fonts.ready.then(() => {
       // 폰트가 실제로 사용 가능한지 한 번 더 확인
       document.fonts.load(`400 ${CFG.fontSize}px 'Noto Serif KR'`).then(() => {
         dpr = Math.min(window.devicePixelRatio || 1, 2);
-        W = window.innerWidth; H = window.innerHeight;
+        W = 1920; H = 1080;
         canvas.width  = W * dpr; canvas.height = H * dpr;
         canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
         ctx.scale(dpr, dpr);
@@ -632,13 +632,13 @@ document.fonts.ready.then(() => {
     fontReady = true;
     if (bgImg.complete && bgImg.naturalWidth) {
       dpr = Math.min(window.devicePixelRatio || 1, 2);
-      W = window.innerWidth; H = window.innerHeight;
+      W = 1920; H = 1080;
       canvas.width  = W * dpr; canvas.height = H * dpr;
       canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
       ctx.scale(dpr, dpr);
       render();
     } else {
-      bgImg.onload = () => { dpr = Math.min(window.devicePixelRatio || 1, 2); W = window.innerWidth; H = window.innerHeight; canvas.width = W*dpr; canvas.height = H*dpr; canvas.style.width=W+'px'; canvas.style.height=H+'px'; ctx.scale(dpr,dpr); render(); };
+      bgImg.onload = () => { dpr = Math.min(window.devicePixelRatio || 1, 2); W = 1920; H = 1080; canvas.width = W*dpr; canvas.height = H*dpr; canvas.style.width=W+'px'; canvas.style.height=H+'px'; ctx.scale(dpr,dpr); render(); };
     }
   });
 });

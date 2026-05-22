@@ -13,9 +13,15 @@
       background: #111;
       overflow: hidden;
     }
+    #stage {
+      width: 1920px; height: 1080px;
+      position: absolute;
+      top: 50%; left: 50%;
+      transform-origin: center center;
+    }
     canvas {
       display: block;
-      position: fixed;
+      position: absolute;
       top: 0; left: 0;
     }
     .from-wrap { position:fixed; top:24px; left:50%; transform:translateX(-50%); z-index:100; }
@@ -28,7 +34,21 @@
   <div class="from-wrap">
     <a href="https://www.instagram.com/marianbijlenga/p/DYhPwSTGyzL/?img_index=1" target="_blank" rel="noopener" class="from-link">FROM</a>
   </div>
-  <canvas id="c"></canvas>
+  <div id="stage">
+    <canvas id="c"></canvas>
+  </div>
   <script src="day20.js"></script>
+  <script>
+  (function() {
+    var W = 1920, H = 1080;
+    function fit() {
+      var vw = window.innerWidth, vh = window.innerHeight;
+      var s = Math.min(vw / W, vh / H);
+      document.getElementById('stage').style.transform = 'translate(-50%,-50%) scale(' + s + ')';
+    }
+    fit();
+    window.addEventListener('resize', fit);
+  })();
+  </script>
 </body>
 </html>

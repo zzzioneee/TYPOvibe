@@ -172,7 +172,8 @@ function App() {
   return (
     <div style={{
       position: 'relative',
-      minHeight: '100vh',
+      width: '1920px',
+      height: '1080px',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
