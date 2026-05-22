@@ -110,7 +110,7 @@ void main() {
   }
   
   // Multi-center radial blur
-  const int SAMPLES = 16;
+  const int SAMPLES = 28;
   float sampleWeight = 1.0;
   
   for (int s = 0; s < SAMPLES; s++) {
@@ -124,8 +124,10 @@ void main() {
       vec2 dir = sampleUV - center;
       float dist = length(dir);
       float influence = smoothstep(radius, 0.0, dist);
-      // Continuous rotation like a record — angle grows with time
-      float angle = influence * u_blurStrength * (u_time * 0.8 + t * 0.3);
+      // Radial motion blur: sample at slightly different rotation angles
+      // Small fixed angle spread — like a record's circular smear
+      float maxAngle = influence * u_blurStrength * 0.35;
+      float angle = maxAngle * (t * 2.0 - 1.0); // spread from -max to +max
       float cosA = cos(angle);
       float sinA = sin(angle);
       vec2 rotated = vec2(
@@ -243,8 +245,8 @@ function renderFrame(now) {
   // Blur strength ramps up
   let blurStr = 0;
   if (elapsed > BLUR_START) {
-    blurStr = Math.min(1, (elapsed - BLUR_START) / (BLUR_FULL - BLUR_START));
-    blurStr = blurStr * blurStr * 1.2; // ease-in, max ~1.2
+    blurStr = Math.min(1.0, (elapsed - BLUR_START) / (BLUR_FULL - BLUR_START));
+    blurStr = blurStr * blurStr * 1.8; // stronger blur
   }
   gl.uniform1f(uBlurStrength, blurStr);
 
