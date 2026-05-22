@@ -68,6 +68,7 @@ const PATTERNS = [
   (n) => normalise(textToPoints('Joy', n, 300), 55),
 ];
 const PATTERN_PALETTES = ['glory', 'and', 'joy'];
+const PATTERN_SHAPES = [0.0, 1.0, 2.0]; // 0=star, 1=glow, 2=flower
 
 // ── Scene setup ─────────────────────────────────────────
 let scene, camera, renderer, composer, controls;
@@ -126,7 +127,7 @@ function makeParticles(count, palette) {
     hsl.l = Math.min(0.9, Math.max(0.5, hsl.l + (Math.random() - 0.5) * 0.4));
     const c = new THREE.Color().setHSL(hsl.h, hsl.s, hsl.l);
     col[i3] = c.r; col[i3 + 1] = c.g; col[i3 + 2] = c.b;
-    size[i] = 0.7 + Math.random() * 1.1;
+    size[i] = 0.4 + Math.pow(Math.random(), 2) * 2.5;
     rnd[i3] = Math.random() * 10; rnd[i3 + 1] = Math.random() * Math.PI * 2; rnd[i3 + 2] = 0.5 + 0.5 * Math.random();
   }
   geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
@@ -134,18 +135,63 @@ function makeParticles(count, palette) {
   geo.setAttribute("size", new THREE.BufferAttribute(size, 1));
   geo.setAttribute("random", new THREE.BufferAttribute(rnd, 3));
   const mat = new THREE.ShaderMaterial({
-    uniforms: { time: { value: 0 }, hueSpeed: { value: 0.08 } },
+    uniforms: { time: { value: 0 }, hueSpeed: { value: 0.08 }, shape: { value: 0.0 } },
     vertexShader: `uniform float time; attribute float size; attribute vec3 random; varying vec3 vCol; varying float vR;
     void main(){ vCol=color; vR=random.z; vec3 p=position; float t=time*.25*random.z; float ax=t+random.y, ay=t*.75+random.x;
     float amp=(.6+sin(random.x+t*.6)*.3)*random.z; p.x+=sin(ax+p.y*.06+random.x*.1)*amp; p.y+=cos(ay+p.z*.06+random.y*.1)*amp;
     p.z+=sin(ax*.85+p.x*.06+random.z*.1)*amp; vec4 mv=modelViewMatrix*vec4(p,1.); float pulse=.9+.1*sin(time*1.15+random.y);
     gl_PointSize=size*pulse*(350./-mv.z); gl_Position=projectionMatrix*mv; }`,
-    fragmentShader: `uniform float time; uniform float hueSpeed; varying vec3 vCol; varying float vR;
+    fragmentShader: `uniform float time; uniform float hueSpeed; uniform float shape; varying vec3 vCol; varying float vR;
     vec3 hueShift(vec3 c, float h){const vec3 k=vec3(0.57735);float cosA=cos(h);float sinA=sin(h);return c*cosA+cross(k,c)*sinA+k*dot(k,c)*(1.-cosA);}
-    void main(){ vec2 uv=gl_PointCoord-.5; float d=length(uv); float core=smoothstep(.05,.0,d); float angle=atan(uv.y,uv.x);
-    float flare=pow(max(0.,sin(angle*6.+time*2.*vR)),4.); flare*=smoothstep(.5,.0,d); float glow=smoothstep(.4,.1,d);
-    float alpha=core*1.+flare*.5+glow*.2; vec3 color=hueShift(vCol,time*hueSpeed); vec3 finalColor=mix(color,vec3(1.,.95,.9),core);
-    finalColor=mix(finalColor,color,flare*.5+glow*.5); if(alpha<.01)discard; gl_FragColor=vec4(finalColor,alpha); }`,
+    
+    // 4-point star shape
+    float starShape(vec2 uv) {
+      float d = length(uv);
+      float angle = atan(uv.y, uv.x);
+      float star = pow(abs(cos(angle * 2.0)), 8.0) * 0.4 + 0.1;
+      float mask = smoothstep(star + 0.05, star, d);
+      float core = smoothstep(0.08, 0.0, d);
+      return mask * 0.7 + core;
+    }
+    
+    // 4-petal flower shape
+    float flowerShape(vec2 uv) {
+      float d = length(uv);
+      float angle = atan(uv.y, uv.x);
+      float petal = pow(abs(cos(angle * 2.0)), 1.5) * 0.38 + 0.06;
+      float mask = smoothstep(petal + 0.04, petal - 0.02, d);
+      float center = 1.0 - smoothstep(0.06, 0.1, d);
+      return max(mask * 0.8, center);
+    }
+    
+    // Original glow shape
+    float glowShape(vec2 uv, float t, float r) {
+      float d = length(uv);
+      float core = smoothstep(0.05, 0.0, d);
+      float angle = atan(uv.y, uv.x);
+      float flare = pow(max(0.0, sin(angle * 6.0 + t * 2.0 * r)), 4.0);
+      flare *= smoothstep(0.5, 0.0, d);
+      float glow = smoothstep(0.4, 0.1, d);
+      return core + flare * 0.5 + glow * 0.2;
+    }
+    
+    void main(){
+      vec2 uv = gl_PointCoord - 0.5;
+      float alpha;
+      if (shape < 0.5) {
+        alpha = starShape(uv);
+      } else if (shape < 1.5) {
+        alpha = glowShape(uv, time, vR);
+      } else {
+        alpha = flowerShape(uv);
+      }
+      if(alpha < 0.01) discard;
+      vec3 color = hueShift(vCol, time * hueSpeed);
+      float d = length(uv);
+      float core = smoothstep(0.08, 0.0, d);
+      vec3 finalColor = mix(color, vec3(1.0, 0.98, 0.95), core * 0.7);
+      gl_FragColor = vec4(finalColor, alpha);
+    }`,
     transparent: true, depthWrite: false, vertexColors: true, blending: THREE.AdditiveBlending
   });
   return new THREE.Points(geo, mat);
@@ -293,9 +339,14 @@ function animate() {
       sparkles.geometry.attributes.position.needsUpdate = true;
       // Transition colors
       transitionColors(PALETTES[PATTERN_PALETTES[next]], eased);
+      // Switch shape at midpoint
+      if (eased > 0.5) {
+        particles.material.uniforms.shape.value = PATTERN_SHAPES[next];
+      }
     }
     if (prog >= 1) {
       currentPattern = particles.userData.next;
+      particles.material.uniforms.shape.value = PATTERN_SHAPES[currentPattern];
       isTrans = false;
     }
   }
