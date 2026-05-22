@@ -66,15 +66,14 @@ for (let i = 0; i < 22; i++) {
 }
 
 // ── Radial blur centers ─────────────────────────────────
-const BLUR_CENTERS = [];
-for (let i = 0; i < 5; i++) {
-  BLUR_CENTERS.push({
-    x: 0.15 + Math.random() * 0.7,
-    y: 0.15 + Math.random() * 0.7,
-    radius: 0.25 + Math.random() * 0.35,
-    speed: 0.3 + Math.random() * 0.5,
-  });
-}
+// ── Radial blur centers — spread across screen, no overlap ──
+const BLUR_CENTERS = [
+  { x: 0.18, y: 0.22, radius: 0.38 },  // top-left
+  { x: 0.78, y: 0.18, radius: 0.32 },  // top-right
+  { x: 0.50, y: 0.55, radius: 0.35 },  // center
+  { x: 0.15, y: 0.80, radius: 0.30 },  // bottom-left
+  { x: 0.82, y: 0.78, radius: 0.33 },  // bottom-right
+];
 
 // ── WebGL setup for radial blur post-process ────────────
 let program, posBuffer, texCoordBuffer, texture;
@@ -101,47 +100,49 @@ uniform vec2 u_resolution;
 
 void main() {
   vec2 uv = v_texCoord;
-  vec4 color = vec4(0.0);
-  float totalWeight = 0.0;
   
   if (u_blurStrength < 0.01) {
     gl_FragColor = texture2D(u_texture, uv);
     return;
   }
   
-  // Multi-center radial blur
-  const int SAMPLES = 28;
-  float sampleWeight = 1.0;
-  
-  for (int s = 0; s < SAMPLES; s++) {
-    vec2 sampleUV = uv;
-    float t = float(s) / float(SAMPLES);
-    
-    // Apply each blur center's influence
-    for (int i = 0; i < 5; i++) {
-      vec2 center = u_centers[i];
-      float radius = u_radii[i];
-      vec2 dir = sampleUV - center;
-      float dist = length(dir);
-      float influence = smoothstep(radius, 0.0, dist);
-      // Radial motion blur: sample at slightly different rotation angles
-      // Small fixed angle spread — like a record's circular smear
-      float maxAngle = influence * u_blurStrength * 0.35;
-      float angle = maxAngle * (t * 2.0 - 1.0); // spread from -max to +max
-      float cosA = cos(angle);
-      float sinA = sin(angle);
-      vec2 rotated = vec2(
-        dir.x * cosA - dir.y * sinA,
-        dir.x * sinA + dir.y * cosA
-      );
-      sampleUV = center + rotated;
-    }
-    
-    color += texture2D(u_texture, clamp(sampleUV, 0.0, 1.0));
-    totalWeight += sampleWeight;
+  // Find closest blur center to this pixel
+  float minDist = 999.0;
+  int closest = 0;
+  for (int i = 0; i < 5; i++) {
+    float d = length(uv - u_centers[i]);
+    if (d < minDist) { minDist = d; closest = i; }
   }
   
-  gl_FragColor = color / totalWeight;
+  vec2 center = u_centers[closest];
+  float radius = u_radii[closest];
+  vec2 dir = uv - center;
+  float dist = length(dir);
+  
+  // Influence falls off from center
+  float influence = smoothstep(radius, radius * 0.1, dist) * u_blurStrength;
+  
+  if (influence < 0.01) {
+    gl_FragColor = texture2D(u_texture, uv);
+    return;
+  }
+  
+  // Radial motion blur: sample at different rotation angles around this center
+  const int SAMPLES = 24;
+  vec4 color = vec4(0.0);
+  float maxAngle = influence * 0.4; // max rotation spread
+  
+  for (int s = 0; s < SAMPLES; s++) {
+    float t = (float(s) / float(SAMPLES - 1)) * 2.0 - 1.0; // -1 to 1
+    float angle = maxAngle * t;
+    float cosA = cos(angle);
+    float sinA = sin(angle);
+    vec2 rotDir = vec2(dir.x * cosA - dir.y * sinA, dir.x * sinA + dir.y * cosA);
+    vec2 sampleUV = center + rotDir;
+    color += texture2D(u_texture, clamp(sampleUV, 0.0, 1.0));
+  }
+  
+  gl_FragColor = color / float(SAMPLES);
 }`;
 
 function initGL() {
@@ -250,12 +251,12 @@ function renderFrame(now) {
   }
   gl.uniform1f(uBlurStrength, blurStr);
 
-  // Animated blur centers (slowly drifting)
+  // Fixed blur centers (no drift)
   const centers = [];
   const radii = [];
   for (const bc of BLUR_CENTERS) {
-    centers.push(bc.x + Math.sin(elapsed * 0.0003 * bc.speed) * 0.05);
-    centers.push(bc.y + Math.cos(elapsed * 0.0004 * bc.speed) * 0.05);
+    centers.push(bc.x);
+    centers.push(bc.y);
     radii.push(bc.radius);
   }
   gl.uniform2fv(uCenters, new Float32Array(centers));
