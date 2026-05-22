@@ -51,17 +51,17 @@ function drawFlower(cx, cy, size, petals, colorPair, rotation) {
 
 // Generate random flower data
 const flowers = [];
-for (let i = 0; i < 14; i++) {
+for (let i = 0; i < 22; i++) {
   flowers.push({
     x: Math.random() * W,
     y: Math.random() * H,
-    size: 80 + Math.random() * 250,
+    size: 120 + Math.random() * 350,
     petals: Math.floor(4 + Math.random() * 5),
     color: FLOWER_COLORS[Math.floor(Math.random() * FLOWER_COLORS.length)],
     rotation: Math.random() * Math.PI * 2,
-    scale: 0, // animate in
+    scale: 0,
     targetScale: 1,
-    delay: i * 120,
+    delay: i * 80,
   });
 }
 
@@ -123,9 +123,9 @@ void main() {
       float radius = u_radii[i];
       vec2 dir = sampleUV - center;
       float dist = length(dir);
-      float influence = smoothstep(radius, 0.0, dist) * u_blurStrength;
-      // Rotate around center
-      float angle = influence * t * 0.15;
+      float influence = smoothstep(radius, 0.0, dist);
+      // Continuous rotation like a record — angle grows with time
+      float angle = influence * u_blurStrength * (u_time * 0.8 + t * 0.3);
       float cosA = cos(angle);
       float sinA = sin(angle);
       vec2 rotated = vec2(
@@ -209,7 +209,7 @@ function renderFrame(now) {
       ctx.translate(f.x, f.y);
       ctx.scale(f.scale, f.scale);
       ctx.translate(-f.x, -f.y);
-      drawFlower(f.x, f.y, f.size, f.petals, f.color, f.rotation + elapsed * 0.0002);
+      drawFlower(f.x, f.y, f.size, f.petals, f.color, f.rotation);
       ctx.restore();
     }
   }
