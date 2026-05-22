@@ -106,16 +106,20 @@ void main() {
     return;
   }
   
-  // Find closest blur center to this pixel
+  // Find closest blur center and apply only that one's radial blur
   float minDist = 999.0;
-  int closest = 0;
+  vec2 center = u_centers[0];
+  float radius = u_radii[0];
+  
   for (int i = 0; i < 5; i++) {
     float d = length(uv - u_centers[i]);
-    if (d < minDist) { minDist = d; closest = i; }
+    if (d < minDist) {
+      minDist = d;
+      center = u_centers[i];
+      radius = u_radii[i];
+    }
   }
   
-  vec2 center = u_centers[closest];
-  float radius = u_radii[closest];
   vec2 dir = uv - center;
   float dist = length(dir);
   
@@ -128,12 +132,11 @@ void main() {
   }
   
   // Radial motion blur: sample at different rotation angles around this center
-  const int SAMPLES = 24;
   vec4 color = vec4(0.0);
-  float maxAngle = influence * 0.4; // max rotation spread
+  float maxAngle = influence * 0.4;
   
-  for (int s = 0; s < SAMPLES; s++) {
-    float t = (float(s) / float(SAMPLES - 1)) * 2.0 - 1.0; // -1 to 1
+  for (int s = 0; s < 24; s++) {
+    float t = (float(s) / 23.0) * 2.0 - 1.0;
     float angle = maxAngle * t;
     float cosA = cos(angle);
     float sinA = sin(angle);
@@ -142,18 +145,21 @@ void main() {
     color += texture2D(u_texture, clamp(sampleUV, 0.0, 1.0));
   }
   
-  gl_FragColor = color / float(SAMPLES);
+  gl_FragColor = color / 24.0;
 }`;
 
 function initGL() {
-  // Compile shaders
   const vs = gl.createShader(gl.VERTEX_SHADER);
   gl.shaderSource(vs, vsSource); gl.compileShader(vs);
+  if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) console.error('VS:', gl.getShaderInfoLog(vs));
   const fs = gl.createShader(gl.FRAGMENT_SHADER);
   gl.shaderSource(fs, fsSource); gl.compileShader(fs);
+  if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) console.error('FS:', gl.getShaderInfoLog(fs));
   program = gl.createProgram();
   gl.attachShader(program, vs); gl.attachShader(program, fs);
-  gl.linkProgram(program); gl.useProgram(program);
+  gl.linkProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) console.error('Link:', gl.getProgramInfoLog(program));
+  gl.useProgram(program);
 
   // Full-screen quad
   const positions = new Float32Array([-1,-1, 1,-1, -1,1, 1,1]);
