@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 22 — Glory and Joy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: "Playfair Display", serif;
+  overflow: hidden;
+  background: #040307;
+  background-image:
+    radial-gradient(circle at 50% 35%, #1d1431 0%, transparent 65%),
+    linear-gradient(180deg, #000000 0%, #070012 100%);
+  color: #eee;
+}
+#container { position: fixed; inset: 0; }
+.vignette {
+  position: fixed; inset: 0;
+  pointer-events: none; z-index: 9;
+  background: radial-gradient(circle at center, rgba(0,0,0,0) 65%, rgba(0,0,0,.5) 100%);
+}
+canvas { display: block; width: 100%; height: 100%; }
+.from-wrap { position:fixed; top:24px; left:50%; transform:translateX(-50%); z-index:100; }
+.from-link { font-family:'Pretendard', sans-serif; font-size:20px; font-weight:500;
+  color:#fff; text-decoration:none; letter-spacing:0.15em; }
+.from-link:hover { color:rgba(255,255,255,0.75); }
+</style>
+<script type="importmap">
+{"imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+<div class="from-wrap">
+  <a href="https://newneek.co/@gosum_beat/article/40724?utm_source=newsletter&utm_medium=btrend&utm_campaign=260522&utm_content=40724&utm_term=beat" target="_blank" rel="noopener" class="from-link">FROM</a>
+</div>
+<div id="container"></div>
+<div class="vignette"></div>
+<script type="module" src="day22.js"></script>
+</body>
+</html>

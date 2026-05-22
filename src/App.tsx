@@ -20,6 +20,7 @@ import Day018 from './works/day18'
 import Day019 from './works/day19'
 import Day020 from './works/day20'
 import Day021 from './works/day21'
+import Day022 from './works/day22'
 
 type View = 'home' | string
 
@@ -234,6 +235,16 @@ const WORKS = [
     ratio: '4 / 3',
     bgTheme: 'dark' as const,
   },
+  {
+    id: 'day22',
+    day: '22',
+    date: '2026.05.25',
+    title: 'Glory and Joy',
+    desc: '영희페스티벌. 여성 창작자의 영광과 기쁨을 글로우 파티클 텍스트 모핑으로 표현.',
+    tags: ['Three.js', 'Particle', 'Morph'],
+    ratio: '4 / 3',
+    bgTheme: 'dark' as const,
+  },
 ]
 
 export default function App() {
@@ -307,6 +318,7 @@ export default function App() {
           {view === 'day19' && <Day019 />}
           {view === 'day20' && <Day020 />}
           {view === 'day21' && <Day021 />}
+          {view === 'day22' && <Day022 />}
         </main>
       </div>
     )
