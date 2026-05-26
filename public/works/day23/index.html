@@ -365,12 +365,36 @@ canvas { display: block; }
     hiddenInput.focus();
   });
 
+  // Mouse interaction — ripple/sway nearby particles
+  let mouseX = -1000, mouseY = -1000;
+  canvas.addEventListener('mousemove', e => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+  });
+  canvas.addEventListener('mouseleave', () => { mouseX = -1000; mouseY = -1000; });
+
+  function applyMouseForce() {
+    if (mouseX < 0) return;
+    const radius = 120, strength = 1.5;
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      if (p.pinned) continue;
+      const dx = p.x - mouseX, dy = p.y - mouseY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < radius && dist > 0) {
+        const force = (1 - dist / radius) * strength;
+        p.x += (dx / dist) * force;
+        p.y += (dy / dist) * force * 0.5;
+      }
+    }
+  }
+
   // Main loop
   let lastCharTime = 0;
   function animate(time) {
     requestAnimationFrame(animate);
     if (charQueue.length && time - lastCharTime > 85) { addChar(charQueue.shift()); lastCharTime = time; }
-    if (particles.length > 0) { updateParticles(); solveConstraints(); }
+    if (particles.length > 0) { applyMouseForce(); updateParticles(); solveConstraints(); }
     ctx.fillStyle = COLORS.bg;
     ctx.fillRect(0, 0, W, H);
     drawNeedles(time);
