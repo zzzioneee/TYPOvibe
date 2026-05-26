@@ -227,7 +227,7 @@ document.fonts.ready.then(() => {
   // Scale canvas to fit viewport
   function fitCanvas() {
     const vw = window.innerWidth, vh = window.innerHeight;
-    const scale = Math.min(vw / W, vh / H);
+    const scale = Math.max(vw / W, vh / H); // cover: fill viewport, may crop
     canvas.style.width = (W * scale) + 'px';
     canvas.style.height = (H * scale) + 'px';
     canvas.style.position = 'fixed';
