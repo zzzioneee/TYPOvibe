@@ -210,7 +210,7 @@ function frame(now) {
   
   // Draw text on top (partially readable over rotation)
   ctx.font = '400 140px Helvetica, Arial, sans-serif';
-  ctx.fillStyle = 'rgba(17,17,17,0.75)';
+  ctx.fillStyle = '#111';
   ctx.textBaseline = 'top';
   ctx.textAlign = 'left';
   ctx.fillText('Glory', 60, 80);
