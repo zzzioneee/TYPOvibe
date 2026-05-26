@@ -254,7 +254,7 @@ const WORKS = [
     desc: '타이핑이 뜨개질이 되는 인터랙티브. 키보드를 치면 실이 엮여 글자가 스티치 패턴으로 직조된다.',
     tags: ['Canvas', 'Interactive', 'Knitting'],
     ratio: '4 / 3',
-    bgTheme: 'light' as const,
+    bgTheme: 'dark' as const,
   },
 ]
 
