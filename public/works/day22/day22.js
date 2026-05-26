@@ -42,11 +42,17 @@ function drawFlower(cx, cy, size, petals, colorPair, rotation) {
 function drawSource() {
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, W, H);
-  // flowers — more, warm palette (red/pink/yellow)
+  // flowers — grid-based distribution to spread evenly
+  const cols = 5, rows = 4;
+  const cellW = W / cols, cellH = H / rows;
   for (let i = 0; i < 22; i++) {
+    const col = i % cols;
+    const row = Math.floor(i / cols) % rows;
+    const x = col * cellW + Math.random() * cellW;
+    const y = row * cellH + Math.random() * cellH;
     drawFlower(
-      80 + Math.random() * (W - 160), 60 + Math.random() * (H - 120),
-      120 + Math.random() * 300,
+      x, y,
+      120 + Math.random() * 280,
       Math.floor(4 + Math.random() * 4),
       FLOWER_COLORS[Math.floor(Math.random() * FLOWER_COLORS.length)],
       Math.random() * Math.PI * 2
