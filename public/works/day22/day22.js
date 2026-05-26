@@ -31,10 +31,6 @@ function drawFlower(cx, cy, size, petals, colorPair, rotation) {
     ctx.ellipse(px, py, size * 0.42, size * 0.2, a, 0, Math.PI * 2);
   }
   ctx.fill();
-  ctx.fillStyle = '#fff';
-  ctx.beginPath();
-  ctx.arc(0, 0, size * 0.1, 0, Math.PI * 2);
-  ctx.fill();
   ctx.restore();
 }
 
