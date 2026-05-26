@@ -240,7 +240,7 @@ const WORKS = [
     day: '22',
     date: '2026.05.25',
     title: 'Glory and Joy',
-    desc: '영희페스티벌. 여성 창작자의 영광과 기쁨을 글로우 파티클 텍스트 모핑으로 표현.',
+    desc: '영희페스티벌. 여성 창작자의 영광과 기쁨을 레코드판처럼 회전하는 꽃 소용돌이 타이포그래피로 표현.',
     tags: ['Three.js', 'Particle', 'Morph'],
     ratio: '4 / 3',
     bgTheme: 'dark' as const,
