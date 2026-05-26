@@ -164,19 +164,23 @@ void main() {
     vec2 dir = uv - center;
     
     // Long smear: blur angle grows with distance
-    float blurAngle = dist * u_strengths[i] * 2.5 * u_blurMix;
+    float blurAngle = dist * u_strengths[i] * 4.0 * u_blurMix;
     float baseAngle = u_time * u_speeds[i];
     
     vec4 cColor = vec4(0.0);
+    float wSum = 0.0;
     for (int s = 0; s < 30; s++) {
       float t = (float(s) / 29.0) - 0.5;
+      // Sharp falloff weight — center is strong, tails are faint
+      float sw = exp(-8.0 * t * t);
       float angle = baseAngle + t * blurAngle;
       float co = cos(angle);
       float sn = sin(angle);
       vec2 rotDir = vec2(dir.x * co - dir.y * sn, dir.x * sn + dir.y * co);
-      cColor += texture2D(u_tex, clamp(center + rotDir, 0.0, 1.0));
+      cColor += texture2D(u_tex, clamp(center + rotDir, 0.0, 1.0)) * sw;
+      wSum += sw;
     }
-    cColor /= 30.0;
+    cColor /= wSum;
     
     totalColor += cColor * w;
     totalWeight += w;
