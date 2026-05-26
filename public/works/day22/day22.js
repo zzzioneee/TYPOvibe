@@ -235,7 +235,7 @@ void main() {
     float w = 1.0 / (dist * dist * dist * dist + 0.001);
     vec2 dir = uv - center;
     
-    float blurAngle = dist * u_strengths[i] * 1.2 * u_blurMix;
+    float blurAngle = dist * u_strengths[i] * 0.45 * u_blurMix;
     float baseAngle = u_time * u_speeds[i];
     
     vec4 cColor = vec4(0.0);
