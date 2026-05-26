@@ -91,55 +91,45 @@ uniform float u_aspect;
 
 void main() {
   vec2 uv = v_uv;
-  
-  // Aspect-corrected coordinates for distance calculations
   vec2 uvA = vec2(uv.x * u_aspect, uv.y);
   
-  // Find closest center (NO radius cutoff — every pixel is affected)
-  
-  // Find closest center (NO radius cutoff — every pixel is affected)
-  float minD = 999.0;
-  vec2 center = u_centers[0];
-  float strength = u_strengths[0];
-  float speed = u_speeds[0];
+  // Blend all 5 centers weighted by inverse distance (no voronoi edges)
+  vec4 totalColor = vec4(0.0);
+  float totalWeight = 0.0;
   
   for (int i = 0; i < 5; i++) {
     vec2 cA = vec2(u_centers[i].x * u_aspect, u_centers[i].y);
-    float d = length(uvA - cA);
-    if (d < minD) {
-      minD = d;
-      center = u_centers[i];
-      strength = u_strengths[i];
-      speed = u_speeds[i];
+    float dist = length(uvA - cA);
+    
+    // Weight: inverse distance (closer center = stronger influence)
+    float w = 1.0 / (dist * dist + 0.02);
+    
+    // Direction from this center in UV space
+    vec2 dir = uv - u_centers[i];
+    
+    // Blur angle proportional to distance (record physics)
+    float blurAngle = dist * u_strengths[i] * 1.0;
+    
+    // Continuous rotation
+    float baseAngle = u_time * u_speeds[i];
+    
+    // Spin blur samples
+    vec4 cColor = vec4(0.0);
+    for (int s = 0; s < 16; s++) {
+      float t = (float(s) / 15.0) - 0.5;
+      float angle = baseAngle + t * blurAngle;
+      float co = cos(angle);
+      float sn = sin(angle);
+      vec2 rotDir = vec2(dir.x * co - dir.y * sn, dir.x * sn + dir.y * co);
+      cColor += texture2D(u_tex, clamp(u_centers[i] + rotDir, 0.0, 1.0));
     }
+    cColor /= 16.0;
+    
+    totalColor += cColor * w;
+    totalWeight += w;
   }
   
-  // Distance from closest center (aspect corrected)
-  vec2 cA = vec2(center.x * u_aspect, center.y);
-  float dist = length(uvA - cA);
-  
-  // Direction from center (in original UV space for sampling)
-  vec2 dir = uv - center;
-  
-  // Blur increases with distance from center (outer = faster, like a record)
-  // No hard edge — smoothly increases outward
-  float blurAngle = dist * strength * 1.4;
-  
-  // Continuous rotation
-  float baseAngle = u_time * speed;
-  
-  // Spin blur: sample at spread of angles
-  vec4 color = vec4(0.0);
-  for (int s = 0; s < 24; s++) {
-    float t = (float(s) / 23.0) - 0.5; // -0.5 to +0.5
-    float angle = baseAngle + t * blurAngle;
-    float c = cos(angle);
-    float sn = sin(angle);
-    vec2 rotDir = vec2(dir.x * c - dir.y * sn, dir.x * sn + dir.y * c);
-    color += texture2D(u_tex, clamp(center + rotDir, 0.0, 1.0));
-  }
-  
-  gl_FragColor = color / 24.0;
+  gl_FragColor = totalColor / totalWeight;
 }`;
 
 let program, tex;
