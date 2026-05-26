@@ -216,7 +216,6 @@ uniform float u_blurMix;
 void main() {
   vec2 uv = v_uv;
   
-  // If no blur yet, show original
   if (u_blurMix < 0.01) {
     gl_FragColor = texture2D(u_tex, uv);
     return;
@@ -224,36 +223,51 @@ void main() {
   
   vec2 uvA = vec2(uv.x * u_aspect, uv.y);
   
-  vec4 totalColor = vec4(0.0);
-  float totalWeight = 0.0;
+  // Find strongest disc influence on this pixel
+  float bestInf = 0.0;
+  vec2 bestCenter = vec2(0.5);
+  float bestStrength = 0.0;
+  float bestSpeed = 0.0;
+  float bestDist = 0.0;
   
   for (int i = 0; i < 5; i++) {
-    vec2 center = u_centers[i];
-    vec2 cA = vec2(center.x * u_aspect, center.y);
-    float dist = length(uvA - cA);
-    
-    float w = 1.0 / (dist * dist * dist * dist + 0.001);
-    vec2 dir = uv - center;
-    
-    float blurAngle = dist * u_strengths[i] * 0.45 * u_blurMix;
-    float baseAngle = u_time * u_speeds[i];
-    
-    vec4 cColor = vec4(0.0);
-    for (int s = 0; s < 30; s++) {
-      float t = (float(s) / 29.0) - 0.5;
-      float angle = baseAngle + t * blurAngle;
-      float co = cos(angle);
-      float sn = sin(angle);
-      vec2 rotDir = vec2(dir.x * co - dir.y * sn, dir.x * sn + dir.y * co);
-      cColor += texture2D(u_tex, clamp(center + rotDir, 0.0, 1.0));
+    vec2 cA = vec2(u_centers[i].x * u_aspect, u_centers[i].y);
+    float d = length(uvA - cA);
+    float inf = smoothstep(0.30, 0.08, d); // radius ~0.30, feather inward
+    if (inf > bestInf) {
+      bestInf = inf;
+      bestCenter = u_centers[i];
+      bestStrength = u_strengths[i];
+      bestSpeed = u_speeds[i];
+      bestDist = d;
     }
-    cColor /= 30.0;
-    
-    totalColor += cColor * w;
-    totalWeight += w;
   }
   
-  gl_FragColor = totalColor / totalWeight;
+  if (bestInf < 0.01) {
+    gl_FragColor = texture2D(u_tex, uv);
+    return;
+  }
+  
+  vec2 dir = uv - bestCenter;
+  
+  // Blur stronger at rim, weak at center
+  float edgeFactor = smoothstep(0.04, 0.25, bestDist);
+  float blurAngle = edgeFactor * bestStrength * 0.5 * u_blurMix;
+  float baseAngle = u_time * bestSpeed;
+  
+  vec4 blurred = vec4(0.0);
+  for (int s = 0; s < 30; s++) {
+    float t = (float(s) / 29.0) - 0.5;
+    float angle = baseAngle + t * blurAngle;
+    float co = cos(angle);
+    float sn = sin(angle);
+    vec2 rotDir = vec2(dir.x * co - dir.y * sn, dir.x * sn + dir.y * co);
+    blurred += texture2D(u_tex, clamp(bestCenter + rotDir, 0.0, 1.0));
+  }
+  blurred /= 30.0;
+  
+  vec4 original = texture2D(u_tex, uv);
+  gl_FragColor = mix(original, blurred, bestInf);
 }`;
 
 let program, tex;
@@ -294,14 +308,14 @@ function initGL() {
   
   // Set vortex center uniforms
   gl.uniform2fv(gl.getUniformLocation(program, 'u_centers'), new Float32Array([
-    0.15, 0.25,   // 좌상 — 좀 더 구석으로
-    0.65, 0.15,   // 상단 우측 치우침
-    0.40, 0.65,   // 중앙 좌하 쪽
-    0.85, 0.55,   // 우측 중앙
-    0.30, 0.90,   // 좌측 하단 — 화면 밖 근처
+    0.30, 0.20,   // 상단 좌
+    0.72, 0.18,   // 상단 우
+    0.48, 0.52,   // 중앙 (큰 원)
+    0.25, 0.80,   // 하단 좌
+    0.75, 0.78,   // 하단 우
   ]));
-  gl.uniform1fv(gl.getUniformLocation(program, 'u_strengths'), new Float32Array([1.2, 0.8, 1.0, 0.6, 0.9]));
-  gl.uniform1fv(gl.getUniformLocation(program, 'u_speeds'), new Float32Array([0.18, -0.22, 0.12, -0.15, 0.25]));
+  gl.uniform1fv(gl.getUniformLocation(program, 'u_strengths'), new Float32Array([0.9, 0.7, 1.2, 0.8, 0.6]));
+  gl.uniform1fv(gl.getUniformLocation(program, 'u_speeds'), new Float32Array([0.2, -0.25, 0.12, -0.18, 0.22]));
   
   uBlurMix = gl.getUniformLocation(program, 'u_blurMix');
   
