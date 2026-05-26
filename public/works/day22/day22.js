@@ -223,60 +223,6 @@ void main() {
   
   vec2 uvA = vec2(uv.x * u_aspect, uv.y);
   
-  vec4 totalColor = vec4(0.0);
-  float totalWeight = 0.0;
-  
-  for (int i = 0; i < 5; i++) {
-    vec2 center = u_centers[i];
-    vec2 cA = vec2(center.x * u_aspect, center.y);
-    float dist = length(uvA - cA);
-    
-    float w = 1.0 / (dist * dist * dist + 0.005);
-    vec2 dir = uv - center;
-    
-    float blurAngle = dist * u_strengths[i] * 1.5 * u_blurMix;
-    float baseAngle = u_time * u_speeds[i];
-    
-    vec4 cColor = vec4(0.0);
-    for (int s = 0; s < 30; s++) {
-      float t = (float(s) / 29.0) - 0.5;
-      float angle = baseAngle + t * blurAngle;
-      float co = cos(angle);
-      float sn = sin(angle);
-      vec2 rotDir = vec2(dir.x * co - dir.y * sn, dir.x * sn + dir.y * co);
-      cColor += texture2D(u_tex, clamp(center + rotDir, 0.0, 1.0));
-    }
-    cColor /= 30.0;
-    
-    totalColor += cColor * w;
-    totalWeight += w;
-  }
-  
-  gl_FragColor = totalColor / totalWeight;
-}`;
-
-const FS = `
-precision highp float;
-varying vec2 v_uv;
-uniform sampler2D u_tex;
-uniform float u_time;
-uniform float u_aspect;
-uniform vec2 u_centers[5];
-uniform float u_strengths[5];
-uniform float u_speeds[5];
-
-uniform float u_blurMix;
-
-void main() {
-  vec2 uv = v_uv;
-  
-  if (u_blurMix < 0.01) {
-    gl_FragColor = texture2D(u_tex, uv);
-    return;
-  }
-  
-  vec2 uvA = vec2(uv.x * u_aspect, uv.y);
-  
   // Find strongest disc influence on this pixel
   float bestInf = 0.0;
   vec2 bestCenter = vec2(0.5);
