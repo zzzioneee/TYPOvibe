@@ -335,16 +335,20 @@ canvas { display: block; }
     if (e.data) for (const ch of e.data) charQueue.push(ch);
     updateFabricState();
     removeComposingPreview();
-    // Mark that we just ended composition — input event should be ignored
     justComposed = true;
-    setTimeout(() => { hiddenInput.value = ''; justComposed = false; }, 20);
+    setTimeout(() => { justComposed = false; }, 50);
   });
   let justComposed = false;
   hiddenInput.addEventListener('input', e => {
     if (isComposing || justComposed) return;
     if (e.data) for (const ch of e.data) charQueue.push(ch);
-    setTimeout(() => { hiddenInput.value = ''; }, 10);
   });
+  // Periodically trim input to prevent overflow, only when not composing
+  setInterval(() => {
+    if (!isComposing && hiddenInput.value.length > 50) {
+      hiddenInput.value = hiddenInput.value.slice(-5);
+    }
+  }, 1000);
 
   let composingPreview = null;
   function updateComposingPreview() {
