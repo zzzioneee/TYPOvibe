@@ -129,8 +129,11 @@ void main() {
   vec2 dir = uv - center;
   
   // Blur stronger at edges, zero at center
-  float edgeFactor = smoothstep(radius * 0.15, radius * 0.8, dist);
-  float blurAngle = edgeFactor * strength * 0.7;
+  // Wide feather at the boundary so edge is invisible
+  float edgeFactor = smoothstep(radius * 0.15, radius * 0.6, dist);
+  // Fade out blur near the disc edge so no hard boundary
+  float fadeOut = 1.0 - smoothstep(radius * 0.7, radius, dist);
+  float blurAngle = edgeFactor * fadeOut * strength * 0.7;
   
   // Continuous rotation
   float baseAngle = u_time * speed;
@@ -154,11 +157,11 @@ let uTime, uCenters, uRadii, uStrengths, uSpeeds, uAspect;
 
 // Disc definitions: position (0-1), radius (0-1 in aspect-corrected space), strength, speed
 const DISCS = [
-  { cx: 0.22, cy: 0.28, r: 0.26, strength: 1.2, speed: 0.25 },
-  { cx: 0.78, cy: 0.18, r: 0.20, strength: 0.8, speed: -0.3 },
-  { cx: 0.52, cy: 0.55, r: 0.28, strength: 1.0, speed: 0.15 },
-  { cx: 0.82, cy: 0.75, r: 0.22, strength: 0.6, speed: -0.2 },
-  { cx: 0.13, cy: 0.80, r: 0.18, strength: 0.4, speed: 0.35 },
+  { cx: 0.22, cy: 0.28, r: 0.35, strength: 1.2, speed: 0.25 },
+  { cx: 0.78, cy: 0.18, r: 0.30, strength: 0.8, speed: -0.3 },
+  { cx: 0.52, cy: 0.55, r: 0.38, strength: 1.0, speed: 0.15 },
+  { cx: 0.82, cy: 0.75, r: 0.32, strength: 0.6, speed: -0.2 },
+  { cx: 0.13, cy: 0.80, r: 0.28, strength: 0.5, speed: 0.35 },
 ];
 
 function initGL() {
