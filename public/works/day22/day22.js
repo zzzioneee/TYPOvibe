@@ -196,8 +196,17 @@ uniform vec2 u_centers[5];
 uniform float u_strengths[5];
 uniform float u_speeds[5];
 
+uniform float u_blurMix;
+
 void main() {
   vec2 uv = v_uv;
+  
+  // If no blur yet, show original
+  if (u_blurMix < 0.01) {
+    gl_FragColor = texture2D(u_tex, uv);
+    return;
+  }
+  
   vec2 uvA = vec2(uv.x * u_aspect, uv.y);
   
   vec4 totalColor = vec4(0.0);
@@ -211,7 +220,7 @@ void main() {
     float w = 1.0 / (dist * dist * dist * dist + 0.001);
     vec2 dir = uv - center;
     
-    float blurAngle = dist * u_strengths[i] * 1.2;
+    float blurAngle = dist * u_strengths[i] * 1.2 * u_blurMix;
     float baseAngle = u_time * u_speeds[i];
     
     vec4 cColor = vec4(0.0);
@@ -279,6 +288,8 @@ function initGL() {
   gl.uniform1fv(gl.getUniformLocation(program, 'u_strengths'), new Float32Array([1.2, 0.8, 1.0, 0.6, 0.9]));
   gl.uniform1fv(gl.getUniformLocation(program, 'u_speeds'), new Float32Array([0.18, -0.22, 0.12, -0.15, 0.25]));
   
+  uBlurMix = gl.getUniformLocation(program, 'u_blurMix');
+  
   return true;
 }
 
@@ -291,11 +302,25 @@ function resize() {
 }
 
 let t0 = 0;
+let uBlurMix;
+const FLOWER_PHASE = 2500;  // flowers pop in for 2.5s
+const BLUR_START = 3500;    // blur starts at 3.5s
+const BLUR_RAMP = 2000;     // takes 2s to reach full
+
 function frame(now) {
   requestAnimationFrame(frame);
-  const t = (now - t0) * 0.001;
+  const elapsed = now - t0;
+  const t = elapsed * 0.001;
+  
+  // Blur mix: 0 during flower phase, ramp 0→1 after BLUR_START
+  let blurMix = 0;
+  if (elapsed > BLUR_START) {
+    blurMix = Math.min(1, (elapsed - BLUR_START) / BLUR_RAMP);
+  }
+  
   gl.viewport(0, 0, W, H);
   gl.uniform1f(gl.getUniformLocation(program, 'u_time'), t);
+  gl.uniform1f(uBlurMix, blurMix);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
 
