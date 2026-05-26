@@ -1,242 +1,178 @@
-// Day 22 v2 — Glory and Joy
-// WebGL spin blur (radial motion blur) with multiple centers
-// Like Photoshop's Radial Blur > Spin, applied as vinyl record discs
+import * as THREE from "three";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
-const W = 1920, H = 1080;
+// ── Scene setup ─────────────────────────────────────────
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
 
-// ── 1. Draw source image (flowers + text) on offscreen canvas ────
-const srcCanvas = document.getElementById('source');
-srcCanvas.width = W; srcCanvas.height = H;
-const ctx = srcCanvas.getContext('2d');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0008);
 
-const FLOWER_COLORS = [
-  ['#ff1493', '#ff6b35'], // hot pink → orange
-  ['#ff0044', '#ff8800'], // red → orange
-  ['#ff69b4', '#ffcc00'], // pink → yellow
-  ['#ff3366', '#ff9900'], // rose → amber
-  ['#ff1493', '#ff4500'], // deep pink → red-orange
-  ['#ffaa00', '#ff1493'], // gold → pink
-  ['#ff6699', '#ffdd00'], // salmon pink → yellow
-  ['#ff0066', '#ff6600'], // magenta → orange
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 1000);
+camera.position.set(0, 0, 12);
+
+// ── Fluid ribbon colors — Crimson, Magenta, Cyan, Deep Blue ──
+const RIBBON_CONFIGS = [
+  { color1: '#cc0033', color2: '#ff1466', opacity: 0.55, radius: 4.5, speed: 0.15, yOffset: 0, phase: 0 },
+  { color1: '#8b0022', color2: '#ff0044', opacity: 0.5, radius: 3.8, speed: -0.12, yOffset: 0.5, phase: 1.2 },
+  { color1: '#ff0066', color2: '#ff3399', opacity: 0.45, radius: 5.0, speed: 0.1, yOffset: -0.3, phase: 2.4 },
+  { color1: '#0088aa', color2: '#00eeff', opacity: 0.4, radius: 3.2, speed: -0.18, yOffset: 0.8, phase: 3.6 },
+  { color1: '#1a0044', color2: '#6600cc', opacity: 0.35, radius: 4.0, speed: 0.14, yOffset: -0.6, phase: 4.8 },
+  { color1: '#cc0044', color2: '#ff6688', opacity: 0.5, radius: 5.5, speed: -0.08, yOffset: 0.2, phase: 0.8 },
+  { color1: '#003366', color2: '#0099cc', opacity: 0.3, radius: 3.5, speed: 0.2, yOffset: -0.8, phase: 2.0 },
 ];
 
-function drawFlower(cx, cy, size, petals, colorPair, rotation) {
-  const [c1, c2] = colorPair;
-  const grad = ctx.createLinearGradient(cx - size, cy - size, cx + size, cy + size);
-  grad.addColorStop(0, c1); grad.addColorStop(1, c2);
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(rotation);
-  ctx.fillStyle = grad;
-  ctx.beginPath();
-  for (let i = 0; i < petals; i++) {
-    const a = (i / petals) * Math.PI * 2;
-    const px = Math.cos(a) * size * 0.45, py = Math.sin(a) * size * 0.45;
-    ctx.moveTo(0, 0);
-    ctx.ellipse(px, py, size * 0.42, size * 0.2, a, 0, Math.PI * 2);
-  }
-  ctx.fill();
-  ctx.restore();
-}
-
-function drawSource() {
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(0, 0, W, H);
-  // flowers — grid-based distribution to spread evenly
-  const cols = 5, rows = 4;
-  const cellW = W / cols, cellH = H / rows;
-  for (let i = 0; i < 22; i++) {
-    const col = i % cols;
-    const row = Math.floor(i / cols) % rows;
-    const x = col * cellW + Math.random() * cellW;
-    const y = row * cellH + Math.random() * cellH;
-    drawFlower(
-      x, y,
-      120 + Math.random() * 280,
-      Math.floor(4 + Math.random() * 4),
-      FLOWER_COLORS[Math.floor(Math.random() * FLOWER_COLORS.length)],
-      Math.random() * Math.PI * 2
-    );
-  }
-  // text
-  ctx.font = '900 200px "Inter", sans-serif';
-  ctx.fillStyle = '#111';
-  ctx.textBaseline = 'top';
-  ctx.textAlign = 'left';
-  ctx.fillText('Glory', 80, 150);
-  ctx.textAlign = 'center';
-  ctx.fillText('and', W * 0.52, 440);
-  ctx.textAlign = 'right';
-  ctx.fillText('Joy', W - 80, 720);
-}
-
-// ── 2. WebGL spin blur shader ────────────────────────────
-const glCanvas = document.getElementById('gl');
-const gl = glCanvas.getContext('webgl');
-
-const VS = `
-attribute vec2 a_pos;
-varying vec2 v_uv;
-void main() {
-  v_uv = a_pos * 0.5 + 0.5;
-  gl_Position = vec4(a_pos, 0.0, 1.0);
-}`;
-
-// Spin blur: for each of 5 disc centers, pixels within radius
-// are sampled at slightly rotated positions around that center.
-// Aspect ratio corrected so circles are round, not elliptical.
-const FS = `
-precision highp float;
-varying vec2 v_uv;
-uniform sampler2D u_tex;
-uniform float u_time;
-uniform vec2 u_centers[5];
-uniform float u_radii[5];
-uniform float u_strengths[5];
-uniform float u_speeds[5];
-uniform float u_aspect;
-
-void main() {
-  vec2 uv = v_uv;
-  vec2 uvA = vec2(uv.x * u_aspect, uv.y);
+// ── Create fluid ribbon geometry ────────────────────────
+function createRibbon(config) {
+  const { color1, color2, opacity, radius, speed, yOffset, phase } = config;
   
-  // Blend all 5 centers weighted by inverse distance (no voronoi edges)
-  vec4 totalColor = vec4(0.0);
-  float totalWeight = 0.0;
+  // Ribbon = TubeGeometry along a toroidal knot-like curve
+  const segments = 200;
+  const tubeRadius = 0.6 + Math.random() * 0.8;
   
-  for (int i = 0; i < 5; i++) {
-    vec2 cA = vec2(u_centers[i].x * u_aspect, u_centers[i].y);
-    float dist = length(uvA - cA);
-    
-    // Weight: inverse distance (closer center = stronger influence)
-    float w = 1.0 / (dist * dist + 0.02);
-    
-    // Direction from this center in UV space
-    vec2 dir = uv - u_centers[i];
-    
-    // Blur angle proportional to distance (record physics)
-    float blurAngle = dist * u_strengths[i] * 0.7;
-    
-    // Continuous rotation
-    float baseAngle = u_time * u_speeds[i];
-    
-    // Spin blur samples — fewer = more visible streaks (like reference)
-    vec4 cColor = vec4(0.0);
-    for (int s = 0; s < 5; s++) {
-      float t = (float(s) / 4.0) - 0.5;
-      float angle = baseAngle + t * blurAngle;
-      float co = cos(angle);
-      float sn = sin(angle);
-      vec2 rotDir = vec2(dir.x * co - dir.y * sn, dir.x * sn + dir.y * co);
-      cColor += texture2D(u_tex, clamp(u_centers[i] + rotDir, 0.0, 1.0));
+  class RibbonCurve extends THREE.Curve {
+    getPoint(t) {
+      const angle = t * Math.PI * 2 * 2; // 2 loops
+      const r = radius + Math.sin(angle * 3 + phase) * 1.2;
+      const x = Math.cos(angle) * r;
+      const z = Math.sin(angle) * r;
+      const y = Math.sin(angle * 2 + phase) * 2.5 + yOffset;
+      return new THREE.Vector3(x, y, z);
     }
-    cColor /= 5.0;
-    
-    totalColor += cColor * w;
-    totalWeight += w;
   }
   
-  gl_FragColor = totalColor / totalWeight;
-}`;
+  const curve = new RibbonCurve();
+  const geometry = new THREE.TubeGeometry(curve, segments, tubeRadius, 8, true);
+  
+  // Gradient material — translucent, additive
+  const c1 = new THREE.Color(color1);
+  const c2 = new THREE.Color(color2);
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      u_color1: { value: c1 },
+      u_color2: { value: c2 },
+      u_opacity: { value: opacity },
+      u_time: { value: 0 },
+    },
+    vertexShader: `
+      varying vec3 vPos;
+      varying vec2 vUv;
+      void main() {
+        vPos = position;
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 u_color1;
+      uniform vec3 u_color2;
+      uniform float u_opacity;
+      uniform float u_time;
+      varying vec3 vPos;
+      varying vec2 vUv;
+      void main() {
+        // Gradient along the ribbon + subtle animated shimmer
+        float grad = vUv.x + sin(vUv.y * 6.0 + u_time) * 0.15;
+        vec3 color = mix(u_color1, u_color2, grad);
+        // Soft edge falloff on tube sides
+        float edge = 1.0 - pow(abs(vUv.y - 0.5) * 2.0, 2.0);
+        float alpha = u_opacity * edge * (0.8 + 0.2 * sin(vUv.x * 12.0 + u_time * 0.5));
+        gl_FragColor = vec4(color, alpha);
+      }
+    `,
+    transparent: true,
+    side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.userData = { speed, phase };
+  return mesh;
+}
 
-let program, tex;
-let uTime, uCenters, uRadii, uStrengths, uSpeeds, uAspect;
+// ── Create all ribbons ──────────────────────────────────
+const ribbons = [];
+for (const cfg of RIBBON_CONFIGS) {
+  const ribbon = createRibbon(cfg);
+  scene.add(ribbon);
+  ribbons.push(ribbon);
+}
 
-// Disc definitions: position (0-1), radius (0-1 in aspect-corrected space), strength, speed
-const DISCS = [
-  { cx: 0.22, cy: 0.28, r: 0.35, strength: 1.2, speed: 0.25 },
-  { cx: 0.78, cy: 0.18, r: 0.30, strength: 0.8, speed: -0.3 },
-  { cx: 0.52, cy: 0.55, r: 0.38, strength: 1.0, speed: 0.15 },
-  { cx: 0.82, cy: 0.75, r: 0.32, strength: 0.6, speed: -0.2 },
-  { cx: 0.13, cy: 0.80, r: 0.28, strength: 0.5, speed: 0.35 },
-];
+// ── Text (HTML overlay approach — simpler, always readable) ──
+// We'll add 3D text planes
+function createTextPlane(text, size, x, y, z, rotZ) {
+  const canvas2d = document.createElement('canvas');
+  canvas2d.width = 1024; canvas2d.height = 256;
+  const ctx = canvas2d.getContext('2d');
+  ctx.font = '900 180px "Inter", sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 512, 128);
+  
+  const texture = new THREE.CanvasTexture(canvas2d);
+  texture.needsUpdate = true;
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    opacity: 0.9,
+  });
+  const geometry = new THREE.PlaneGeometry(size * 4, size);
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.set(x, y, z);
+  mesh.rotation.z = rotZ || 0;
+  return mesh;
+}
 
-function initGL() {
-  glCanvas.width = W; glCanvas.height = H;
+// Add text planes slightly tilted
+const textGlory = createTextPlane('Glory', 2.2, -2, 2.5, 2, -0.1);
+const textAnd = createTextPlane('and', 1.8, 1.5, 0, 1, 0.05);
+const textJoy = createTextPlane('Joy', 2.2, 2, -2.5, 3, 0.08);
+scene.add(textGlory, textAnd, textJoy);
+
+// ── Post-processing ─────────────────────────────────────
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.8, 0.6, 0.6));
+composer.addPass(new OutputPass());
+
+// ── Animation ───────────────────────────────────────────
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
   
-  const vs = gl.createShader(gl.VERTEX_SHADER);
-  gl.shaderSource(vs, VS); gl.compileShader(vs);
-  if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) { console.error('VS:', gl.getShaderInfoLog(vs)); return; }
-  
-  const fs = gl.createShader(gl.FRAGMENT_SHADER);
-  gl.shaderSource(fs, FS); gl.compileShader(fs);
-  if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) { console.error('FS:', gl.getShaderInfoLog(fs)); return; }
-  
-  program = gl.createProgram();
-  gl.attachShader(program, vs); gl.attachShader(program, fs);
-  gl.linkProgram(program);
-  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) { console.error('Link:', gl.getProgramInfoLog(program)); return; }
-  gl.useProgram(program);
-  
-  // Full-screen quad
-  const buf = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
-  const aPos = gl.getAttribLocation(program, 'a_pos');
-  gl.enableVertexAttribArray(aPos);
-  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
-  
-  // Texture from source canvas
-  tex = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, tex);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, srcCanvas);
-  
-  // Uniforms
-  uTime = gl.getUniformLocation(program, 'u_time');
-  uCenters = gl.getUniformLocation(program, 'u_centers');
-  uRadii = gl.getUniformLocation(program, 'u_radii');
-  uStrengths = gl.getUniformLocation(program, 'u_strengths');
-  uSpeeds = gl.getUniformLocation(program, 'u_speeds');
-  uAspect = gl.getUniformLocation(program, 'u_aspect');
-  
-  // Aspect ratio
-  gl.uniform1f(uAspect, W / H);
-  
-  // Set static disc uniforms
-  const centers = [], radii = [], strengths = [], speeds = [];
-  for (const d of DISCS) {
-    centers.push(d.cx, d.cy);
-    radii.push(d.r);
-    strengths.push(d.strength);
-    speeds.push(d.speed);
+  // Rotate ribbons (vortex spinning)
+  for (const ribbon of ribbons) {
+    ribbon.rotation.y = t * ribbon.userData.speed;
+    ribbon.rotation.x = Math.sin(t * 0.3 + ribbon.userData.phase) * 0.15;
+    ribbon.material.uniforms.u_time.value = t;
   }
-  gl.uniform2fv(uCenters, new Float32Array(centers));
-  gl.uniform1fv(uRadii, new Float32Array(radii));
-  gl.uniform1fv(uStrengths, new Float32Array(strengths));
-  gl.uniform1fv(uSpeeds, new Float32Array(speeds));
+  
+  // Subtle camera drift
+  camera.position.x = Math.sin(t * 0.1) * 0.5;
+  camera.position.y = Math.cos(t * 0.08) * 0.3;
+  camera.lookAt(0, 0, 0);
+  
+  composer.render();
 }
 
-// ── 3. Resize (scale to fit viewport) ────────────────────
-function resize() {
-  const vw = window.innerWidth, vh = window.innerHeight;
-  const scale = Math.min(vw / W, vh / H);
-  glCanvas.style.width = (W * scale) + 'px';
-  glCanvas.style.height = (H * scale) + 'px';
-  glCanvas.style.position = 'absolute';
-  glCanvas.style.left = ((vw - W * scale) / 2) + 'px';
-  glCanvas.style.top = ((vh - H * scale) / 2) + 'px';
-}
-
-// ── 4. Animate ───────────────────────────────────────────
-let t0 = 0;
-function frame(now) {
-  requestAnimationFrame(frame);
-  const t = (now - t0) * 0.001;
-  gl.viewport(0, 0, W, H);
-  gl.uniform1f(uTime, t);
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-}
-
-// ── Start ────────────────────────────────────────────────
-document.fonts.ready.then(() => {
-  drawSource();
-  initGL();
-  resize();
-  window.addEventListener('resize', resize);
-  t0 = performance.now();
-  requestAnimationFrame(frame);
+// ── Resize ──────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  composer.setSize(innerWidth, innerHeight);
 });
+
+// ── Start ───────────────────────────────────────────────
+animate();
