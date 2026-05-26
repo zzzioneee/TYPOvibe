@@ -144,7 +144,7 @@ function drawSource() {
     const row = Math.floor(i / cols) % rows;
     const x = col * cellW + Math.random() * cellW;
     const y = row * cellH + Math.random() * cellH;
-    const size = 80 + Math.random() * 180;
+    const size = 40 + Math.pow(Math.random(), 0.7) * 280; // 40~320, skewed toward variety
     const [c1, c2] = COLORS[Math.floor(Math.random() * COLORS.length)];
     const rot = Math.random() * Math.PI * 2;
     const type = Math.floor(Math.random() * drawFns.length);
