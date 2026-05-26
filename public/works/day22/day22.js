@@ -104,11 +104,11 @@ function drawSourceFull() {
 
 // ── Vortex definitions ──────────────────────────────────
 const VORTICES = [
-  { cx: 450,  cy: 280,  r: 500, speed: 0.15, smearAngle: 0.8 },
-  { cx: 1400, cy: 250,  r: 420, speed: -0.2, smearAngle: 0.7 },
-  { cx: 900,  cy: 600,  r: 550, speed: 0.1,  smearAngle: 0.9 },
-  { cx: 300,  cy: 800,  r: 400, speed: -0.18,smearAngle: 0.6 },
-  { cx: 1500, cy: 750,  r: 450, speed: 0.13, smearAngle: 0.75 },
+  { cx: 450,  cy: 280,  r: 700, speed: 0.15, smearAngle: 1.2 },
+  { cx: 1500, cy: 250,  r: 650, speed: -0.2, smearAngle: 1.0 },
+  { cx: 950,  cy: 580,  r: 750, speed: 0.1,  smearAngle: 1.3 },
+  { cx: 250,  cy: 820,  r: 600, speed: -0.18,smearAngle: 0.9 },
+  { cx: 1550, cy: 780,  r: 650, speed: 0.13, smearAngle: 1.1 },
 ];
 
 // ── Per-vortex temp canvas ──────────────────────────────
@@ -119,7 +119,7 @@ const vortexCanvases = VORTICES.map(() => {
 });
 
 // ── Render a single vortex layer ────────────────────────
-const SMEAR_COPIES = 20; // number of rotated copies per vortex
+const SMEAR_COPIES = 45; // more copies = sharper individual streaks visible
 
 function renderVortex(vIdx, time) {
   const v = VORTICES[vIdx];
@@ -130,14 +130,14 @@ function renderVortex(vIdx, time) {
   
   const baseAngle = time * v.speed;
   
-  // Draw multiple rotated copies of the source — spread over smearAngle
+  // Each copy at equal low opacity — edges stay sharp, layers accumulate
+  const alpha = 1.0 / SMEAR_COPIES * 2.2;
+  
   for (let i = 0; i < SMEAR_COPIES; i++) {
-    const t = (i / (SMEAR_COPIES - 1)) - 0.5; // -0.5 to 0.5
+    const t = (i / (SMEAR_COPIES - 1)) - 0.5;
     const angle = baseAngle + t * v.smearAngle;
-    // Weight: center copies are more opaque, edges are faint
-    const weight = Math.exp(-6 * t * t);
     
-    vCtx.globalAlpha = weight / SMEAR_COPIES * 3.5;
+    vCtx.globalAlpha = alpha;
     vCtx.save();
     vCtx.translate(v.cx, v.cy);
     vCtx.rotate(angle);
