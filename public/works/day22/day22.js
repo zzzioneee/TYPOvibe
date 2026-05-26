@@ -1,148 +1,122 @@
 import * as THREE from "three";
-import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
-import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
-import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
-import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
-// ── Scene setup ─────────────────────────────────────────
+// ── Scene ───────────────────────────────────────────────
 const canvas = document.getElementById('c');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
+renderer.sortObjects = true;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0a0008);
+scene.background = new THREE.Color(0x1a0011);
 
-const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 1000);
-camera.position.set(0, 0, 12);
+const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 500);
+camera.position.set(0, 0, 18);
 
-// ── Fluid ribbon colors — Crimson, Magenta, Cyan, Deep Blue ──
-const RIBBON_CONFIGS = [
-  { color1: '#cc0033', color2: '#ff1466', opacity: 0.55, radius: 4.5, speed: 0.15, yOffset: 0, phase: 0 },
-  { color1: '#8b0022', color2: '#ff0044', opacity: 0.5, radius: 3.8, speed: -0.12, yOffset: 0.5, phase: 1.2 },
-  { color1: '#ff0066', color2: '#ff3399', opacity: 0.45, radius: 5.0, speed: 0.1, yOffset: -0.3, phase: 2.4 },
-  { color1: '#0088aa', color2: '#00eeff', opacity: 0.4, radius: 3.2, speed: -0.18, yOffset: 0.8, phase: 3.6 },
-  { color1: '#1a0044', color2: '#6600cc', opacity: 0.35, radius: 4.0, speed: 0.14, yOffset: -0.6, phase: 4.8 },
-  { color1: '#cc0044', color2: '#ff6688', opacity: 0.5, radius: 5.5, speed: -0.08, yOffset: 0.2, phase: 0.8 },
-  { color1: '#003366', color2: '#0099cc', opacity: 0.3, radius: 3.5, speed: 0.2, yOffset: -0.8, phase: 2.0 },
+// ── Color palette: deep crimson ↔ cyan/blue ─────────────
+const COLORS = [
+  new THREE.Color('#8b0022'), // deep crimson
+  new THREE.Color('#cc0033'), // crimson
+  new THREE.Color('#ff0044'), // bright red
+  new THREE.Color('#ff1466'), // hot pink-red
+  new THREE.Color('#cc0066'), // magenta-red
+  new THREE.Color('#660033'), // dark wine
+  new THREE.Color('#0066aa'), // deep blue
+  new THREE.Color('#0099cc'), // teal
+  new THREE.Color('#00ccee'), // cyan
+  new THREE.Color('#003355'), // dark navy
 ];
 
-// ── Create fluid ribbon geometry ────────────────────────
-function createRibbon(config) {
-  const { color1, color2, opacity, radius, speed, yOffset, phase } = config;
+// ── Create translucent panels in vortex structure ───────
+const PANEL_COUNT = 350;
+const panels = [];
+
+for (let i = 0; i < PANEL_COUNT; i++) {
+  const t = i / PANEL_COUNT;
   
-  // Ribbon = TubeGeometry along a toroidal knot-like curve
-  const segments = 200;
-  const tubeRadius = 0.6 + Math.random() * 0.8;
+  // Spiral placement — multiple arms
+  const arm = i % 5;
+  const armOffset = (arm / 5) * Math.PI * 2;
+  const spiralAngle = t * Math.PI * 8 + armOffset; // 4 full turns per arm
+  const radius = 1.5 + t * 12; // expanding outward
+  const y = (Math.random() - 0.5) * 8 + Math.sin(spiralAngle * 0.5) * 2;
   
-  class RibbonCurve extends THREE.Curve {
-    getPoint(t) {
-      const angle = t * Math.PI * 2 * 2; // 2 loops
-      const r = radius + Math.sin(angle * 3 + phase) * 1.2;
-      const x = Math.cos(angle) * r;
-      const z = Math.sin(angle) * r;
-      const y = Math.sin(angle * 2 + phase) * 2.5 + yOffset;
-      return new THREE.Vector3(x, y, z);
-    }
-  }
+  const x = Math.cos(spiralAngle) * radius;
+  const z = Math.sin(spiralAngle) * radius;
   
-  const curve = new RibbonCurve();
-  const geometry = new THREE.TubeGeometry(curve, segments, tubeRadius, 8, true);
+  // Panel size varies — larger toward outside
+  const w = 1.2 + Math.random() * 3.0 + t * 1.5;
+  const h = 0.8 + Math.random() * 2.0 + t * 1.0;
   
-  // Gradient material — translucent, additive
-  const c1 = new THREE.Color(color1);
-  const c2 = new THREE.Color(color2);
-  const material = new THREE.ShaderMaterial({
-    uniforms: {
-      u_color1: { value: c1 },
-      u_color2: { value: c2 },
-      u_opacity: { value: opacity },
-      u_time: { value: 0 },
-    },
-    vertexShader: `
-      varying vec3 vPos;
-      varying vec2 vUv;
-      void main() {
-        vPos = position;
-        vUv = uv;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `,
-    fragmentShader: `
-      uniform vec3 u_color1;
-      uniform vec3 u_color2;
-      uniform float u_opacity;
-      uniform float u_time;
-      varying vec3 vPos;
-      varying vec2 vUv;
-      void main() {
-        // Gradient along the ribbon + subtle animated shimmer
-        float grad = vUv.x + sin(vUv.y * 6.0 + u_time) * 0.15;
-        vec3 color = mix(u_color1, u_color2, grad);
-        // Soft edge falloff on tube sides
-        float edge = 1.0 - pow(abs(vUv.y - 0.5) * 2.0, 2.0);
-        float alpha = u_opacity * edge * (0.8 + 0.2 * sin(vUv.x * 12.0 + u_time * 0.5));
-        gl_FragColor = vec4(color, alpha);
-      }
-    `,
+  const geometry = new THREE.PlaneGeometry(w, h);
+  
+  // Color: mostly crimson/red, with 20% chance of cyan/blue accent
+  const isCyan = Math.random() < 0.2;
+  const colorIdx = isCyan 
+    ? 6 + Math.floor(Math.random() * 4) 
+    : Math.floor(Math.random() * 6);
+  const color = COLORS[colorIdx];
+  
+  const material = new THREE.MeshBasicMaterial({
+    color: color,
     transparent: true,
+    opacity: 0.15 + Math.random() * 0.35,
     side: THREE.DoubleSide,
-    blending: THREE.AdditiveBlending,
     depthWrite: false,
+    blending: THREE.NormalBlending,
   });
   
   const mesh = new THREE.Mesh(geometry, material);
-  mesh.userData = { speed, phase };
-  return mesh;
+  mesh.position.set(x, y, z);
+  
+  // Orient panels tangent to the spiral (facing roughly toward center)
+  mesh.lookAt(0, y * 0.3, 0);
+  // Add some random tilt
+  mesh.rotation.x += (Math.random() - 0.5) * 0.6;
+  mesh.rotation.z += (Math.random() - 0.5) * 0.4;
+  
+  mesh.userData = { 
+    baseY: y,
+    speed: 0.05 + Math.random() * 0.1,
+    arm,
+    t,
+    spiralAngle,
+    radius,
+  };
+  
+  scene.add(mesh);
+  panels.push(mesh);
 }
 
-// ── Create all ribbons ──────────────────────────────────
-const ribbons = [];
-for (const cfg of RIBBON_CONFIGS) {
-  const ribbon = createRibbon(cfg);
-  scene.add(ribbon);
-  ribbons.push(ribbon);
-}
-
-// ── Text (HTML overlay approach — simpler, always readable) ──
-// We'll add 3D text planes
-function createTextPlane(text, size, x, y, z, rotZ) {
-  const canvas2d = document.createElement('canvas');
-  canvas2d.width = 1024; canvas2d.height = 256;
-  const ctx = canvas2d.getContext('2d');
-  ctx.font = '900 180px "Inter", sans-serif';
+// ── Text planes ─────────────────────────────────────────
+function createText(text, size, x, y, z) {
+  const c = document.createElement('canvas');
+  c.width = 1024; c.height = 256;
+  const ctx = c.getContext('2d');
+  ctx.font = '900 200px "Inter", sans-serif';
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(text, 512, 128);
+  ctx.fillText(text, 512, 140);
   
-  const texture = new THREE.CanvasTexture(canvas2d);
-  texture.needsUpdate = true;
-  const material = new THREE.MeshBasicMaterial({
-    map: texture,
+  const tex = new THREE.CanvasTexture(c);
+  const mat = new THREE.MeshBasicMaterial({
+    map: tex,
     transparent: true,
-    blending: THREE.AdditiveBlending,
+    opacity: 0.85,
     depthWrite: false,
-    opacity: 0.9,
+    side: THREE.DoubleSide,
   });
-  const geometry = new THREE.PlaneGeometry(size * 4, size);
-  const mesh = new THREE.Mesh(geometry, material);
+  const geo = new THREE.PlaneGeometry(size * 3.5, size);
+  const mesh = new THREE.Mesh(geo, mat);
   mesh.position.set(x, y, z);
-  mesh.rotation.z = rotZ || 0;
   return mesh;
 }
 
-// Add text planes slightly tilted
-const textGlory = createTextPlane('Glory', 2.2, -2, 2.5, 2, -0.1);
-const textAnd = createTextPlane('and', 1.8, 1.5, 0, 1, 0.05);
-const textJoy = createTextPlane('Joy', 2.2, 2, -2.5, 3, 0.08);
+const textGlory = createText('Glory', 3, -3, 3, 5);
+const textAnd = createText('and', 2.2, 2, 0, 7);
+const textJoy = createText('Joy', 3, 3, -3.5, 4);
 scene.add(textGlory, textAnd, textJoy);
-
-// ── Post-processing ─────────────────────────────────────
-const composer = new EffectComposer(renderer);
-composer.addPass(new RenderPass(scene, camera));
-composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.8, 0.6, 0.6));
-composer.addPass(new OutputPass());
 
 // ── Animation ───────────────────────────────────────────
 const clock = new THREE.Clock();
@@ -151,19 +125,22 @@ function animate() {
   requestAnimationFrame(animate);
   const t = clock.getElapsedTime();
   
-  // Rotate ribbons (vortex spinning)
-  for (const ribbon of ribbons) {
-    ribbon.rotation.y = t * ribbon.userData.speed;
-    ribbon.rotation.x = Math.sin(t * 0.3 + ribbon.userData.phase) * 0.15;
-    ribbon.material.uniforms.u_time.value = t;
+  // Slowly rotate entire vortex structure
+  scene.rotation.y = t * 0.04;
+  scene.rotation.x = Math.sin(t * 0.05) * 0.05;
+  
+  // Subtle panel breathing
+  for (const panel of panels) {
+    const pd = panel.userData;
+    panel.position.y = pd.baseY + Math.sin(t * pd.speed * 2 + pd.spiralAngle) * 0.3;
   }
   
-  // Subtle camera drift
-  camera.position.x = Math.sin(t * 0.1) * 0.5;
-  camera.position.y = Math.cos(t * 0.08) * 0.3;
+  // Camera subtle drift
+  camera.position.x = Math.sin(t * 0.08) * 1.0;
+  camera.position.y = Math.cos(t * 0.06) * 0.5;
   camera.lookAt(0, 0, 0);
   
-  composer.render();
+  renderer.render(scene, camera);
 }
 
 // ── Resize ──────────────────────────────────────────────
@@ -171,8 +148,7 @@ window.addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
-  composer.setSize(innerWidth, innerHeight);
 });
 
 // ── Start ───────────────────────────────────────────────
-animate();
+document.fonts.ready.then(() => animate());
