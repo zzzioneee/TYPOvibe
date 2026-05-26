@@ -124,7 +124,7 @@ canvas { display: block; }
       for (let c = 0; c < FABRIC_COLS; c++) {
         const x = startX + c * STITCH_W;
         const y = fabY + (startRow + r) * STITCH_H;
-        particles.push({ x, y, oldX: x, oldY: y, pinned: (startRow + r) === 0 });
+        particles.push({ x, y, oldX: x, oldY: y, restX: x, restY: y, pinned: (startRow + r) === 0 });
         stitchFilled.push(false);
       }
     }
@@ -210,7 +210,11 @@ canvas { display: block; }
       const vy = (p.y - p.oldY) * DAMPING;
       p.oldX = p.x; p.oldY = p.y;
       const sway = Math.sin(performance.now() * 0.0004 + i * 0.01) * 0.008;
-      p.x += vx + sway; p.y += vy + GRAVITY;
+      // Restore toward rest position (spring back)
+      const restoreStrength = 0.01;
+      const rx = (p.restX - p.x) * restoreStrength;
+      const ry = (p.restY - p.y) * restoreStrength;
+      p.x += vx + sway + rx; p.y += vy + GRAVITY + ry;
       if (p.y > floorY) { p.y = floorY; p.oldY = floorY; }
     }
   }
