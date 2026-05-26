@@ -375,7 +375,7 @@ canvas { display: block; }
 
   function applyMouseForce() {
     if (mouseX < 0) return;
-    const radius = 120, strength = 1.5;
+    const radius = 180, strength = 4.0;
     for (let i = 0; i < particles.length; i++) {
       const p = particles[i];
       if (p.pinned) continue;
