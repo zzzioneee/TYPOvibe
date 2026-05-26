@@ -37,12 +37,12 @@ function drawFlower(cx, cy, size, petals, colorPair, rotation) {
 function drawSource() {
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, W, H);
-  // flowers
-  for (let i = 0; i < 18; i++) {
+  // flowers — fewer but bigger, more white space
+  for (let i = 0; i < 10; i++) {
     drawFlower(
-      100 + Math.random() * (W - 200), 80 + Math.random() * (H - 160),
-      120 + Math.random() * 280,
-      Math.floor(4 + Math.random() * 5),
+      120 + Math.random() * (W - 240), 100 + Math.random() * (H - 200),
+      180 + Math.random() * 320,
+      Math.floor(4 + Math.random() * 4),
       FLOWER_COLORS[Math.floor(Math.random() * FLOWER_COLORS.length)],
       Math.random() * Math.PI * 2
     );
@@ -104,7 +104,7 @@ void main() {
     vec2 dir = uv - u_centers[i];
     
     // Blur angle proportional to distance (record physics)
-    float blurAngle = dist * u_strengths[i] * 1.0;
+    float blurAngle = dist * u_strengths[i] * 0.5;
     
     // Continuous rotation
     float baseAngle = u_time * u_speeds[i];
