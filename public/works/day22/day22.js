@@ -270,10 +270,14 @@ function initGL() {
   
   // Set vortex center uniforms
   gl.uniform2fv(gl.getUniformLocation(program, 'u_centers'), new Float32Array([
-    0.25, 0.30,  0.72, 0.22,  0.50, 0.55,  0.80, 0.75,  0.18, 0.78
+    0.15, 0.25,   // 좌상 — 좀 더 구석으로
+    0.65, 0.15,   // 상단 우측 치우침
+    0.40, 0.65,   // 중앙 좌하 쪽
+    0.85, 0.55,   // 우측 중앙
+    0.30, 0.90,   // 좌측 하단 — 화면 밖 근처
   ]));
-  gl.uniform1fv(gl.getUniformLocation(program, 'u_strengths'), new Float32Array([1.0, 0.7, 0.9, 0.6, 0.5]));
-  gl.uniform1fv(gl.getUniformLocation(program, 'u_speeds'), new Float32Array([0.2, -0.25, 0.15, -0.18, 0.22]));
+  gl.uniform1fv(gl.getUniformLocation(program, 'u_strengths'), new Float32Array([1.2, 0.8, 1.0, 0.6, 0.9]));
+  gl.uniform1fv(gl.getUniformLocation(program, 'u_speeds'), new Float32Array([0.18, -0.22, 0.12, -0.15, 0.25]));
   
   return true;
 }
