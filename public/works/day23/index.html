@@ -188,7 +188,7 @@ canvas { display: block; }
   }
 
   function addChar(char) {
-    if (!hasTyped) { hasTyped = true; hint.style.opacity = '0'; }
+    if (!hasTyped) { hasTyped = true; if (hint) hint.style.opacity = '0'; }
     triggerNeedleAnim();
     typedChars.push(char === ' ' ? { grid: null, isSpace: true } : { grid: charToGrid(char), isSpace: false });
     updateFabricState();
@@ -337,7 +337,6 @@ canvas { display: block; }
     removeComposingPreview();
   });
   hiddenInput.addEventListener('input', e => {
-    // Only handle non-composition input (English, numbers, symbols)
     if (isComposing) return;
     if (e.isComposing) return;
     if (e.inputType === 'insertFromComposition') return;
@@ -370,7 +369,7 @@ canvas { display: block; }
   });
   document.getElementById('btn-retry').addEventListener('click', () => {
     typedChars = []; charQueue = []; particles = []; constraints = []; stitchFilled = [];
-    gridRows = 0; visibleCols = 0; hasTyped = false; hint.style.opacity = '1';
+    gridRows = 0; visibleCols = 0; hasTyped = false; if (hint) hint.style.opacity = '1';
     hiddenInput.focus();
   });
 
