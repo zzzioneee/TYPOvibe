@@ -135,16 +135,16 @@ function drawSource() {
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, W, H);
   
-  // Grid-based flower placement — varied types
-  const cols = 5, rows = 4;
+  // Fill screen densely with flowers
+  const cols = 6, rows = 5;
   const cellW = W / cols, cellH = H / rows;
   const drawFns = [drawTulip, drawStarFlower, drawBlobFlower, drawMultiPetal, drawLeaf];
-  for (let i = 0; i < 24; i++) {
+  for (let i = 0; i < 45; i++) {
     const col = i % cols;
     const row = Math.floor(i / cols) % rows;
-    const x = col * cellW + Math.random() * cellW;
-    const y = row * cellH + Math.random() * cellH;
-    const size = 40 + Math.pow(Math.random(), 0.7) * 280; // 40~320, skewed toward variety
+    const x = col * cellW + (Math.random() - 0.2) * cellW;
+    const y = row * cellH + (Math.random() - 0.2) * cellH;
+    const size = 80 + Math.pow(Math.random(), 0.6) * 320;
     const [c1, c2] = COLORS[Math.floor(Math.random() * COLORS.length)];
     const rot = Math.random() * Math.PI * 2;
     const type = Math.floor(Math.random() * drawFns.length);
