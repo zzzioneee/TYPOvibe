@@ -29,14 +29,14 @@ function drawFlower(cx, cy, size, petals, color1, color2, rotation) {
 
 // ── Color pairs: crimson/red dominant + cyan accent ─────
 const COLORS = [
-  ['#cc0033', '#ff3366'],
-  ['#8b0022', '#cc0044'],
-  ['#ff0044', '#ff6688'],
-  ['#990033', '#ff1466'],
-  ['#cc0066', '#ff3399'],
-  ['#0077aa', '#00ccee'],
-  ['#003388', '#0099dd'],
-  ['#006688', '#00bbcc'],
+  ['#e60033', '#ff1a5c'],  // vivid red → hot pink
+  ['#cc0028', '#ff0044'],  // deep red → bright red
+  ['#ff0055', '#ff3388'],  // magenta-red → pink
+  ['#b30022', '#e6003c'],  // dark crimson → red
+  ['#ff0066', '#ff44aa'],  // hot magenta → light pink
+  ['#0044cc', '#0088ff'],  // strong blue → sky blue
+  ['#0066dd', '#00bbff'],  // royal blue → cyan
+  ['#0033aa', '#0077ee'],  // deep blue → blue
 ];
 
 // ── Draw source ─────────────────────────────────────────
