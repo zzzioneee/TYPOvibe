@@ -224,6 +224,18 @@ function frame(now) {
 document.fonts.ready.then(() => {
   drawSourceFull();
   sourceReady = true;
+  // Scale canvas to fit viewport
+  function fitCanvas() {
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const scale = Math.min(vw / W, vh / H);
+    canvas.style.width = (W * scale) + 'px';
+    canvas.style.height = (H * scale) + 'px';
+    canvas.style.position = 'fixed';
+    canvas.style.left = ((vw - W * scale) / 2) + 'px';
+    canvas.style.top = ((vh - H * scale) / 2) + 'px';
+  }
+  fitCanvas();
+  window.addEventListener('resize', fitCanvas);
   t0 = performance.now();
   requestAnimationFrame(frame);
 });
