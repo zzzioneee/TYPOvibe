@@ -125,39 +125,28 @@ varying vec2 v_uv;
 uniform sampler2D u_tex;
 uniform float u_time;
 uniform float u_aspect;
-
-// 5 vortex centers
-const vec2 centers[5] = vec2[5](
-  vec2(0.25, 0.30),
-  vec2(0.72, 0.22),
-  vec2(0.50, 0.55),
-  vec2(0.80, 0.75),
-  vec2(0.18, 0.78)
-);
-const float strengths[5] = float[5](1.0, 0.7, 0.9, 0.6, 0.5);
-const float speeds[5] = float[5](0.2, -0.25, 0.15, -0.18, 0.22);
+uniform vec2 u_centers[5];
+uniform float u_strengths[5];
+uniform float u_speeds[5];
 
 void main() {
   vec2 uv = v_uv;
   vec2 uvA = vec2(uv.x * u_aspect, uv.y);
   
-  // Distance-weighted blend of all 5 spin blur centers
   vec4 totalColor = vec4(0.0);
   float totalWeight = 0.0;
   
   for (int i = 0; i < 5; i++) {
-    vec2 center = centers[i];
+    vec2 center = u_centers[i];
     vec2 cA = vec2(center.x * u_aspect, center.y);
     float dist = length(uvA - cA);
     
     float w = 1.0 / (dist * dist + 0.03);
     vec2 dir = uv - center;
     
-    // Spin blur amount — proportional to distance
-    float blurAngle = dist * strengths[i] * 0.6;
-    float baseAngle = u_time * speeds[i];
+    float blurAngle = dist * u_strengths[i] * 0.6;
+    float baseAngle = u_time * u_speeds[i];
     
-    // 8 samples — enough for visible streaks
     vec4 cColor = vec4(0.0);
     for (int s = 0; s < 8; s++) {
       float t = (float(s) / 7.0) - 0.5;
@@ -211,6 +200,14 @@ function initGL() {
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, srcCanvas);
   
   gl.uniform1f(gl.getUniformLocation(program, 'u_aspect'), W / H);
+  
+  // Set vortex center uniforms
+  gl.uniform2fv(gl.getUniformLocation(program, 'u_centers'), new Float32Array([
+    0.25, 0.30,  0.72, 0.22,  0.50, 0.55,  0.80, 0.75,  0.18, 0.78
+  ]));
+  gl.uniform1fv(gl.getUniformLocation(program, 'u_strengths'), new Float32Array([1.0, 0.7, 0.9, 0.6, 0.5]));
+  gl.uniform1fv(gl.getUniformLocation(program, 'u_speeds'), new Float32Array([0.2, -0.25, 0.15, -0.18, 0.22]));
+  
   return true;
 }
 
