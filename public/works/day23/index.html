@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 23: Knitting Typography</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #1A1A1A; overflow: hidden; font-family: 'Pretendard', sans-serif; }
+canvas { display: block; }
+.from-wrap { position:fixed; top:24px; left:50%; transform:translateX(-50%); z-index:100; }
+.from-link { font-family:'Pretendard', sans-serif; font-size:20px; font-weight:500; color:#fff; text-decoration:none; letter-spacing:0.15em; }
+.from-link:hover { color:rgba(255,255,255,0.75); }
+#ui { position: fixed; bottom: 48px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; align-items: center; z-index: 10; }
+.ui-btn { background: transparent; border: 1px solid rgba(255,255,255,0.5); color: #fff; padding: 8px 20px; font-size: 13px; cursor: pointer; letter-spacing: 0.5px; font-family: 'Pretendard', sans-serif; transition: all 0.2s; }
+.ui-btn:hover { background: rgba(255,255,255,0.1); }
+.ui-btn.active { background: rgba(255,255,255,0.15); border-color: #fff; }
+#hint { position: fixed; top: 45%; left: 50%; transform: translate(-50%, -50%); color: rgba(255,255,255,0.25); font-size: 18px; pointer-events: none; transition: opacity 0.8s; }
+#hidden-input { position: fixed; top: -100px; left: -100px; opacity: 0; width: 1px; height: 1px; }
+</style>
+</head>
+<body>
+<div class="from-wrap">
+  <a href="https://ai-ethics.kr/return-luddites-human-body-2026-05-25/" target="_blank" rel="noopener" class="from-link">FROM</a>
+</div>
+<canvas id="c"></canvas>
+<div id="ui">
+  <button class="ui-btn" id="btn-knit">KNIT</button>
+  <button class="ui-btn active" id="btn-weave">WEAVE</button>
+  <button class="ui-btn" id="btn-color">COLOR</button>
+  <button class="ui-btn" id="btn-retry">RETRY</button>
+</div>
+
+<input id="hidden-input" type="text" autocomplete="off" />
+
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const hint = document.getElementById('hint');
+  const hiddenInput = document.getElementById('hidden-input');
+
+  let W, H;
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+    try { recenterFabric(); } catch(e) {}
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  function recenterFabric() {
+    if (!particles || particles.length === 0) return;
+    const newStartX = getStartX();
+    const topRow = particles.slice(0, FABRIC_COLS);
+    if (topRow.length === 0) return;
+    const currentStartX = topRow[0].x;
+    const dx = newStartX - currentStartX;
+    if (Math.abs(dx) < 1) return;
+    for (let i = 0; i < particles.length; i++) {
+      if (particles[i].pinned) {
+        particles[i].x += dx;
+        particles[i].oldX += dx;
+      }
+    }
+  }
+
+  const STITCH_W = 6, STITCH_H = 6;
+  const CHAR_COLS = 22, CHAR_ROWS = 26, CHARS_PER_LINE = 8;
+  const GRAVITY = 0.02, DAMPING = 0.985, CONSTRAINT_ITERS = 4;
+  const FABRIC_COLS = CHARS_PER_LINE * CHAR_COLS + (CHARS_PER_LINE - 1);
+
+  const PALETTES = [
+    { filled: '#FF69B4', empty: '#006B3F' },
+    { filled: '#FFD100', empty: '#0033A0' },
+    { filled: '#FF6B00', empty: '#7B2D8B' },
+    { filled: '#FFFFFF', empty: '#FF1493' },
+    { filled: '#0066FF', empty: '#FF8C00' },
+    { filled: '#00E5FF', empty: '#6A0DAD' },
+  ];
+  let palIdx = 0;
+  let COLORS = { bg: '#1A1A1A', ...PALETTES[palIdx] };
+
+  let mode = 'weave';
+  let typedChars = [], charQueue = [], hasTyped = false, isComposing = false;
+  let particles = [], constraints = [], stitchFilled = [];
+  let gridRows = 0, visibleCols = 0;
+
+  function getNeedleY() { return H * 0.15; }
+  function getFabricStartY() { return getNeedleY() + 30; }
+  function getStartX() { return (W - FABRIC_COLS * STITCH_W) / 2; }
+
+  let needleAnim = { active: false, startTime: 0, count: 0 };
+
+  function seededRandom(seed) {
+    const x = Math.sin(seed * 12.9898 + seed * 78.233) * 43758.5453;
+    return x - Math.floor(x);
+  }
+
+  const offCanvas = document.createElement('canvas');
+  const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
+  function charToGrid(char) {
+    offCanvas.width = CHAR_COLS; offCanvas.height = CHAR_ROWS;
+    offCtx.clearRect(0, 0, CHAR_COLS, CHAR_ROWS);
+    offCtx.fillStyle = '#fff';
+    offCtx.font = `bold ${Math.floor(CHAR_ROWS * 0.78)}px sans-serif`;
+    offCtx.textBaseline = 'middle'; offCtx.textAlign = 'center';
+    offCtx.fillText(char, CHAR_COLS / 2, CHAR_ROWS / 2);
+    const data = offCtx.getImageData(0, 0, CHAR_COLS, CHAR_ROWS).data;
+    const grid = [];
+    for (let r = 0; r < CHAR_ROWS; r++) {
+      const row = [];
+      for (let c = 0; c < CHAR_COLS; c++) row.push(data[(r * CHAR_COLS + c) * 4 + 3] > 80);
+      grid.push(row);
+    }
+    return grid;
+  }
+
+  function addLine() {
+    const startX = getStartX();
+    const startRow = gridRows;
+    const fabY = getFabricStartY();
+    for (let r = 0; r < CHAR_ROWS; r++) {
+      for (let c = 0; c < FABRIC_COLS; c++) {
+        const x = startX + c * STITCH_W;
+        const y = fabY + (startRow + r) * STITCH_H;
+        particles.push({ x, y, oldX: x, oldY: y, pinned: (startRow + r) === 0 });
+        stitchFilled.push(false);
+      }
+    }
+    for (let r = startRow; r < startRow + CHAR_ROWS; r++) {
+      for (let c = 0; c < FABRIC_COLS; c++) {
+        const idx = r * FABRIC_COLS + c;
+        if (c > 0) constraints.push({ p1: particles[idx - 1], p2: particles[idx], rest: STITCH_W });
+        if (r > 0) constraints.push({ p1: particles[(r - 1) * FABRIC_COLS + c], p2: particles[idx], rest: STITCH_H });
+      }
+    }
+    gridRows += CHAR_ROWS;
+  }
+
+  function updateFabricState() {
+    for (let i = 0; i < stitchFilled.length; i++) stitchFilled[i] = false;
+    const lines = [];
+    for (let i = 0; i < typedChars.length; i += CHARS_PER_LINE) lines.push(typedChars.slice(i, i + CHARS_PER_LINE));
+    while (lines.length * CHAR_ROWS > gridRows) addLine();
+    let maxVisCol = 0;
+    for (let li = 0; li < lines.length; li++) {
+      const line = lines[li];
+      let colOffset = 0;
+      for (let ci = 0; ci < line.length; ci++) {
+        const cd = line[ci];
+        for (let r = 0; r < CHAR_ROWS; r++) {
+          for (let c = 0; c < CHAR_COLS; c++) {
+            const globalRow = li * CHAR_ROWS + r;
+            const globalCol = colOffset + c;
+            if (globalRow < gridRows && globalCol < FABRIC_COLS) {
+              stitchFilled[globalRow * FABRIC_COLS + globalCol] = cd.isSpace ? false : (cd.grid && cd.grid[r] ? cd.grid[r][c] : false);
+            }
+          }
+        }
+        colOffset += CHAR_COLS;
+        if (ci < line.length - 1) colOffset += 1;
+      }
+      if (colOffset > maxVisCol) maxVisCol = colOffset;
+    }
+    // Include composing preview char
+    if (composingPreview) {
+      const li = Math.floor(typedChars.length / CHARS_PER_LINE);
+      const ci = typedChars.length % CHARS_PER_LINE;
+      let colOffset = 0;
+      for (let i = 0; i < ci; i++) colOffset += CHAR_COLS + 1;
+      if (li * CHAR_ROWS <= gridRows) {
+        while ((li + 1) * CHAR_ROWS > gridRows) addLine();
+        for (let r = 0; r < CHAR_ROWS; r++) {
+          for (let c = 0; c < CHAR_COLS; c++) {
+            const globalRow = li * CHAR_ROWS + r;
+            const globalCol = colOffset + c;
+            if (globalRow < gridRows && globalCol < FABRIC_COLS) {
+              stitchFilled[globalRow * FABRIC_COLS + globalCol] = composingPreview.grid && composingPreview.grid[r] ? composingPreview.grid[r][c] : false;
+            }
+          }
+        }
+        const previewVisCol = colOffset + CHAR_COLS;
+        if (previewVisCol > maxVisCol) maxVisCol = previewVisCol;
+      }
+    }
+    visibleCols = maxVisCol;
+  }
+
+  function addChar(char) {
+    if (!hasTyped) { hasTyped = true; hint.style.opacity = '0'; }
+    triggerNeedleAnim();
+    typedChars.push(char === ' ' ? { grid: null, isSpace: true } : { grid: charToGrid(char), isSpace: false });
+    updateFabricState();
+  }
+
+  function removeLastChar() {
+    if (!typedChars.length) return;
+    typedChars.pop();
+    triggerNeedleAnim();
+    updateFabricState();
+  }
+
+  function updateParticles() {
+    const floorY = H - 160;
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      if (p.pinned) continue;
+      const vx = (p.x - p.oldX) * DAMPING;
+      const vy = (p.y - p.oldY) * DAMPING;
+      p.oldX = p.x; p.oldY = p.y;
+      const sway = Math.sin(performance.now() * 0.0004 + i * 0.01) * 0.008;
+      p.x += vx + sway; p.y += vy + GRAVITY;
+      if (p.y > floorY) { p.y = floorY; p.oldY = floorY; }
+    }
+  }
+
+  function solveConstraints() {
+    const floorY = H - 160;
+    for (let iter = 0; iter < CONSTRAINT_ITERS; iter++) {
+      for (let i = 0; i < constraints.length; i++) {
+        const c = constraints[i];
+        const dx = c.p2.x - c.p1.x, dy = c.p2.y - c.p1.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 0.001;
+        const diff = (dist - c.rest) / dist * 0.5;
+        const ox = dx * diff, oy = dy * diff;
+        if (!c.p1.pinned) { c.p1.x += ox; c.p1.y += oy; }
+        if (!c.p2.pinned) { c.p2.x -= ox; c.p2.y -= oy; }
+      }
+      for (let i = 0; i < particles.length; i++) {
+        if (!particles[i].pinned && particles[i].y > floorY) particles[i].y = floorY;
+      }
+    }
+  }
+
+  function triggerNeedleAnim() { needleAnim.active = true; needleAnim.startTime = performance.now(); needleAnim.count++; }
+  function easeInOutCubic(t) { return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2; }
+
+  function drawNeedles(time) {
+    const cx = W/2, cy = getNeedleY();
+    const needleLen = Math.min(360, W*0.35), spread = Math.min(180, W*0.18), thick = 8;
+    let ap = 0;
+    if (needleAnim.active) {
+      const el = time - needleAnim.startTime;
+      ap = Math.min(el / 320, 1);
+      if (ap >= 1) needleAnim.active = false;
+      ap = easeInOutCubic(ap < 0.5 ? ap*2 : (1-ap)*2);
+    }
+    const ix = Math.sin(time*0.0005)*2, ia = Math.sin(time*0.0007)*0.005;
+    const ba = 0.12, ca = ap*40, vc = ap*10;
+    const lx = cx-spread+ca+ix, la = -ba+ap*0.08+ia, ly = cy-vc*(needleAnim.count%2===0?1:-1);
+    const rx = cx+spread-ca-ix, ra = Math.PI+ba-ap*0.08-ia, ry = cy+vc*(needleAnim.count%2===0?1:-1);
+    const drawN = (x, y, angle) => {
+      ctx.save(); ctx.translate(x,y); ctx.rotate(angle);
+      const hl = needleLen/2, tl = 25;
+      ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 5;
+      ctx.beginPath(); ctx.moveTo(-hl,-thick/2); ctx.lineTo(hl-tl,-thick/2); ctx.lineTo(hl-tl,thick/2); ctx.lineTo(-hl,thick/2); ctx.closePath();
+      const g = ctx.createLinearGradient(0,-thick,0,thick);
+      g.addColorStop(0,'#A67B5B'); g.addColorStop(0.15,'#D4A574'); g.addColorStop(0.35,'#F0DFC0');
+      g.addColorStop(0.5,'#F5E8D4'); g.addColorStop(0.65,'#D4A574'); g.addColorStop(0.85,'#8B5E3C'); g.addColorStop(1,'#5C3520');
+      ctx.fillStyle = g; ctx.fill(); ctx.shadowColor = 'transparent';
+      ctx.beginPath(); ctx.moveTo(hl-tl,-thick/2); ctx.lineTo(hl,0); ctx.lineTo(hl-tl,thick/2); ctx.closePath(); ctx.fillStyle = g; ctx.fill();
+      ctx.beginPath(); ctx.arc(-hl,0,thick*1.5,0,Math.PI*2);
+      const kg = ctx.createRadialGradient(-hl-3,-3,1,-hl,0,thick*1.8);
+      kg.addColorStop(0,'#F5E8D4'); kg.addColorStop(0.3,'#D4A574'); kg.addColorStop(0.7,'#A67B5B'); kg.addColorStop(1,'#5C3520');
+      ctx.fillStyle = kg; ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-hl+20,-thick*0.18); ctx.lineTo(hl-tl-10,-thick*0.18);
+      ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1.5; ctx.lineCap = 'round'; ctx.stroke();
+      ctx.restore();
+    };
+    if (needleAnim.count%2===0) { drawN(rx,ry,ra); drawN(lx,ly,la); }
+    else { drawN(lx,ly,la); drawN(rx,ry,ra); }
+  }
+
+  function drawKnitStitch(x, y, filled, seed) {
+    const sw = STITCH_W*0.88, sh = STITCH_H*0.85;
+    const color = filled ? COLORS.filled : COLORS.empty;
+    const nx = (seededRandom(seed)-0.5)*1.2, ny = (seededRandom(seed+1)-0.5)*1.2;
+    const nc = (seededRandom(seed+3)-0.5)*0.8, lw = 1.5+(seededRandom(seed+2)-0.5)*0.3;
+    ctx.beginPath(); ctx.moveTo(x-sw*0.4+nx, y-sh*0.35+ny);
+    ctx.quadraticCurveTo(x-sw*0.05+nc, y+sh*0.15, x+nx*0.3, y+sh*0.38);
+    ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+sw*0.4+nx, y-sh*0.35+ny);
+    ctx.quadraticCurveTo(x+sw*0.05-nc, y+sh*0.15, x+nx*0.3, y+sh*0.38);
+    ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.stroke();
+  }
+
+  function drawWeaveStitch(x, y, filled, row, col, seed) {
+    const sw = STITCH_W*0.88, sh = STITCH_H*0.88;
+    const color = filled ? COLORS.filled : COLORS.empty;
+    const isOver = (row+col)%2===0;
+    const nx = (seededRandom(seed)-0.5)*0.8, ny = (seededRandom(seed+1)-0.5)*0.8;
+    const lw = Math.min(STITCH_W,STITCH_H)*0.32+(seededRandom(seed+2)-0.5)*0.3;
+    ctx.beginPath();
+    if (isOver) { ctx.moveTo(x-sw*0.5+nx, y+ny*0.4); ctx.lineTo(x+sw*0.5+nx, y+ny*0.4); }
+    else { ctx.moveTo(x+nx*0.4, y-sh*0.5+ny); ctx.lineTo(x+nx*0.4, y+sh*0.5+ny); }
+    ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.stroke();
+  }
+
+  function drawFabric() {
+    if (gridRows === 0 || visibleCols === 0) return;
+    for (let r = 0; r < gridRows; r++) {
+      for (let c = 0; c < visibleCols; c++) {
+        const idx = r * FABRIC_COLS + c;
+        const p = particles[idx];
+        if (!p) continue;
+        if (p.x < -20 || p.x > W+20 || p.y < -20 || p.y > H+20) continue;
+        const filled = stitchFilled[idx] || false;
+        const seed = r * 1000 + c;
+        if (mode === 'knit') drawKnitStitch(p.x, p.y, filled, seed);
+        else drawWeaveStitch(p.x, p.y, filled, r, c, seed);
+      }
+    }
+  }
+
+  // Input
+  hiddenInput.focus();
+  document.body.addEventListener('click', () => hiddenInput.focus());
+  let composingChar = null;
+  hiddenInput.addEventListener('compositionstart', () => { isComposing = true; });
+  hiddenInput.addEventListener('compositionupdate', e => {
+    if (e.data) {
+      composingChar = e.data.slice(-1);
+      updateComposingPreview();
+      updateFabricState();
+    }
+  });
+  hiddenInput.addEventListener('compositionend', e => {
+    isComposing = false;
+    composingChar = null;
+    if (e.data) for (const ch of e.data) charQueue.push(ch);
+    updateFabricState();
+    hiddenInput.value = '';
+    removeComposingPreview();
+  });
+  hiddenInput.addEventListener('input', e => { if (isComposing) return; if (e.data) for (const ch of e.data) charQueue.push(ch); hiddenInput.value = ''; });
+
+  let composingPreview = null;
+  function updateComposingPreview() {
+    if (!composingChar) return;
+    composingPreview = { grid: charToGrid(composingChar), isSpace: false };
+  }
+  function removeComposingPreview() { composingPreview = null; }
+  addEventListener('keydown', e => {
+    if (e.key === 'Tab') { e.preventDefault(); return; }
+    if (e.key === 'Backspace') { e.preventDefault(); removeLastChar(); return; }
+    if (e.key === 'Enter') { e.preventDefault(); return; }
+  });
+
+  // Buttons
+  function updBtns() {
+    document.getElementById('btn-knit').classList.toggle('active', mode === 'knit');
+    document.getElementById('btn-weave').classList.toggle('active', mode === 'weave');
+  }
+  document.getElementById('btn-knit').addEventListener('click', () => { mode = 'knit'; updBtns(); hiddenInput.focus(); });
+  document.getElementById('btn-weave').addEventListener('click', () => { mode = 'weave'; updBtns(); hiddenInput.focus(); });
+  document.getElementById('btn-color').addEventListener('click', () => {
+    palIdx = (palIdx + 1) % PALETTES.length;
+    COLORS = { bg: '#1A1A1A', ...PALETTES[palIdx] };
+    hiddenInput.focus();
+  });
+  document.getElementById('btn-retry').addEventListener('click', () => {
+    typedChars = []; charQueue = []; particles = []; constraints = []; stitchFilled = [];
+    gridRows = 0; visibleCols = 0; hasTyped = false; hint.style.opacity = '1';
+    hiddenInput.focus();
+  });
+
+  // Main loop
+  let lastCharTime = 0;
+  function animate(time) {
+    requestAnimationFrame(animate);
+    if (charQueue.length && time - lastCharTime > 85) { addChar(charQueue.shift()); lastCharTime = time; }
+    if (particles.length > 0) { updateParticles(); solveConstraints(); }
+    ctx.fillStyle = COLORS.bg;
+    ctx.fillRect(0, 0, W, H);
+    drawNeedles(time);
+    drawFabric();
+  }
+  requestAnimationFrame(animate);
+})();
+</script>
+</body>
+</html>
