@@ -128,7 +128,12 @@ function renderVortex(vIdx, time) {
   
   vCtx.clearRect(0, 0, W, H);
   
-  const baseAngle = time * v.speed;
+  // Mouse proximity boost: closer mouse = faster spin
+  const dx = mouseX - v.cx, dy = mouseY - v.cy;
+  const mouseDist = Math.sqrt(dx * dx + dy * dy);
+  const boost = 1 + Math.max(0, 1 - mouseDist / v.r) * 3; // up to 4x speed when mouse is on center
+  
+  const baseAngle = time * v.speed * boost;
   
   // Each copy at equal low opacity — edges stay sharp, layers accumulate
   const alpha = 1.0 / SMEAR_COPIES * 2.2;
@@ -175,6 +180,14 @@ function composite() {
     ctx.restore();
   }
 }
+
+// ── Mouse interaction ────────────────────────────────────
+let mouseX = W / 2, mouseY = H / 2;
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  mouseX = (e.clientX - rect.left) / rect.width * W;
+  mouseY = (e.clientY - rect.top) / rect.height * H;
+});
 
 // ── Animation ───────────────────────────────────────────
 let t0 = 0;
