@@ -10,9 +10,14 @@ srcCanvas.width = W; srcCanvas.height = H;
 const ctx = srcCanvas.getContext('2d');
 
 const FLOWER_COLORS = [
-  ['#ff1493', '#ff8c00'], ['#00bfff', '#0044ff'], ['#7fff00', '#ffff00'],
-  ['#ff4500', '#ff69b4'], ['#00ced1', '#00ff7f'], ['#ff1493', '#ff4500'],
-  ['#4169e1', '#00bfff'], ['#ff6600', '#ffcc00'],
+  ['#ff1493', '#ff6b35'], // hot pink → orange
+  ['#ff0044', '#ff8800'], // red → orange
+  ['#ff69b4', '#ffcc00'], // pink → yellow
+  ['#ff3366', '#ff9900'], // rose → amber
+  ['#ff1493', '#ff4500'], // deep pink → red-orange
+  ['#ffaa00', '#ff1493'], // gold → pink
+  ['#ff6699', '#ffdd00'], // salmon pink → yellow
+  ['#ff0066', '#ff6600'], // magenta → orange
 ];
 
 function drawFlower(cx, cy, size, petals, colorPair, rotation) {
@@ -37,11 +42,11 @@ function drawFlower(cx, cy, size, petals, colorPair, rotation) {
 function drawSource() {
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, W, H);
-  // flowers — fewer but bigger, more white space
-  for (let i = 0; i < 10; i++) {
+  // flowers — more, warm palette (red/pink/yellow)
+  for (let i = 0; i < 22; i++) {
     drawFlower(
-      120 + Math.random() * (W - 240), 100 + Math.random() * (H - 200),
-      180 + Math.random() * 320,
+      80 + Math.random() * (W - 160), 60 + Math.random() * (H - 120),
+      120 + Math.random() * 300,
       Math.floor(4 + Math.random() * 4),
       FLOWER_COLORS[Math.floor(Math.random() * FLOWER_COLORS.length)],
       Math.random() * Math.PI * 2
