@@ -91,15 +91,6 @@ function drawSourceFull() {
     else if (f.type === 1) drawPetal(srcCtx, f.x, f.y, f.size, f.petals, c1, c2, f.rot);
     else drawLeaf(srcCtx, f.x, f.y, f.size, c1, c2, f.rot);
   }
-  srcCtx.font = '900 140px "Inter", sans-serif';
-  srcCtx.fillStyle = '#111';
-  srcCtx.textBaseline = 'top';
-  srcCtx.textAlign = 'left';
-  srcCtx.fillText('Glory', 100, 180);
-  srcCtx.textAlign = 'center';
-  srcCtx.fillText('and', W * 0.5, 460);
-  srcCtx.textAlign = 'right';
-  srcCtx.fillText('Joy', W - 100, 740);
 }
 
 // ── Vortex definitions ──────────────────────────────────
@@ -206,6 +197,17 @@ function frame(now) {
   
   // Composite onto main canvas
   composite();
+  
+  // Draw text on top (not affected by rotation)
+  ctx.font = '900 140px "Inter", sans-serif';
+  ctx.fillStyle = 'rgba(17,17,17,0.9)';
+  ctx.textBaseline = 'top';
+  ctx.textAlign = 'left';
+  ctx.fillText('Glory', 60, 80);
+  ctx.textAlign = 'center';
+  ctx.fillText('and', W * 0.55, 460);
+  ctx.textAlign = 'right';
+  ctx.fillText('Joy', W - 60, 820);
 }
 
 // ── Start ───────────────────────────────────────────────
