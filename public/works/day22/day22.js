@@ -106,19 +106,19 @@ void main() {
     float w = 1.0 / (dist * dist + 0.03);
     vec2 dir = uv - center;
     
-    float blurAngle = dist * u_strengths[i] * 0.6;
+    float blurAngle = dist * u_strengths[i] * 1.2;
     float baseAngle = u_time * u_speeds[i];
     
     vec4 cColor = vec4(0.0);
-    for (int s = 0; s < 8; s++) {
-      float t = (float(s) / 7.0) - 0.5;
+    for (int s = 0; s < 60; s++) {
+      float t = (float(s) / 59.0) - 0.5;
       float angle = baseAngle + t * blurAngle;
       float co = cos(angle);
       float sn = sin(angle);
       vec2 rotDir = vec2(dir.x * co - dir.y * sn, dir.x * sn + dir.y * co);
       cColor += texture2D(u_tex, clamp(center + rotDir, 0.0, 1.0));
     }
-    cColor /= 8.0;
+    cColor /= 60.0;
     
     totalColor += cColor * w;
     totalWeight += w;
