@@ -21,6 +21,7 @@ import Day019 from './works/day19'
 import Day020 from './works/day20'
 import Day021 from './works/day21'
 import Day022 from './works/day22'
+import Day023 from './works/day23'
 
 type View = 'home' | string
 
@@ -245,6 +246,16 @@ const WORKS = [
     ratio: '4 / 3',
     bgTheme: 'dark' as const,
   },
+  {
+    id: 'day23',
+    day: '23',
+    date: '2026.05.27',
+    title: '몸으로 돌아가는 사람들',
+    desc: '타이핑이 뜨개질이 되는 인터랙티브. 키보드를 치면 실이 엮여 글자가 스티치 패턴으로 직조된다.',
+    tags: ['Canvas', 'Interactive', 'Knitting'],
+    ratio: '4 / 3',
+    bgTheme: 'light' as const,
+  },
 ]
 
 export default function App() {
@@ -319,6 +330,7 @@ export default function App() {
           {view === 'day20' && <Day020 />}
           {view === 'day21' && <Day021 />}
           {view === 'day22' && <Day022 />}
+          {view === 'day23' && <Day023 />}
         </main>
       </div>
     )
