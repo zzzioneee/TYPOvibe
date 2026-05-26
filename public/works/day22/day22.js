@@ -252,7 +252,7 @@ void main() {
   
   // Blur stronger at rim, weak at center
   float edgeFactor = smoothstep(0.04, 0.25, bestDist);
-  float blurAngle = edgeFactor * bestStrength * 0.5 * u_blurMix;
+  float blurAngle = edgeFactor * bestStrength * 4.0 * u_blurMix;
   float baseAngle = u_time * bestSpeed;
   
   vec4 blurred = vec4(0.0);
@@ -349,8 +349,8 @@ function resize() {
 
 let t0 = 0;
 let uBlurMix;
-const BLUR_START = 4000;    // blur starts after all flowers popped
-const BLUR_RAMP = 3000;     // takes 3s to reach full — smooth transition
+const BLUR_START = 2800;    // blur starts right after flowers
+const BLUR_RAMP = 1500;     // ramp up in 1.5s
 
 function frame(now) {
   requestAnimationFrame(frame);
