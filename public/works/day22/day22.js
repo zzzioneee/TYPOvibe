@@ -95,45 +95,35 @@ void main() {
   // Aspect-corrected coordinates for distance calculations
   vec2 uvA = vec2(uv.x * u_aspect, uv.y);
   
-  // Find if pixel is inside any disc (closest one wins)
+  // Find closest center (NO radius cutoff — every pixel is affected)
+  
+  // Find closest center (NO radius cutoff — every pixel is affected)
   float minD = 999.0;
-  vec2 center = vec2(0.5);
-  float radius = 0.3;
-  float strength = 0.0;
-  float speed = 0.0;
+  vec2 center = u_centers[0];
+  float strength = u_strengths[0];
+  float speed = u_speeds[0];
   
   for (int i = 0; i < 5; i++) {
     vec2 cA = vec2(u_centers[i].x * u_aspect, u_centers[i].y);
     float d = length(uvA - cA);
-    float r = u_radii[i];
-    if (d < r && d < minD) {
+    if (d < minD) {
       minD = d;
       center = u_centers[i];
-      radius = r;
       strength = u_strengths[i];
       speed = u_speeds[i];
     }
   }
   
-  // If not inside any disc, show original
-  if (minD >= 998.0) {
-    gl_FragColor = texture2D(u_tex, uv);
-    return;
-  }
-  
-  // Distance from center (aspect corrected)
+  // Distance from closest center (aspect corrected)
   vec2 cA = vec2(center.x * u_aspect, center.y);
   float dist = length(uvA - cA);
   
   // Direction from center (in original UV space for sampling)
   vec2 dir = uv - center;
   
-  // Blur stronger at edges, zero at center
-  // Wide feather at the boundary so edge is invisible
-  float edgeFactor = smoothstep(radius * 0.15, radius * 0.6, dist);
-  // Fade out blur near the disc edge so no hard boundary
-  float fadeOut = 1.0 - smoothstep(radius * 0.7, radius, dist);
-  float blurAngle = edgeFactor * fadeOut * strength * 0.7;
+  // Blur increases with distance from center (outer = faster, like a record)
+  // No hard edge — smoothly increases outward
+  float blurAngle = dist * strength * 1.4;
   
   // Continuous rotation
   float baseAngle = u_time * speed;
