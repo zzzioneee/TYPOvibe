@@ -208,7 +208,7 @@ void main() {
     vec2 cA = vec2(center.x * u_aspect, center.y);
     float dist = length(uvA - cA);
     
-    float w = 1.0 / (dist * dist + 0.03);
+    float w = 1.0 / (dist * dist * dist * dist + 0.001);
     vec2 dir = uv - center;
     
     float blurAngle = dist * u_strengths[i] * 1.2;
@@ -283,13 +283,11 @@ function initGL() {
 }
 
 function resize() {
-  const vw = innerWidth, vh = innerHeight;
-  const scale = Math.min(vw / W, vh / H);
-  glCanvas.style.width = (W * scale) + 'px';
-  glCanvas.style.height = (H * scale) + 'px';
-  glCanvas.style.position = 'absolute';
-  glCanvas.style.left = ((vw - W * scale) / 2) + 'px';
-  glCanvas.style.top = ((vh - H * scale) / 2) + 'px';
+  glCanvas.style.width = '100%';
+  glCanvas.style.height = '100%';
+  glCanvas.style.position = 'fixed';
+  glCanvas.style.top = '0';
+  glCanvas.style.left = '0';
 }
 
 let t0 = 0;
