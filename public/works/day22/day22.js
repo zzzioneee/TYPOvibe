@@ -115,22 +115,22 @@ void main() {
     vec2 dir = uv - u_centers[i];
     
     // Blur angle proportional to distance (record physics)
-    float blurAngle = dist * u_strengths[i] * 0.5;
+    float blurAngle = dist * u_strengths[i] * 0.7;
     
     // Continuous rotation
     float baseAngle = u_time * u_speeds[i];
     
-    // Spin blur samples
+    // Spin blur samples — fewer = more visible streaks (like reference)
     vec4 cColor = vec4(0.0);
-    for (int s = 0; s < 16; s++) {
-      float t = (float(s) / 15.0) - 0.5;
+    for (int s = 0; s < 5; s++) {
+      float t = (float(s) / 4.0) - 0.5;
       float angle = baseAngle + t * blurAngle;
       float co = cos(angle);
       float sn = sin(angle);
       vec2 rotDir = vec2(dir.x * co - dir.y * sn, dir.x * sn + dir.y * co);
       cColor += texture2D(u_tex, clamp(u_centers[i] + rotDir, 0.0, 1.0));
     }
-    cColor /= 16.0;
+    cColor /= 5.0;
     
     totalColor += cColor * w;
     totalWeight += w;
