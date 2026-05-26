@@ -304,6 +304,23 @@ function initGL() {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, srcCanvas);
   
+  // Framebuffer for multi-pass
+  const fb = gl.createFramebuffer();
+  const fbTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, fbTex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, W, H, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, fbTex, 0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  
+  // Store for frame function
+  window._fb = fb;
+  window._fbTex = fbTex;
+  
   gl.uniform1f(gl.getUniformLocation(program, 'u_aspect'), W / H);
   
   // Set vortex center uniforms
@@ -357,6 +374,15 @@ function frame(now) {
   gl.viewport(0, 0, W, H);
   gl.uniform1f(gl.getUniformLocation(program, 'u_time'), t);
   gl.uniform1f(uBlurMix, blurMix);
+  
+  // Pass 1: render to framebuffer
+  gl.bindFramebuffer(gl.FRAMEBUFFER, window._fb);
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  
+  // Pass 2: render from framebuffer result to screen (double blur)
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.bindTexture(gl.TEXTURE_2D, window._fbTex);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
 
