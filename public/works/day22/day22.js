@@ -7,44 +7,88 @@ const srcCanvas = document.getElementById('source');
 srcCanvas.width = W; srcCanvas.height = H;
 const ctx = srcCanvas.getContext('2d');
 
-// ── Source: large bold color blocks (not small flowers) ─
-// Big opaque shapes with hard edges = sharp smear lines after blur
+// ── Flower draw functions ────────────────────────────────
+function drawBlob(cx, cy, size, c1, c2, rot) {
+  const grad = ctx.createLinearGradient(cx - size, cy - size, cx + size, cy + size);
+  grad.addColorStop(0, c1); grad.addColorStop(1, c2);
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot);
+  ctx.fillStyle = grad; ctx.beginPath();
+  ctx.moveTo(size * 0.4, 0);
+  ctx.bezierCurveTo(size * 0.5, -size * 0.6, -size * 0.3, -size * 0.7, -size * 0.4, -size * 0.2);
+  ctx.bezierCurveTo(-size * 0.7, size * 0.2, -size * 0.2, size * 0.6, size * 0.2, size * 0.4);
+  ctx.bezierCurveTo(size * 0.6, size * 0.3, size * 0.6, size * 0.2, size * 0.4, 0);
+  ctx.fill(); ctx.restore();
+}
+function drawPetal(cx, cy, size, petals, c1, c2, rot) {
+  const grad = ctx.createLinearGradient(cx - size, cy, cx + size, cy);
+  grad.addColorStop(0, c1); grad.addColorStop(1, c2);
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot);
+  ctx.fillStyle = grad;
+  for (let i = 0; i < petals; i++) {
+    const a = (i / petals) * Math.PI * 2;
+    const len = size * (0.5 + (i % 3) * 0.12);
+    ctx.beginPath();
+    ctx.ellipse(Math.cos(a) * len * 0.5, Math.sin(a) * len * 0.5, len * 0.5, size * 0.18, a, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+function drawLeaf(cx, cy, size, c1, c2, rot) {
+  const grad = ctx.createLinearGradient(cx, cy - size, cx, cy + size);
+  grad.addColorStop(0, c1); grad.addColorStop(1, c2);
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot);
+  ctx.fillStyle = grad; ctx.beginPath();
+  ctx.moveTo(0, -size);
+  ctx.bezierCurveTo(size * 0.6, -size * 0.3, size * 0.5, size * 0.5, 0, size * 0.8);
+  ctx.bezierCurveTo(-size * 0.5, size * 0.5, -size * 0.6, -size * 0.3, 0, -size);
+  ctx.fill(); ctx.restore();
+}
+function drawStarFlower(cx, cy, size, petals, c1, c2, rot) {
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, size);
+  grad.addColorStop(0, c2); grad.addColorStop(1, c1);
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot);
+  ctx.fillStyle = grad; ctx.beginPath();
+  for (let i = 0; i < petals; i++) {
+    const a = (i / petals) * Math.PI * 2;
+    const tipX = Math.cos(a) * size, tipY = Math.sin(a) * size;
+    const cw = size * 0.12;
+    ctx.moveTo(0, 0);
+    ctx.bezierCurveTo(Math.cos(a+0.3)*cw, Math.sin(a+0.3)*cw, tipX*0.7, tipY*0.7, tipX, tipY);
+    ctx.bezierCurveTo(tipX*0.7, tipY*0.7, Math.cos(a-0.3)*cw, Math.sin(a-0.3)*cw, 0, 0);
+  }
+  ctx.fill(); ctx.restore();
+}
+
+const COLORS = [
+  ['#ff0066','#ff3399'],['#ff0044','#ff6688'],['#cc00ff','#9966ff'],
+  ['#9933ff','#cc99ff'],['#ccff00','#aaff33'],['#88ff00','#ccff66'],
+  ['#00aa66','#00cc88'],['#ff0088','#ff44aa'],
+];
+
+// ── Source: dense flowers ───────────────────────────────
 function drawSource() {
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, W, H);
-  
-  const shapes = [
-    { x: 300, y: 200, r: 350, color: '#ff0055' },
-    { x: 900, y: 150, r: 280, color: '#cc00ff' },
-    { x: 1500, y: 300, r: 320, color: '#ff0088' },
-    { x: 200, y: 600, r: 300, color: '#00cc77' },
-    { x: 700, y: 500, r: 400, color: '#ff3300' },
-    { x: 1200, y: 650, r: 350, color: '#9900ff' },
-    { x: 1600, y: 700, r: 280, color: '#ff0066' },
-    { x: 500, y: 850, r: 300, color: '#ccff00' },
-    { x: 1000, y: 900, r: 320, color: '#0066ff' },
-    { x: 1500, y: 900, r: 250, color: '#ff44aa' },
-    { x: 400, y: 400, r: 200, color: '#00aaff' },
-    { x: 1100, y: 350, r: 250, color: '#ff6600' },
-  ];
-  
-  for (const s of shapes) {
-    ctx.fillStyle = s.color;
-    ctx.beginPath();
-    ctx.ellipse(s.x, s.y, s.r, s.r * 0.7, Math.random() * Math.PI, 0, Math.PI * 2);
-    ctx.fill();
+  const cols = 6, rows = 5;
+  for (let i = 0; i < 40; i++) {
+    const col = i % cols, row = Math.floor(i / cols) % rows;
+    const x = (col + 0.5) * (W / cols) + (Math.random() - 0.5) * (W / cols) * 0.8;
+    const y = (row + 0.5) * (H / rows) + (Math.random() - 0.5) * (H / rows) * 0.8;
+    const size = 60 + Math.pow(Math.random(), 0.5) * 280;
+    const [c1, c2] = COLORS[Math.floor(Math.random() * COLORS.length)];
+    const rot = Math.random() * Math.PI * 2;
+    const type = Math.floor(Math.random() * 4);
+    if (type === 0) drawBlob(x, y, size, c1, c2, rot);
+    else if (type === 1) drawPetal(x, y, size, 4 + Math.floor(Math.random() * 4), c1, c2, rot);
+    else if (type === 2) drawLeaf(x, y, size, c1, c2, rot);
+    else drawStarFlower(x, y, size, 5 + Math.floor(Math.random() * 3), c1, c2, rot);
   }
-  
-  // Text
-  ctx.font = '900 160px "Inter", sans-serif';
+  ctx.font = '900 140px "Inter", sans-serif';
   ctx.fillStyle = '#111';
   ctx.textBaseline = 'top';
-  ctx.textAlign = 'left';
-  ctx.fillText('Glory', 80, 150);
-  ctx.textAlign = 'center';
-  ctx.fillText('and', W * 0.5, 440);
-  ctx.textAlign = 'right';
-  ctx.fillText('Joy', W - 80, 730);
+  ctx.textAlign = 'left'; ctx.fillText('Glory', 100, 180);
+  ctx.textAlign = 'center'; ctx.fillText('and', W * 0.5, 460);
+  ctx.textAlign = 'right'; ctx.fillText('Joy', W - 100, 740);
 }
 
 // ── WebGL ───────────────────────────────────────────────
