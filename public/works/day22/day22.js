@@ -88,8 +88,8 @@ function drawMultiPetal(cx, cy, size, petals, color1, color2, rotation) {
   ctx.fillStyle = grad;
   for (let i = 0; i < petals; i++) {
     const a = (i / petals) * Math.PI * 2;
-    const petalLen = size * (0.6 + Math.random() * 0.4);
-    const petalW = size * (0.2 + Math.random() * 0.15);
+    const petalLen = size * (0.6 + (i * 0.13 % 0.4));
+    const petalW = size * (0.2 + (i * 0.07 % 0.15));
     ctx.beginPath();
     ctx.ellipse(
       Math.cos(a) * petalLen * 0.5,
@@ -155,18 +155,12 @@ function drawSource(elapsed) {
   ctx.fillRect(0, 0, W, H);
   
   for (const f of flowerData) {
-    // Scale animation: pop in with bounce
-    const t = Math.max(0, elapsed - f.delay) / 400;
-    let scale = 0;
-    if (t >= 1) scale = 1;
-    else if (t > 0) scale = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; // easeInOut
+    // Bloom: fade in smoothly (opacity 0→1)
+    const age = Math.max(0, elapsed - f.delay);
+    const alpha = Math.min(1, age / 500); // 500ms fade in
+    if (alpha < 0.01) continue;
     
-    if (scale < 0.01) continue;
-    
-    ctx.save();
-    ctx.translate(f.x, f.y);
-    ctx.scale(scale, scale);
-    ctx.translate(-f.x, -f.y);
+    ctx.globalAlpha = alpha;
     
     const [c1, c2] = f.color;
     if (f.type === 0) drawTulip(f.x, f.y, f.size, c1, c2, f.rot);
@@ -175,7 +169,7 @@ function drawSource(elapsed) {
     else if (f.type === 3) drawMultiPetal(f.x, f.y, f.size, f.petals, c1, c2, f.rot);
     else drawLeaf(f.x, f.y, f.size, c1, c2, f.rot);
     
-    ctx.restore();
+    ctx.globalAlpha = 1;
   }
   
   // Text (appears after flowers)
