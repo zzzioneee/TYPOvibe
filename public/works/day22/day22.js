@@ -130,48 +130,69 @@ const COLORS = [
   ['#ff0088', '#ff44aa'],  // magenta → bright pink
 ];
 
-// ── Draw source ─────────────────────────────────────────
-function drawSource() {
+// ── Pre-generate flower data ─────────────────────────────
+const flowerData = [];
+const cols = 6, rows = 5;
+const cellW = W / cols, cellH = H / rows;
+for (let i = 0; i < 45; i++) {
+  const col = i % cols;
+  const row = Math.floor(i / cols) % rows;
+  flowerData.push({
+    x: col * cellW + (Math.random() - 0.2) * cellW,
+    y: row * cellH + (Math.random() - 0.2) * cellH,
+    size: 80 + Math.pow(Math.random(), 0.6) * 320,
+    color: COLORS[Math.floor(Math.random() * COLORS.length)],
+    rot: Math.random() * Math.PI * 2,
+    type: Math.floor(Math.random() * 5),
+    petals: 3 + Math.floor(Math.random() * 5),
+    delay: i * 60, // staggered appearance
+  });
+}
+
+// ── Draw source (animated: flowers pop in based on elapsed) ──
+function drawSource(elapsed) {
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, W, H);
   
-  // Fill screen densely with flowers
-  const cols = 6, rows = 5;
-  const cellW = W / cols, cellH = H / rows;
-  const drawFns = [drawTulip, drawStarFlower, drawBlobFlower, drawMultiPetal, drawLeaf];
-  for (let i = 0; i < 45; i++) {
-    const col = i % cols;
-    const row = Math.floor(i / cols) % rows;
-    const x = col * cellW + (Math.random() - 0.2) * cellW;
-    const y = row * cellH + (Math.random() - 0.2) * cellH;
-    const size = 80 + Math.pow(Math.random(), 0.6) * 320;
-    const [c1, c2] = COLORS[Math.floor(Math.random() * COLORS.length)];
-    const rot = Math.random() * Math.PI * 2;
-    const type = Math.floor(Math.random() * drawFns.length);
+  for (const f of flowerData) {
+    // Scale animation: pop in with bounce
+    const t = Math.max(0, elapsed - f.delay) / 400;
+    let scale = 0;
+    if (t >= 1) scale = 1;
+    else if (t > 0) scale = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; // easeInOut
     
-    if (type === 1) {
-      drawStarFlower(x, y, size, 5 + Math.floor(Math.random() * 4), c1, c2, rot);
-    } else if (type === 3) {
-      drawMultiPetal(x, y, size, 3 + Math.floor(Math.random() * 4), c1, c2, rot);
-    } else if (type === 0) {
-      drawTulip(x, y, size, c1, c2, rot);
-    } else if (type === 2) {
-      drawBlobFlower(x, y, size, c1, c2, rot);
-    } else {
-      drawLeaf(x, y, size, c1, c2, rot);
-    }
+    if (scale < 0.01) continue;
+    
+    ctx.save();
+    ctx.translate(f.x, f.y);
+    ctx.scale(scale, scale);
+    ctx.translate(-f.x, -f.y);
+    
+    const [c1, c2] = f.color;
+    if (f.type === 0) drawTulip(f.x, f.y, f.size, c1, c2, f.rot);
+    else if (f.type === 1) drawStarFlower(f.x, f.y, f.size, f.petals, c1, c2, f.rot);
+    else if (f.type === 2) drawBlobFlower(f.x, f.y, f.size, c1, c2, f.rot);
+    else if (f.type === 3) drawMultiPetal(f.x, f.y, f.size, f.petals, c1, c2, f.rot);
+    else drawLeaf(f.x, f.y, f.size, c1, c2, f.rot);
+    
+    ctx.restore();
   }
   
-  // Text
-  ctx.font = '900 130px "Inter", sans-serif';
-  ctx.fillStyle = '#111';
-  ctx.textBaseline = 'top';
-  ctx.textAlign = 'left';
-  ctx.fillText('Glory', 100, 200);
-  ctx.textAlign = 'center';
-  ctx.fillText('and', W * 0.52, 480);
-  ctx.textAlign = 'right';
-  ctx.fillText('Joy', W - 100, 740);
+  // Text (appears after flowers)
+  if (elapsed > 2000) {
+    const textAlpha = Math.min(1, (elapsed - 2000) / 600);
+    ctx.globalAlpha = textAlpha;
+    ctx.font = '900 130px "Inter", sans-serif';
+    ctx.fillStyle = '#111';
+    ctx.textBaseline = 'top';
+    ctx.textAlign = 'left';
+    ctx.fillText('Glory', 100, 200);
+    ctx.textAlign = 'center';
+    ctx.fillText('and', W * 0.52, 480);
+    ctx.textAlign = 'right';
+    ctx.fillText('Joy', W - 100, 740);
+    ctx.globalAlpha = 1;
+  }
 }
 
 // ── WebGL spin blur ─────────────────────────────────────
@@ -303,19 +324,26 @@ function resize() {
 
 let t0 = 0;
 let uBlurMix;
-const FLOWER_PHASE = 2500;  // flowers pop in for 2.5s
-const BLUR_START = 3500;    // blur starts at 3.5s
-const BLUR_RAMP = 2000;     // takes 2s to reach full
+const BLUR_START = 4000;    // blur starts after all flowers popped
+const BLUR_RAMP = 3000;     // takes 3s to reach full — smooth transition
 
 function frame(now) {
   requestAnimationFrame(frame);
   const elapsed = now - t0;
   const t = elapsed * 0.001;
   
-  // Blur mix: 0 during flower phase, ramp 0→1 after BLUR_START
+  // Re-draw source with animated flowers
+  drawSource(elapsed);
+  
+  // Re-upload texture
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, srcCanvas);
+  
+  // Blur mix: smooth ramp
   let blurMix = 0;
   if (elapsed > BLUR_START) {
     blurMix = Math.min(1, (elapsed - BLUR_START) / BLUR_RAMP);
+    blurMix = blurMix * blurMix; // ease-in for natural feel
   }
   
   gl.viewport(0, 0, W, H);
@@ -325,7 +353,6 @@ function frame(now) {
 }
 
 document.fonts.ready.then(() => {
-  drawSource();
   if (!initGL()) return;
   resize();
   window.addEventListener('resize', resize);
