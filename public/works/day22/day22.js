@@ -6,105 +6,67 @@ const srcCanvas = document.getElementById('source');
 srcCanvas.width = W; srcCanvas.height = H;
 const ctx = srcCanvas.getContext('2d');
 
-// ── Draw soft blob (radial gradient circle with feathered edge) ──
-function drawBlob(cx, cy, r, color, alpha) {
-  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-  const c = color;
-  grad.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},${alpha})`);
-  grad.addColorStop(0.5, `rgba(${c[0]},${c[1]},${c[2]},${alpha * 0.7})`);
-  grad.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
+// ── Draw solid flower (sharp edge, gradient fill) ────────
+function drawFlower(cx, cy, size, petals, color1, color2, rotation) {
+  const grad = ctx.createLinearGradient(cx - size, cy - size, cx + size, cy + size);
+  grad.addColorStop(0, color1);
+  grad.addColorStop(1, color2);
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rotation);
   ctx.fillStyle = grad;
   ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fill();
-}
-
-// ── Draw soft clover (4-5 overlapping circles) ──────────
-function drawClover(cx, cy, size, petals, color, alpha) {
   for (let i = 0; i < petals; i++) {
-    const angle = (i / petals) * Math.PI * 2 + Math.random() * 0.3;
-    const px = cx + Math.cos(angle) * size * 0.4;
-    const py = cy + Math.sin(angle) * size * 0.4;
-    drawBlob(px, py, size * 0.55, color, alpha);
+    const a = (i / petals) * Math.PI * 2;
+    const px = Math.cos(a) * size * 0.45;
+    const py = Math.sin(a) * size * 0.45;
+    ctx.moveTo(0, 0);
+    ctx.ellipse(px, py, size * 0.44, size * 0.22, a, 0, Math.PI * 2);
   }
-  drawBlob(cx, cy, size * 0.3, color, alpha * 0.5);
+  ctx.fill();
+  ctx.restore();
 }
 
-// ── Color palette ───────────────────────────────────────
-const CRIMSON = [180, 0, 40];
-const DEEP_RED = [140, 0, 30];
-const HOT_PINK = [220, 20, 80];
-const MAGENTA = [180, 0, 90];
-const CYAN = [0, 180, 220];
-const BLUE = [0, 60, 180];
-const TEAL = [0, 140, 160];
+// ── Color pairs: crimson/red dominant + cyan accent ─────
+const COLORS = [
+  ['#cc0033', '#ff3366'],
+  ['#8b0022', '#cc0044'],
+  ['#ff0044', '#ff6688'],
+  ['#990033', '#ff1466'],
+  ['#cc0066', '#ff3399'],
+  ['#0077aa', '#00ccee'],
+  ['#003388', '#0099dd'],
+  ['#006688', '#00bbcc'],
+];
 
-const PALETTE = [CRIMSON, CRIMSON, DEEP_RED, HOT_PINK, MAGENTA, CYAN, BLUE, TEAL];
-
-// ── Draw source image ───────────────────────────────────
+// ── Draw source ─────────────────────────────────────────
 function drawSource() {
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, W, H);
   
-  // Scattered soft blobs and clovers
-  for (let i = 0; i < 35; i++) {
-    const x = Math.random() * W;
-    const y = Math.random() * H;
-    const size = 80 + Math.random() * 250;
-    const color = PALETTE[Math.floor(Math.random() * PALETTE.length)];
-    const alpha = 0.4 + Math.random() * 0.5;
-    
-    if (Math.random() < 0.5) {
-      drawBlob(x, y, size, color, alpha);
-    } else {
-      drawClover(x, y, size, 4 + Math.floor(Math.random() * 2), color, alpha);
-    }
+  // Grid-based flower placement for even spread
+  const cols = 5, rows = 4;
+  const cellW = W / cols, cellH = H / rows;
+  for (let i = 0; i < 24; i++) {
+    const col = i % cols;
+    const row = Math.floor(i / cols) % rows;
+    const x = col * cellW + Math.random() * cellW;
+    const y = row * cellH + Math.random() * cellH;
+    const size = 100 + Math.random() * 220;
+    const [c1, c2] = COLORS[Math.floor(Math.random() * COLORS.length)];
+    drawFlower(x, y, size, 4 + Math.floor(Math.random() * 3), c1, c2, Math.random() * Math.PI * 2);
   }
   
-  // Text along spiral/curved paths
-  ctx.globalCompositeOperation = 'multiply';
-  ctx.font = '900 120px "Inter", sans-serif';
+  // Text
+  ctx.font = '900 130px "Inter", sans-serif';
   ctx.fillStyle = '#111';
-  
-  // Glory — upper left, slightly rotated
-  ctx.save();
-  ctx.translate(350, 300);
-  ctx.rotate(-0.15);
-  ctx.fillText('Glory', 0, 0);
-  ctx.restore();
-  
-  // and — center, different angle
-  ctx.save();
-  ctx.translate(850, 580);
-  ctx.rotate(0.1);
-  ctx.font = '900 100px "Inter", sans-serif';
-  ctx.fillText('and', 0, 0);
-  ctx.restore();
-  
-  // Joy — lower right
-  ctx.save();
-  ctx.translate(1300, 780);
-  ctx.rotate(-0.08);
-  ctx.font = '900 140px "Inter", sans-serif';
-  ctx.fillText('Joy', 0, 0);
-  ctx.restore();
-  
-  // Repeated text along spiral (like reference's rotated typography)
-  ctx.globalAlpha = 0.3;
-  ctx.font = '800 60px "Inter", sans-serif';
-  for (let i = 0; i < 8; i++) {
-    const angle = (i / 8) * Math.PI * 2;
-    const r = 300 + i * 40;
-    const x = W/2 + Math.cos(angle) * r;
-    const y = H/2 + Math.sin(angle) * r;
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(angle + Math.PI/2);
-    ctx.fillText('Glory and Joy', 0, 0);
-    ctx.restore();
-  }
-  ctx.globalAlpha = 1;
-  ctx.globalCompositeOperation = 'source-over';
+  ctx.textBaseline = 'top';
+  ctx.textAlign = 'left';
+  ctx.fillText('Glory', 100, 200);
+  ctx.textAlign = 'center';
+  ctx.fillText('and', W * 0.52, 480);
+  ctx.textAlign = 'right';
+  ctx.fillText('Joy', W - 100, 740);
 }
 
 // ── WebGL spin blur ─────────────────────────────────────
