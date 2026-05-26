@@ -6,11 +6,34 @@ const srcCanvas = document.getElementById('source');
 srcCanvas.width = W; srcCanvas.height = H;
 const ctx = srcCanvas.getContext('2d');
 
-// ── Draw solid flower (sharp edge, gradient fill) ────────
-function drawFlower(cx, cy, size, petals, color1, color2, rotation) {
-  const grad = ctx.createLinearGradient(cx - size, cy - size, cx + size, cy + size);
-  grad.addColorStop(0, color1);
-  grad.addColorStop(1, color2);
+// ── Draw varied flower shapes (reference-inspired) ───────
+
+// Type 1: Tulip — rounded cup shape
+function drawTulip(cx, cy, size, color1, color2, rotation) {
+  const grad = ctx.createLinearGradient(cx - size, cy, cx + size, cy);
+  grad.addColorStop(0, color1); grad.addColorStop(1, color2);
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rotation);
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.ellipse(0, -size * 0.2, size * 0.5, size * 0.6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // stem
+  ctx.strokeStyle = '#00aa66';
+  ctx.lineWidth = size * 0.06;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(0, size * 0.3);
+  ctx.quadraticCurveTo(size * 0.1, size * 0.7, -size * 0.05, size * 1.1);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// Type 2: Star/spiky flower — long thin petals radiating
+function drawStarFlower(cx, cy, size, petals, color1, color2, rotation) {
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, size);
+  grad.addColorStop(0, color2); grad.addColorStop(1, color1);
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(rotation);
@@ -18,11 +41,79 @@ function drawFlower(cx, cy, size, petals, color1, color2, rotation) {
   ctx.beginPath();
   for (let i = 0; i < petals; i++) {
     const a = (i / petals) * Math.PI * 2;
-    const px = Math.cos(a) * size * 0.45;
-    const py = Math.sin(a) * size * 0.45;
+    const tipX = Math.cos(a) * size;
+    const tipY = Math.sin(a) * size;
+    const cw = size * 0.12;
     ctx.moveTo(0, 0);
-    ctx.ellipse(px, py, size * 0.44, size * 0.22, a, 0, Math.PI * 2);
+    ctx.bezierCurveTo(
+      Math.cos(a + 0.3) * cw, Math.sin(a + 0.3) * cw,
+      tipX * 0.7, tipY * 0.7,
+      tipX, tipY
+    );
+    ctx.bezierCurveTo(
+      tipX * 0.7, tipY * 0.7,
+      Math.cos(a - 0.3) * cw, Math.sin(a - 0.3) * cw,
+      0, 0
+    );
   }
+  ctx.fill();
+  ctx.restore();
+}
+
+// Type 3: Round blob — single organic shape
+function drawBlobFlower(cx, cy, size, color1, color2, rotation) {
+  const grad = ctx.createLinearGradient(cx - size, cy - size, cx + size, cy + size);
+  grad.addColorStop(0, color1); grad.addColorStop(1, color2);
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rotation);
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  // Organic blob with bezier curves
+  ctx.moveTo(size * 0.4, 0);
+  ctx.bezierCurveTo(size * 0.5, -size * 0.6, -size * 0.2, -size * 0.7, -size * 0.4, -size * 0.2);
+  ctx.bezierCurveTo(-size * 0.7, size * 0.1, -size * 0.3, size * 0.6, size * 0.1, size * 0.5);
+  ctx.bezierCurveTo(size * 0.5, size * 0.4, size * 0.6, size * 0.2, size * 0.4, 0);
+  ctx.fill();
+  ctx.restore();
+}
+
+// Type 4: Multi-petal (like reference clover but varied petal count/shape)
+function drawMultiPetal(cx, cy, size, petals, color1, color2, rotation) {
+  const grad = ctx.createLinearGradient(cx - size, cy - size, cx + size, cy + size);
+  grad.addColorStop(0, color1); grad.addColorStop(1, color2);
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rotation);
+  ctx.fillStyle = grad;
+  for (let i = 0; i < petals; i++) {
+    const a = (i / petals) * Math.PI * 2;
+    const petalLen = size * (0.6 + Math.random() * 0.4);
+    const petalW = size * (0.2 + Math.random() * 0.15);
+    ctx.beginPath();
+    ctx.ellipse(
+      Math.cos(a) * petalLen * 0.5,
+      Math.sin(a) * petalLen * 0.5,
+      petalLen * 0.5, petalW,
+      a, 0, Math.PI * 2
+    );
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// Type 5: Leaf/teardrop
+function drawLeaf(cx, cy, size, color1, color2, rotation) {
+  const grad = ctx.createLinearGradient(cx, cy - size, cx, cy + size);
+  grad.addColorStop(0, color1); grad.addColorStop(1, color2);
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rotation);
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.moveTo(0, -size);
+  ctx.bezierCurveTo(size * 0.6, -size * 0.3, size * 0.5, size * 0.5, 0, size * 0.8);
+  ctx.bezierCurveTo(-size * 0.5, size * 0.5, -size * 0.6, -size * 0.3, 0, -size);
   ctx.fill();
   ctx.restore();
 }
@@ -44,17 +135,31 @@ function drawSource() {
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, W, H);
   
-  // Grid-based flower placement for even spread
+  // Grid-based flower placement — varied types
   const cols = 5, rows = 4;
   const cellW = W / cols, cellH = H / rows;
+  const drawFns = [drawTulip, drawStarFlower, drawBlobFlower, drawMultiPetal, drawLeaf];
   for (let i = 0; i < 24; i++) {
     const col = i % cols;
     const row = Math.floor(i / cols) % rows;
     const x = col * cellW + Math.random() * cellW;
     const y = row * cellH + Math.random() * cellH;
-    const size = 100 + Math.random() * 220;
+    const size = 80 + Math.random() * 180;
     const [c1, c2] = COLORS[Math.floor(Math.random() * COLORS.length)];
-    drawFlower(x, y, size, 4 + Math.floor(Math.random() * 3), c1, c2, Math.random() * Math.PI * 2);
+    const rot = Math.random() * Math.PI * 2;
+    const type = Math.floor(Math.random() * drawFns.length);
+    
+    if (type === 1) {
+      drawStarFlower(x, y, size, 5 + Math.floor(Math.random() * 4), c1, c2, rot);
+    } else if (type === 3) {
+      drawMultiPetal(x, y, size, 3 + Math.floor(Math.random() * 4), c1, c2, rot);
+    } else if (type === 0) {
+      drawTulip(x, y, size, c1, c2, rot);
+    } else if (type === 2) {
+      drawBlobFlower(x, y, size, c1, c2, rot);
+    } else {
+      drawLeaf(x, y, size, c1, c2, rot);
+    }
   }
   
   // Text
