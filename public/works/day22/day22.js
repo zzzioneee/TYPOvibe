@@ -77,8 +77,7 @@ void main() {
 
 // Spin blur: for each of 5 disc centers, pixels within radius
 // are sampled at slightly rotated positions around that center.
-// Blur amount increases with distance from center (outer = faster).
-// Time-based rotation makes it animate like a record.
+// Aspect ratio corrected so circles are round, not elliptical.
 const FS = `
 precision highp float;
 varying vec2 v_uv;
@@ -88,11 +87,15 @@ uniform vec2 u_centers[5];
 uniform float u_radii[5];
 uniform float u_strengths[5];
 uniform float u_speeds[5];
+uniform float u_aspect;
 
 void main() {
   vec2 uv = v_uv;
   
-  // Find closest center
+  // Aspect-corrected coordinates for distance calculations
+  vec2 uvA = vec2(uv.x * u_aspect, uv.y);
+  
+  // Find if pixel is inside any disc (closest one wins)
   float minD = 999.0;
   vec2 center = vec2(0.5);
   float radius = 0.3;
@@ -100,56 +103,62 @@ void main() {
   float speed = 0.0;
   
   for (int i = 0; i < 5; i++) {
-    float d = length(uv - u_centers[i]);
-    if (d < u_radii[i] && d < minD) {
+    vec2 cA = vec2(u_centers[i].x * u_aspect, u_centers[i].y);
+    float d = length(uvA - cA);
+    float r = u_radii[i];
+    if (d < r && d < minD) {
       minD = d;
       center = u_centers[i];
-      radius = u_radii[i];
+      radius = r;
       strength = u_strengths[i];
       speed = u_speeds[i];
     }
   }
   
   // If not inside any disc, show original
-  if (minD >= 999.0 - 1.0) {
+  if (minD >= 998.0) {
     gl_FragColor = texture2D(u_tex, uv);
     return;
   }
   
+  // Distance from center (aspect corrected)
+  vec2 cA = vec2(center.x * u_aspect, center.y);
+  float dist = length(uvA - cA);
+  
+  // Direction from center (in original UV space for sampling)
   vec2 dir = uv - center;
-  float dist = length(dir);
   
-  // Blur increases toward the edge of the disc (like a record — outer rim is faster)
-  float edgeFactor = smoothstep(0.0, radius, dist);
-  float blurAmount = edgeFactor * strength * 0.12;
+  // Blur stronger at edges, zero at center
+  float edgeFactor = smoothstep(radius * 0.15, radius * 0.8, dist);
+  float blurAngle = edgeFactor * strength * 0.7;
   
-  // Base rotation angle (continuous spinning)
+  // Continuous rotation
   float baseAngle = u_time * speed;
   
-  // Sample at multiple small rotations = spin blur
+  // Spin blur: sample at spread of angles
   vec4 color = vec4(0.0);
-  for (int s = 0; s < 20; s++) {
-    float t = (float(s) / 19.0) - 0.5; // -0.5 to 0.5
-    float angle = baseAngle + t * blurAmount;
+  for (int s = 0; s < 24; s++) {
+    float t = (float(s) / 23.0) - 0.5; // -0.5 to +0.5
+    float angle = baseAngle + t * blurAngle;
     float c = cos(angle);
     float sn = sin(angle);
     vec2 rotDir = vec2(dir.x * c - dir.y * sn, dir.x * sn + dir.y * c);
     color += texture2D(u_tex, clamp(center + rotDir, 0.0, 1.0));
   }
   
-  gl_FragColor = color / 20.0;
+  gl_FragColor = color / 24.0;
 }`;
 
 let program, tex;
-let uTime, uCenters, uRadii, uStrengths, uSpeeds;
+let uTime, uCenters, uRadii, uStrengths, uSpeeds, uAspect;
 
-// Disc definitions: position (0-1), radius (0-1), strength, speed
+// Disc definitions: position (0-1), radius (0-1 in aspect-corrected space), strength, speed
 const DISCS = [
-  { cx: 0.22, cy: 0.28, r: 0.28, strength: 1.0, speed: 0.3  },
-  { cx: 0.75, cy: 0.20, r: 0.22, strength: 0.7, speed: -0.4 },
-  { cx: 0.50, cy: 0.58, r: 0.30, strength: 0.9, speed: 0.2  },
-  { cx: 0.80, cy: 0.78, r: 0.24, strength: 0.6, speed: -0.25},
-  { cx: 0.15, cy: 0.82, r: 0.20, strength: 0.5, speed: 0.35 },
+  { cx: 0.22, cy: 0.28, r: 0.26, strength: 1.2, speed: 0.25 },
+  { cx: 0.78, cy: 0.18, r: 0.20, strength: 0.8, speed: -0.3 },
+  { cx: 0.52, cy: 0.55, r: 0.28, strength: 1.0, speed: 0.15 },
+  { cx: 0.82, cy: 0.75, r: 0.22, strength: 0.6, speed: -0.2 },
+  { cx: 0.13, cy: 0.80, r: 0.18, strength: 0.4, speed: 0.35 },
 ];
 
 function initGL() {
@@ -192,6 +201,10 @@ function initGL() {
   uRadii = gl.getUniformLocation(program, 'u_radii');
   uStrengths = gl.getUniformLocation(program, 'u_strengths');
   uSpeeds = gl.getUniformLocation(program, 'u_speeds');
+  uAspect = gl.getUniformLocation(program, 'u_aspect');
+  
+  // Aspect ratio
+  gl.uniform1f(uAspect, W / H);
   
   // Set static disc uniforms
   const centers = [], radii = [], strengths = [], speeds = [];
