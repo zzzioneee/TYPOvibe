@@ -261,7 +261,7 @@ const WORKS = [
     id: 'day24',
     day: '24',
     date: '2026.05.28',
-    title: 'Volatility Drag',
+    title: '음(-)의 복리 효과',
     desc: '2배 레버리지 ETF의 음의 복리 효과를 가로 스크롤 차트로 시각화. 시간이 지날수록 녹아내리는 구조.',
     tags: ['Canvas', 'Scroll', 'Data'],
     ratio: '4 / 3',
