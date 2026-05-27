@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Day 24: Volatility Drag</title>
+<style>
+body { margin: 0; overflow-x: scroll; overflow-y: hidden; }
+#scroller { width: 10000px; height: 100vh; }
+canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; }
+.tp-dfwv { pointer-events: all !important; }
+</style>
+</head>
+<body>
+<div style="position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:100;">
+  <a href="https://newneek.co/@newneek/article/40790?utm_source=newsletter&utm_medium=daily&utm_campaign=260527&utm_content=40790" target="_blank" rel="noopener" style="font-family:'Pretendard',sans-serif;font-size:20px;font-weight:500;color:#fff;text-decoration:none;letter-spacing:0.15em;">FROM</a>
+</div>
+<div id="scroller"></div>
+<canvas id="c"></canvas>
+<script type="module">
+import { Vec2 } from "https://esm.sh/wtc-math";
+import { Pane } from "https://cdn.jsdelivr.net/npm/tweakpane@4.0.5/dist/tweakpane.min.js";
+
+console.clear();
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const dpr = 2;
+let W, H;
+function resize() {
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+resize();
+window.addEventListener('resize', resize);
+
+const isThumb = window.location.search.includes('thumb');
+const settings = { ballRadius: Math.min(W,H)/60, tubeWidth: Math.min(W,H)/60 + 2, lineWidth: Math.min(W,H)/150, vibrationIntensity: 4.0 };
+
+if (!isThumb) {
+  const pane = new Pane({ title: 'Control', expanded: true, container: document.body });
+  pane.element.style.position = 'fixed';
+  pane.element.style.top = '10px';
+  pane.element.style.right = '10px';
+  pane.addBinding(settings, 'vibrationIntensity', { min: 0, max: 4, step: 0.1 });
+  pane.addBinding(settings, 'ballRadius', { min: 3, max: 15, step: 1 });
+  pane.addBinding(settings, 'tubeWidth', { min: 5, max: 30, step: 1 });
+}
+
+// ═══ Stock Data ═══
+const dailyReturns = [];
+for (let i = 0; i < 150; i++) dailyReturns.push((Math.random() - 0.5) * 0.10);
+// 대폭락을 15틱에 걸쳐 부드럽게 하강 — 레버리지 기준 -90% 이상 손실
+const crashReturns = [-0.08, -0.09, -0.10, -0.10, -0.09, -0.08, -0.07, -0.07, -0.06, -0.06, -0.05, -0.05, -0.04, -0.04, -0.03];
+for (const cr of crashReturns) dailyReturns.push(cr);
+
+const stockPrices = [100]; const levPrices = [100];
+for (const r of dailyReturns) {
+  stockPrices.push(stockPrices[stockPrices.length-1]*(1+r));
+  levPrices.push(levPrices[levPrices.length-1]*(1+r*2));
+}
+
+const bMin = Math.min(...stockPrices), bMax = Math.max(...stockPrices);
+const cMin = Math.min(...levPrices), cMax = Math.max(...levPrices);
+
+const COL_UP = '#E84040'; const COL_DOWN = '#4088E8'; const COL_NODE = '#EEE'; const BG = '#1E1E24';
+
+const B_TOP = () => H * 0.08; const B_BOT = () => H * 0.42;
+const C_TOP = () => H * 0.52; const C_BOT = () => H * 0.92;
+
+const NODE_SPACING = () => settings.ballRadius * 3.5;
+
+function priceToY_B(idx) {
+  const t = (stockPrices[Math.min(idx,stockPrices.length-1)] - bMin) / (bMax-bMin||1);
+  return B_BOT() - t * (B_BOT()-B_TOP());
+}
+function priceToY_C(idx) {
+  const t = (levPrices[Math.min(idx,levPrices.length-1)] - cMin) / (cMax-cMin||1);
+  return C_BOT() - t * (C_BOT()-C_TOP());
+}
+function cNodesPerTick(idx) {
+  if (idx <= 0) return 1;
+  const r = dailyReturns[idx - 1];
+  const absR = Math.abs(r);
+  if (absR > 0.06) return 5;
+  if (absR > 0.04) return 4;
+  if (absR > 0.02) return 3;
+  if (absR > 0.01) return 2;
+  return 1;
+}
+
+// Pre-compute all nodes — start at W/2 so first node is at screen center
+const START_OFFSET = W * 0.5;
+const allB = []; const allC = [];
+let bwx = START_OFFSET, cwx = START_OFFSET;
+for (let i = 0; i < stockPrices.length; i++) {
+  allB.push({ wx: bwx, wy: priceToY_B(i) });
+  bwx += NODE_SPACING();
+  const density = cNodesPerTick(i);
+  const r = i > 0 ? dailyReturns[i-1] : 0;
+  const isDown = r < 0;
+  const sp = NODE_SPACING() / density;
+  const curY = priceToY_C(i);
+  const nextY = i < stockPrices.length-1 ? priceToY_C(i+1) : curY;
+  for (let d = 0; d < density; d++) {
+    const t = d / density;
+    const baseY = curY + (nextY - curY) * t;
+    let yOff = 0, xOff = 0;
+    if (d > 0) {
+      if (isDown) {
+        yOff = (Math.random()-0.5) * (settings.tubeWidth - settings.ballRadius) * 0.4;
+        xOff = (Math.random()-0.5) * settings.ballRadius * 0.3;
+      } else {
+        yOff = (Math.random()-0.5) * (settings.tubeWidth - settings.ballRadius) * 0.7;
+        xOff = (Math.random()-0.5) * settings.ballRadius * 0.8;
+      }
+    }
+    allC.push({ wx: cwx + sp*d + xOff, wy: baseY + yOff, dataIdx: i, isDown });
+  }
+  cwx += NODE_SPACING();
+}
+const totalWorldWidth = Math.max(bwx, cwx) - START_OFFSET;
+
+// Scroll layout:
+// 0% ~ 5%: intro (a pop-in + fork)
+// 5% ~ 95%: timeline
+// 95% ~ 100%: collapse
+const SCROLL_TOTAL = 10000 - W;
+const INTRO_END = 0.06;
+const COLLAPSE_START = 0.94;
+
+function getScrollProgress() {
+  return (window.scrollX || 0) / SCROLL_TOTAL;
+}
+
+// Dust & scatter
+let dustParticles = []; let scattered = [];
+let collapseTriggered = false; let collapseFrame = 0;
+
+function createDust(sx, sy) {
+  const texts = ['FOMO','-90%','2X','DRAG','LOSS','-60%','RIP','독약'];
+  for (let i = 0; i < 4; i++) {
+    const a = Math.random()*Math.PI*2, s = 4+Math.random()*8;
+    dustParticles.push({x:sx,y:sy,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1,decay:0.003+Math.random()*0.004,text:texts[Math.floor(Math.random()*texts.length)],size:10+Math.random()*6});
+  }
+}
+
+function drawTubeSegmented(nodes, tubeW, vibAmt, nodeData) {
+  if (nodes.length < 2) return;
+  const upper = []; const lower = [];
+  for (let i = 0; i < nodes.length; i++) {
+    const p = nodes[i];
+    let tx = 0, ty = 0;
+    if (i > 0 && i < nodes.length-1) {
+      tx = (nodes[i+1].sx - nodes[i-1].sx);
+      ty = (nodes[i+1].sy - nodes[i-1].sy);
+    } else if (i === 0) {
+      tx = nodes[1].sx - p.sx;
+      ty = nodes[1].sy - p.sy;
+    } else {
+      tx = p.sx - nodes[i-1].sx;
+      ty = p.sy - nodes[i-1].sy;
+    }
+    const len = Math.sqrt(tx*tx+ty*ty)||1;
+    const px = -ty/len, py = tx/len;
+    const vx=vibAmt?(Math.random()-0.5)*vibAmt:0;
+    const vy=vibAmt?(Math.random()-0.5)*vibAmt:0;
+    upper.push({x:p.sx+px*tubeW+vx,y:p.sy+py*tubeW+vy});
+    lower.push({x:p.sx-px*tubeW+vx,y:p.sy-py*tubeW+vy});
+  }
+  ctx.lineWidth=settings.lineWidth;
+  ctx.lineCap='round'; ctx.lineJoin='round';
+
+  // Determine color per node based on daily return direction
+  const colors = [];
+  for (let i = 0; i < nodes.length; i++) {
+    const di = nodeData ? nodeData[i] : null;
+    if (di !== null && di !== undefined) {
+      const idx = di;
+      if (idx > 0 && idx <= dailyReturns.length) {
+        colors.push(dailyReturns[idx-1] >= 0 ? COL_UP : COL_DOWN);
+      } else {
+        colors.push(COL_UP);
+      }
+    } else {
+      if (i < nodes.length-1) {
+        colors.push(nodes[i+1].sy > nodes[i].sy ? COL_DOWN : COL_UP);
+      } else {
+        colors.push(colors[i-1] || COL_UP);
+      }
+    }
+  }
+
+  // Draw smooth curves with color per segment, using midpoints for continuity
+  function drawColoredCurve(pts, colors) {
+    if (pts.length < 2) return;
+    // Precompute midpoints
+    const mids = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      mids.push({x: (pts[i].x + pts[i+1].x)/2, y: (pts[i].y + pts[i+1].y)/2});
+    }
+    // First segment: pts[0] → mids[0]
+    ctx.strokeStyle = colors[0];
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    ctx.lineTo(mids[0].x, mids[0].y);
+    ctx.stroke();
+    // Middle segments: mids[i-1] → pts[i] (control) → mids[i]
+    for (let i = 1; i < mids.length; i++) {
+      ctx.strokeStyle = colors[i];
+      ctx.beginPath();
+      ctx.moveTo(mids[i-1].x, mids[i-1].y);
+      ctx.quadraticCurveTo(pts[i].x, pts[i].y, mids[i].x, mids[i].y);
+      ctx.stroke();
+    }
+    // Last segment: mids[last] → pts[last]
+    ctx.strokeStyle = colors[colors.length-1];
+    ctx.beginPath();
+    ctx.moveTo(mids[mids.length-1].x, mids[mids.length-1].y);
+    ctx.lineTo(pts[pts.length-1].x, pts[pts.length-1].y);
+    ctx.stroke();
+  }
+
+  drawColoredCurve(upper, colors);
+  drawColoredCurve(lower, colors);
+
+  // end caps
+  const f=nodes[0],l=nodes[nodes.length-1];
+  ctx.strokeStyle=colors[0]; ctx.beginPath();ctx.arc(f.sx,f.sy,tubeW,0,Math.PI*2);ctx.stroke();
+  ctx.strokeStyle=colors[colors.length-1]; ctx.beginPath();ctx.arc(l.sx,l.sy,tubeW,0,Math.PI*2);ctx.stroke();
+}
+
+function lerp(a,b,t){return a+(b-a)*t;}
+
+function draw() {
+  ctx.fillStyle=BG; ctx.fillRect(0,0,W,H);
+
+  const progress = getScrollProgress();
+
+  // ═══ INTRO PHASE (0 ~ INTRO_END) ═══
+  if (progress < INTRO_END) {
+    const introT = progress / INTRO_END; // 0..1
+
+    // A node: always at center, pop-in at start
+    const popScale = Math.min(1, introT * 5);
+    const ax = W * 0.5, ay = H * 0.5;
+    const r = settings.ballRadius * 1.2 * popScale;
+
+    if (popScale > 0) {
+      ctx.fillStyle = COL_NODE; ctx.beginPath(); ctx.arc(ax,ay,r,0,Math.PI*2); ctx.fill();
+      if (popScale < 0.8) {
+        ctx.strokeStyle = COL_NODE; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(ax,ay,r*3*(1-popScale),0,Math.PI*2); ctx.stroke();
+      }
+    }
+
+    // Fork: after pop-in completes (introT > 0.3)
+    if (introT > 0.3) {
+      const forkT = Math.min(1, (introT - 0.3) / 0.7);
+      const easeT = 1 - Math.pow(1 - forkT, 3);
+
+      // B clone target — symmetric from center
+      const bTargetX = ax + 180, bTargetY = H * 0.25;
+      const bx = lerp(ax, bTargetX, easeT);
+      const by = lerp(ay, bTargetY, easeT);
+      // C clone target — symmetric from center
+      const cTargetX = ax + 180, cTargetY = H * 0.75;
+      const cx = lerp(ax, cTargetX, easeT);
+      const cy = lerp(ay, cTargetY, easeT);
+
+      // Motion blur: short trail (only 40% of path from a)
+      const trailRadius = settings.ballRadius * 1.1;
+      const trailLen = 0.4; // trail covers 40% of the path back from current pos
+
+      // B trail (short)
+      const bTrailStartX = lerp(bx, ax, trailLen);
+      const bTrailStartY = lerp(by, ay, trailLen);
+      const bGrad = ctx.createLinearGradient(bTrailStartX, bTrailStartY, bx, by);
+      bGrad.addColorStop(0, 'rgba(238,238,238,0)');
+      bGrad.addColorStop(1, 'rgba(238,238,238,0.6)');
+      ctx.strokeStyle = bGrad;
+      ctx.lineWidth = trailRadius * 2;
+      ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(bTrailStartX, bTrailStartY); ctx.lineTo(bx, by); ctx.stroke();
+
+      // C trail (short)
+      const cTrailStartX = lerp(cx, ax, trailLen);
+      const cTrailStartY = lerp(cy, ay, trailLen);
+      const cGrad = ctx.createLinearGradient(cTrailStartX, cTrailStartY, cx, cy);
+      cGrad.addColorStop(0, 'rgba(238,238,238,0)');
+      cGrad.addColorStop(1, 'rgba(238,238,238,0.6)');
+      ctx.strokeStyle = cGrad;
+      ctx.lineWidth = trailRadius * 2;
+      ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(cTrailStartX, cTrailStartY); ctx.lineTo(cx, cy); ctx.stroke();
+
+      // B clone (solid circle at head)
+      ctx.fillStyle = COL_NODE; ctx.beginPath(); ctx.arc(bx, by, settings.ballRadius * 1.2, 0, Math.PI * 2); ctx.fill();
+      // C clone (solid circle at head)
+      ctx.fillStyle = COL_NODE; ctx.beginPath(); ctx.arc(cx, cy, settings.ballRadius * 1.2, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Scroll hint
+    ctx.textAlign='center'; ctx.fillStyle='#555'; ctx.font='13px monospace';
+    ctx.fillText('← Scroll to explore the timeline →', W/2, H-30);
+    return;
+  }
+
+  // ═══ TIMELINE PHASE (INTRO_END ~ COLLAPSE_START) ═══
+  const timelineProgress = Math.min(1, (progress - INTRO_END) / (COLLAPSE_START - INTRO_END));
+  const dataIdx = Math.min(Math.floor(timelineProgress * (stockPrices.length-1)), stockPrices.length-1);
+  // Camera starts at 0 so first node (at wx=W/2) appears at screen center
+  // Then pans right as timeline progresses
+  const cameraX = timelineProgress * totalWorldWidth;
+
+  const cPrice = levPrices[Math.min(dataIdx, levPrices.length-1)];
+  const lossRatio = Math.max(0, (100-cPrice)/100);
+  const vibAmt = Math.max(1.0, lossRatio * 3) * settings.vibrationIntensity;
+  const dir = dataIdx > 0 ? stockPrices[dataIdx]-stockPrices[dataIdx-1] : 0;
+  const hullColor = dir >= 0 ? COL_UP : COL_DOWN;
+
+  // Separator
+  ctx.strokeStyle='rgba(255,255,255,0.05)'; ctx.lineWidth=1;
+  ctx.setLineDash([6,6]); ctx.beginPath(); ctx.moveTo(0,H*0.5); ctx.lineTo(W,H*0.5); ctx.stroke(); ctx.setLineDash([]);
+
+  // Filter visible B nodes up to dataIdx
+  const visBraw = allB.map((p,i) => ({...p, idx: i})).filter((p,i) => i <= dataIdx && (p.wx-cameraX) > -50 && (p.wx-cameraX) < W+50);
+  const visB = visBraw.map(p => ({sx: p.wx-cameraX, sy: p.wy}));
+  const visBdata = visBraw.map(p => p.idx);
+
+  // Filter visible C nodes up to dataIdx
+  const showCollapse = progress >= COLLAPSE_START;
+  const hasExploded = collapseTriggered && collapseFrame >= 30;
+  const visCraw = hasExploded ? [] : allC.filter(p => p.dataIdx <= dataIdx && (p.wx-cameraX) > -50 && (p.wx-cameraX) < W+50);
+  const visC = visCraw.map(p => {
+      const localVib = p.isDown ? vibAmt * 1.8 : vibAmt * 0.3;
+      return {
+        sx: p.wx-cameraX+(Math.random()-0.5)*localVib,
+        sy: p.wy+(Math.random()-0.5)*localVib,
+        isDown: p.isDown,
+        dataIdx: p.dataIdx
+      };
+    });
+  const visCdata = visCraw.map(p => p.dataIdx);
+
+  // B Tube + Nodes — always smooth, no vibration
+  if (visB.length >= 2) drawTubeSegmented(visB, settings.tubeWidth, 0, visBdata);
+  ctx.fillStyle = COL_NODE;
+  for (const p of visB) { ctx.beginPath(); ctx.arc(p.sx,p.sy,settings.ballRadius,0,Math.PI*2); ctx.fill(); }
+
+  // B 등락률 라벨 — 3개 간격
+  const LABEL_INTERVAL = 3;
+  const LABEL_FADE_DAYS = 8;
+  ctx.font = 'bold 16px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  for (let i = 0; i < allB.length; i++) {
+    if (i > dataIdx) break;
+    if (i === 0 || i % LABEL_INTERVAL !== 0) continue;
+    const bNode = allB[i];
+    const sx = bNode.wx - cameraX;
+    if (sx < -50 || sx > W + 50) continue;
+    const r = dailyReturns[i-1];
+    const pct = (r * 100).toFixed(0);
+    const label = r >= 0 ? `+${pct}%` : `${pct}%`;
+    const age = dataIdx - i;
+    const opacity = Math.max(0, 1 - age / LABEL_FADE_DAYS);
+    if (opacity <= 0) continue;
+    ctx.globalAlpha = opacity;
+    ctx.fillStyle = r >= 0 ? COL_UP : COL_DOWN;
+    ctx.fillText(label, sx, bNode.wy - settings.tubeWidth - 18);
+  }
+  ctx.globalAlpha = 1;
+
+  // C Tube + Nodes — dense + vibration
+  if (visC.length >= 2) drawTubeSegmented(visC, settings.tubeWidth, vibAmt, visCdata);
+  ctx.fillStyle = COL_NODE;
+  for (const p of visC) {
+    ctx.beginPath(); ctx.arc(p.sx,p.sy,settings.ballRadius,0,Math.PI*2); ctx.fill();
+  }
+
+  // C 등락률 라벨 — 3개 간격, 2배 수익률
+  ctx.font = 'bold 16px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  for (let i = 0; i < stockPrices.length; i++) {
+    if (i > dataIdx) break;
+    if (i === 0 || i % LABEL_INTERVAL !== 0) continue;
+    const cNode = allC.find(n => n.dataIdx === i);
+    if (!cNode) continue;
+    const sx = cNode.wx - cameraX;
+    if (sx < -50 || sx > W + 50) continue;
+    const r = dailyReturns[i-1] * 2;
+    const pct = (r * 100).toFixed(0);
+    const label = r >= 0 ? `+${pct}%` : `${pct}%`;
+    const age = dataIdx - i;
+    const opacity = Math.max(0, 1 - age / LABEL_FADE_DAYS);
+    if (opacity <= 0) continue;
+    ctx.globalAlpha = opacity;
+    ctx.fillStyle = r >= 0 ? COL_UP : COL_DOWN;
+    ctx.fillText(label, sx, cNode.wy - settings.tubeWidth - 18);
+  }
+  ctx.globalAlpha = 1;
+
+  // ═══ COLLAPSE (when cPrice <= 40 or progress >= COLLAPSE_START) ═══
+  if (showCollapse && !collapseTriggered) {
+    collapseTriggered = true; collapseFrame = 0;
+  }
+  // Reset if scrolled back
+  if (!showCollapse && collapseTriggered) {
+    collapseTriggered = false; scattered = []; dustParticles = []; collapseFrame = 0;
+  }
+
+  if (collapseTriggered) {
+    collapseFrame++;
+    // 30프레임(~0.5초) 대기 후 폭발
+    if (collapseFrame === 30) {
+      const cVisible = allC.filter(p => p.dataIdx <= dataIdx && (p.wx-cameraX) > -200 && (p.wx-cameraX) < W+200);
+      for (const p of cVisible) {
+        const sx = p.wx-cameraX;
+        const a = Math.random()*Math.PI*2, s = 5+Math.random()*12;
+        scattered.push({x:sx,y:p.wy,vx:Math.cos(a)*s,vy:Math.sin(a)*s,radius:settings.ballRadius,life:1,decay:0.003+Math.random()*0.003});
+        if (Math.random()>0.3) createDust(sx, p.wy);
+      }
+    }
+    if (collapseFrame > 30 && collapseFrame < 38){ctx.fillStyle=`rgba(64,136,232,${0.15*(1-(collapseFrame-30)/8)})`;ctx.fillRect(0,0,W,H);}
+
+    for(let i=scattered.length-1;i>=0;i--){const s=scattered[i];s.x+=s.vx;s.y+=s.vy;s.vy+=0.04;s.vx*=0.99;s.life-=s.decay;s.radius*=0.997;if(s.life<=0||s.radius<0.3)scattered.splice(i,1);}
+    for(const s of scattered){ctx.globalAlpha=s.life;ctx.fillStyle=COL_NODE;ctx.beginPath();ctx.arc(s.x,s.y,s.radius,0,Math.PI*2);ctx.fill();}
+    ctx.globalAlpha=1;
+
+    for(let i=dustParticles.length-1;i>=0;i--){const d=dustParticles[i];d.x+=d.vx;d.y+=d.vy;d.vy+=0.015;d.vx*=0.99;d.life-=d.decay;if(d.life<=0)dustParticles.splice(i,1);}
+    for(const d of dustParticles){ctx.globalAlpha=d.life;ctx.fillStyle=COL_DOWN;ctx.font=`bold ${Math.round(d.size)}px monospace`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(d.text,d.x,d.y);}
+    ctx.globalAlpha=1;
+
+    if (collapseFrame > 30 && scattered.length===0 && dustParticles.length===0) {
+      const bF=stockPrices[stockPrices.length-1],cF=levPrices[levPrices.length-1];
+      const bPct = ((bF-100)).toFixed(0);
+      const cPct = ((cF-100)).toFixed(0);
+      ctx.textAlign='center';
+      ctx.font='14px monospace';ctx.fillStyle='#888';ctx.fillText('같은 기간, 같은 기초자산. 존버의 결말.',W/2,H/2-10);
+      ctx.font='bold 22px monospace';
+      ctx.fillStyle='#999';ctx.fillText(`일반 주식: ${bPct >= 0 ? '+' : ''}${bPct}%`,W/2,H/2+35);
+      ctx.fillStyle=COL_DOWN;ctx.fillText(`2배 레버리지: ${cPct}%`,W/2,H/2+70);
+      ctx.font='12px monospace';ctx.fillStyle='#666';ctx.fillText('FOMO로 사서 묵혀두는 순간, 매일 리셋되는 2배가 자산을 갉아먹는다.',W/2,H/2+110);
+      ctx.fillStyle='#555';ctx.fillText('이건 장기 투자 상품이 아니다. 단기 트레이딩용 독약이다.',W/2,H/2+130);
+    }
+  }
+
+  // HUD
+  const bP = stockPrices[Math.min(dataIdx,stockPrices.length-1)];
+  ctx.font='11px monospace'; ctx.textAlign='left';
+  ctx.fillStyle='#666'; ctx.fillText(`Direct (b): ${bP.toFixed(1)}`,20,20);
+  ctx.fillStyle=cPrice<60?COL_DOWN:'#666'; ctx.fillText(`2X Lev (c): ${cPrice.toFixed(1)}`,20,36);
+  if(cPrice<100){ctx.fillStyle=COL_DOWN;ctx.fillText(`c Loss: -${(100-cPrice).toFixed(1)}%`,20,52);}
+  ctx.fillStyle='#444';ctx.fillText(`Day ${dataIdx}/${stockPrices.length-1}`,20,68);
+
+  // Labels
+  ctx.font='9px monospace';ctx.textAlign='right';ctx.fillStyle='#444';
+  ctx.fillText('b: Direct Investment',W-20,B_TOP()+12);
+  ctx.fillText('c: 2X Leveraged ETF',W-20,C_TOP()+12);
+}
+
+function loop() { draw(); requestAnimationFrame(loop); }
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

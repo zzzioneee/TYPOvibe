@@ -22,6 +22,7 @@ import Day020 from './works/day20'
 import Day021 from './works/day21'
 import Day022 from './works/day22'
 import Day023 from './works/day23'
+import Day024 from './works/day24'
 
 type View = 'home' | string
 
@@ -256,6 +257,16 @@ const WORKS = [
     ratio: '4 / 3',
     bgTheme: 'dark' as const,
   },
+  {
+    id: 'day24',
+    day: '24',
+    date: '2026.05.28',
+    title: 'Volatility Drag',
+    desc: '2배 레버리지 ETF의 음의 복리 효과를 가로 스크롤 차트로 시각화. 시간이 지날수록 녹아내리는 구조.',
+    tags: ['Canvas', 'Scroll', 'Data'],
+    ratio: '4 / 3',
+    bgTheme: 'dark' as const,
+  },
 ]
 
 export default function App() {
@@ -331,6 +342,7 @@ export default function App() {
           {view === 'day21' && <Day021 />}
           {view === 'day22' && <Day022 />}
           {view === 'day23' && <Day023 />}
+          {view === 'day24' && <Day024 />}
         </main>
       </div>
     )

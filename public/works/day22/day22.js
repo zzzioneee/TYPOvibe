@@ -132,7 +132,7 @@ function renderVortex(vIdx, time) {
   // Mouse proximity boost: closer mouse = faster spin
   const dx = mouseX - v.cx, dy = mouseY - v.cy;
   const mouseDist = Math.sqrt(dx * dx + dy * dy);
-  const boost = 1 + Math.max(0, 1 - mouseDist / v.r) * 3; // up to 4x speed when mouse is on center
+  const boost = 1 + Math.max(0, 1 - mouseDist / v.r) * 1.5; // up to 2.5x
   
   const baseAngle = time * v.speed * boost;
   
