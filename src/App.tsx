@@ -23,6 +23,7 @@ import Day021 from './works/day21'
 import Day022 from './works/day22'
 import Day023 from './works/day23'
 import Day024 from './works/day24'
+import Day026 from './works/day26'
 
 type View = 'home' | string
 
@@ -267,6 +268,16 @@ const WORKS = [
     ratio: '4 / 3',
     bgTheme: 'dark' as const,
   },
+  {
+    id: 'day26',
+    day: '26',
+    date: '2026.05.29',
+    title: 'SWING Display',
+    desc: '샹들리에처럼 매달린 도트들이 글자를 이루는 제너레이티브 타이포그래피. 마우스로 흔들 수 있다.',
+    tags: ['p5.js', 'Matter.js', 'Generative'],
+    ratio: '4 / 3',
+    bgTheme: 'light' as const,
+  },
 ]
 
 export default function App() {
@@ -343,6 +354,7 @@ export default function App() {
           {view === 'day22' && <Day022 />}
           {view === 'day23' && <Day023 />}
           {view === 'day24' && <Day024 />}
+          {view === 'day26' && <Day026 />}
         </main>
       </div>
     )
