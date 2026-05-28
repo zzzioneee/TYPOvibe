@@ -14,6 +14,7 @@ let W, H;
 let pg; // offscreen graphics for text rasterization
 
 function setup() {
+  pixelDensity(1);
   createCanvas(windowWidth, windowHeight);
   W = width; H = height;
   generateLetters();
