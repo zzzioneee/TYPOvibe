@@ -1,143 +1,138 @@
-// Day 26 — SWING Display
-// Generative typography: chandelier-style swinging dots
-// p5.js + matter.js
+// Day 26 — Swing Display (Generative Typography)
+// Hexagon grid letters suspended on wires, pendulum swing on mouse proximity
 
-const { Engine, World, Bodies, Constraint, Mouse, MouseConstraint, Body } = Matter;
+const HEX_SIZE = 12; // radius of each hexagon
+const GRID_SPACING = HEX_SIZE * 2.1;
+const WIRE_LENGTH_BASE = 60;
+const DAMPING = 0.96;
+const GRAVITY_RESTORE = 0.003;
+const MOUSE_RADIUS = 200;
+const MOUSE_FORCE = 0.08;
 
-let engine, world;
-let dotBodies = [];
-let wires = [];
+let hexagons = [];
 let W, H;
-const DOT_RADIUS = 6;
-const GRID_STEP = 14;
-const WIRE_STIFFNESS = 0.02;
-const TEXT_WORD = 'SWING';
+let pg; // offscreen graphics for text rasterization
 
-// ── Rasterize text to dot grid positions ────────────────
-function textToPositions(text, fontSize, offsetX, offsetY) {
-  const pg = createGraphics(800, 200);
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  W = width; H = height;
+  generateLetters();
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  W = width; H = height;
+  hexagons = [];
+  generateLetters();
+}
+
+function generateLetters() {
+  // Render "SWING" to offscreen buffer at large size
+  const text_str = "SWING";
+  const fontSize = Math.min(W * 0.15, 180);
+  pg = createGraphics(W, H);
   pg.background(255);
   pg.fill(0);
   pg.noStroke();
-  pg.textFont('Helvetica');
+  pg.textFont('Arial');
   pg.textStyle(BOLD);
   pg.textSize(fontSize);
   pg.textAlign(CENTER, CENTER);
-  pg.text(text, 400, 100);
+  pg.text(text_str, W / 2, H / 2);
   pg.loadPixels();
-  
-  const positions = [];
-  for (let y = 0; y < pg.height; y += GRID_STEP) {
-    for (let x = 0; x < pg.width; x += GRID_STEP) {
-      const idx = (y * pg.width + x) * 4;
-      if (pg.pixels[idx] < 128) {
-        positions.push({ x: x + offsetX - 400, y: y + offsetY - 100 });
-      }
-    }
-  }
-  pg.remove();
-  return positions;
-}
 
-// ── Create physics bodies ───────────────────────────────
-function createSwingDisplay() {
-  const positions = textToPositions(TEXT_WORD, 160, W / 2, H / 2);
-  
-  for (const pos of positions) {
-    // Dot body (circle)
-    const body = Bodies.circle(pos.x, pos.y, DOT_RADIUS, {
-      restitution: 0.3,
-      friction: 0.1,
-      density: 0.002,
-      frictionAir: 0.02,
-    });
-    World.add(world, body);
-    dotBodies.push(body);
-    
-    // Wire: constraint from anchor point above to body
-    const anchorY = pos.y - 60 - Math.random() * 40;
-    const wire = Constraint.create({
-      pointA: { x: pos.x, y: anchorY },
-      bodyB: body,
-      pointB: { x: 0, y: 0 },
-      length: pos.y - anchorY,
-      stiffness: WIRE_STIFFNESS + Math.random() * 0.01,
-      damping: 0.05,
-    });
-    World.add(world, wire);
-    wires.push(wire);
-  }
-}
+  // Sample hexagonal grid positions
+  const cols = Math.ceil(W / GRID_SPACING);
+  const rows = Math.ceil(H / (GRID_SPACING * 0.866));
 
-// ── p5.js setup ─────────────────────────────────────────
-function setup() {
-  W = windowWidth;
-  H = windowHeight;
-  createCanvas(W, H);
-  
-  engine = Engine.create();
-  engine.gravity.y = 0.5;
-  world = engine.world;
-  
-  createSwingDisplay();
-}
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const x = col * GRID_SPACING + (row % 2) * (GRID_SPACING / 2);
+      const y = row * GRID_SPACING * 0.866;
 
-// ── p5.js draw ──────────────────────────────────────────
-function draw() {
-  Engine.update(engine, 16.67);
-  
-  background(255);
-  
-  // Mouse interaction: push nearby bodies
-  if (mouseX > 0 && mouseX < W && mouseY > 0 && mouseY < H) {
-    const mouseRadius = 120;
-    const mouseForce = 0.003;
-    for (const body of dotBodies) {
-      const dx = body.position.x - mouseX;
-      const dy = body.position.y - mouseY;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < mouseRadius && dist > 0) {
-        const force = (1 - dist / mouseRadius) * mouseForce;
-        Body.applyForce(body, body.position, {
-          x: (dx / dist) * force,
-          y: (dy / dist) * force * 0.5,
+      // Check if this position is on the text
+      const px = Math.floor(x);
+      const py = Math.floor(y);
+      if (px < 0 || px >= W || py < 0 || py >= H) continue;
+      const idx = (py * W + px) * 4;
+      const r = pg.pixels[idx];
+      // Black text on white bg → r < 128 means on text
+      if (r < 128) {
+        // Wire length varies slightly for organic feel
+        const wireLen = WIRE_LENGTH_BASE + random(-15, 15);
+        hexagons.push({
+          // Anchor point (fixed, where wire attaches to "ceiling")
+          anchorX: x,
+          anchorY: y - wireLen,
+          // Current position (starts at rest = directly below anchor)
+          x: x,
+          y: y,
+          // Velocity (only horizontal for pendulum)
+          vx: 0,
+          // Wire length
+          wireLen: wireLen,
+          // Hex size variation
+          size: HEX_SIZE + random(-2, 2),
         });
       }
     }
   }
-  
+}
+
+function draw() {
+  background(255);
+
+  const mx = mouseX, my = mouseY;
+
+  // Update physics
+  for (const h of hexagons) {
+    // Mouse force (horizontal only)
+    const dx = h.x - mx;
+    const dy = h.y - my;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < MOUSE_RADIUS && dist > 0) {
+      const force = (1 - dist / MOUSE_RADIUS) * MOUSE_FORCE;
+      h.vx += (dx / dist) * force;
+    }
+
+    // Pendulum restore: pull back toward anchor X
+    const offsetX = h.x - h.anchorX;
+    h.vx -= offsetX * GRAVITY_RESTORE;
+
+    // Damping
+    h.vx *= DAMPING;
+
+    // Update position (horizontal swing only)
+    h.x += h.vx;
+
+    // Constrain to wire length (arc)
+    const maxSwing = h.wireLen * 0.7;
+    const clampedOffset = constrain(h.x - h.anchorX, -maxSwing, maxSwing);
+    h.x = h.anchorX + clampedOffset;
+    // Y adjusts along arc: y = anchor + sqrt(wireLen² - offsetX²)
+    h.y = h.anchorY + Math.sqrt(Math.max(0, h.wireLen * h.wireLen - clampedOffset * clampedOffset));
+  }
+
   // Draw wires
   stroke(0);
   strokeWeight(1);
-  for (const wire of wires) {
-    const ax = wire.pointA.x;
-    const ay = wire.pointA.y;
-    const bx = wire.bodyB.position.x;
-    const by = wire.bodyB.position.y;
-    line(ax, ay, bx, by);
+  for (const h of hexagons) {
+    line(h.anchorX, h.anchorY, h.x, h.y);
   }
-  
-  // Draw dots
-  fill(0);
+
+  // Draw hexagons
   noStroke();
-  for (const body of dotBodies) {
-    const { x, y } = body.position;
-    const angle = body.angle;
-    push();
-    translate(x, y);
-    rotate(angle);
-    ellipse(0, 0, DOT_RADIUS * 2, DOT_RADIUS * 2.4);
-    pop();
+  fill(0);
+  for (const h of hexagons) {
+    drawHexagon(h.x, h.y, h.size);
   }
 }
 
-function windowResized() {
-  W = windowWidth;
-  H = windowHeight;
-  resizeCanvas(W, H);
+function drawHexagon(cx, cy, r) {
+  beginShape();
+  for (let i = 0; i < 6; i++) {
+    const angle = TWO_PI / 6 * i - PI / 6;
+    vertex(cx + cos(angle) * r, cy + sin(angle) * r);
+  }
+  endShape(CLOSE);
 }
-
-// Make p5 global mode work
-window.setup = setup;
-window.draw = draw;
-window.windowResized = windowResized;

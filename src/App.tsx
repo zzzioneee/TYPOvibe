@@ -23,6 +23,7 @@ import Day021 from './works/day21'
 import Day022 from './works/day22'
 import Day023 from './works/day23'
 import Day024 from './works/day24'
+import Day025 from './works/day25'
 import Day026 from './works/day26'
 
 type View = 'home' | string
@@ -269,6 +270,16 @@ const WORKS = [
     bgTheme: 'dark' as const,
   },
   {
+    id: 'day25',
+    day: '25',
+    date: '2026.05.29',
+    title: 'Pizza War',
+    desc: '전사행사용 모바일 피자 만들기 게임. 6팀이 각자 역할을 하지만 모여야 한 판의 피자가 완성된다.',
+    tags: ['Canvas', 'Game', 'Mobile'],
+    ratio: '4 / 3',
+    bgTheme: 'dark' as const,
+  },
+  {
     id: 'day26',
     day: '26',
     date: '2026.05.29',
@@ -354,6 +365,7 @@ export default function App() {
           {view === 'day22' && <Day022 />}
           {view === 'day23' && <Day023 />}
           {view === 'day24' && <Day024 />}
+          {view === 'day25' && <Day025 />}
           {view === 'day26' && <Day026 />}
         </main>
       </div>
