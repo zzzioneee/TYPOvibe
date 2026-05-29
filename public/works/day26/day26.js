@@ -30,7 +30,7 @@ function windowResized() {
 function generateLetters() {
   // Render "SWING" to offscreen buffer at large size
   const text_str = "SWING";
-  const fontSize = Math.min(W * 0.15, 180);
+  const fontSize = Math.min(W * 0.28, 360);
   pg = createGraphics(W, H);
   pg.background(255);
   pg.fill(0);
