@@ -2,9 +2,9 @@
 // Chain structure: each column is a chain of hexagons connected by wires
 // Mouse proximity makes chains swing — each joint articulates independently
 
-const HEX_SIZE = 8;
-const GRID_SPACING = HEX_SIZE * 2.8;
-const SEGMENT_LENGTH = GRID_SPACING * 0.9; // wire length between hexagons
+const HEX_SIZE = 7;
+const GRID_SPACING = HEX_SIZE * 3.5;
+const SEGMENT_LENGTH = GRID_SPACING * 0.866; // vertical distance between rows
 const DAMPING = 0.94;
 const GRAVITY = 0.15;
 const MOUSE_RADIUS = 150;
@@ -29,7 +29,7 @@ function windowResized() {
 
 function buildChains() {
   const text_str = "SWING";
-  const fontSize = Math.min(W * 0.16, H * 0.5);
+  const fontSize = Math.min(W * 0.2, H * 0.6);
   pg = createGraphics(W, H);
   pg.pixelDensity(1);
   pg.background(255);
