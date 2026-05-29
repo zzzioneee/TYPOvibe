@@ -4,10 +4,10 @@
 const HEX_SIZE = 12; // radius of each hexagon
 const GRID_SPACING = HEX_SIZE * 2.1;
 const WIRE_LENGTH_BASE = 60;
-const DAMPING = 0.96;
-const GRAVITY_RESTORE = 0.003;
+const DAMPING = 0.88;
+const GRAVITY_RESTORE = 0.012;
 const MOUSE_RADIUS = 200;
-const MOUSE_FORCE = 0.08;
+const MOUSE_FORCE = 0.15;
 
 let hexagons = [];
 let W, H;
@@ -62,18 +62,15 @@ function generateLetters() {
         // Wire length varies slightly for organic feel
         const wireLen = WIRE_LENGTH_BASE + random(-15, 15);
         hexagons.push({
-          // Anchor point (fixed, where wire attaches to "ceiling")
           anchorX: x,
           anchorY: y - wireLen,
-          // Current position (starts at rest = directly below anchor)
           x: x,
           y: y,
-          // Velocity (only horizontal for pendulum)
           vx: 0,
-          // Wire length
           wireLen: wireLen,
-          // Hex size variation
-          size: HEX_SIZE + random(-2, 2),
+          // Hex size: width and height vary independently
+          sizeW: HEX_SIZE + random(-3, 4),
+          sizeH: HEX_SIZE + random(-4, 8), // height varies more → elongated hexagons
         });
       }
     }
@@ -114,26 +111,26 @@ function draw() {
     h.y = h.anchorY + Math.sqrt(Math.max(0, h.wireLen * h.wireLen - clampedOffset * clampedOffset));
   }
 
-  // Draw wires
-  stroke(0);
+  // Draw wires (gray)
+  stroke(180);
   strokeWeight(1);
   for (const h of hexagons) {
     line(h.anchorX, h.anchorY, h.x, h.y);
   }
 
-  // Draw hexagons
+  // Draw hexagons (varied height)
   noStroke();
   fill(0);
   for (const h of hexagons) {
-    drawHexagon(h.x, h.y, h.size);
+    drawHexagon(h.x, h.y, h.sizeW, h.sizeH);
   }
 }
 
-function drawHexagon(cx, cy, r) {
+function drawHexagon(cx, cy, rw, rh) {
   beginShape();
   for (let i = 0; i < 6; i++) {
     const angle = TWO_PI / 6 * i - PI / 6;
-    vertex(cx + cos(angle) * r, cy + sin(angle) * r);
+    vertex(cx + cos(angle) * rw, cy + sin(angle) * rh);
   }
   endShape(CLOSE);
 }
