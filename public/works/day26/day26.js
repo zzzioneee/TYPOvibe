@@ -1,37 +1,37 @@
 // Day 26 — Swing Display (Generative Typography)
-// Hexagon grid letters suspended on wires, pendulum swing on mouse proximity
+// Chain structure: each column is a chain of hexagons connected by wires
+// Mouse proximity makes chains swing — each joint articulates independently
 
 const HEX_SIZE = 8;
-const GRID_SPACING = HEX_SIZE * 3.0; // clear separation between hexagons
-const WIRE_LENGTH_BASE = 60;
-const DAMPING = 0.88;
-const GRAVITY_RESTORE = 0.012;
-const MOUSE_RADIUS = 200;
-const MOUSE_FORCE = 0.15;
+const GRID_SPACING = HEX_SIZE * 2.8;
+const SEGMENT_LENGTH = GRID_SPACING * 0.9; // wire length between hexagons
+const DAMPING = 0.94;
+const GRAVITY = 0.15;
+const MOUSE_RADIUS = 150;
+const MOUSE_FORCE = 0.4;
 
-let hexagons = [];
-let W, H;
-let pg; // offscreen graphics for text rasterization
+let chains = []; // array of chains, each chain = array of nodes
+let W, H, pg;
 
 function setup() {
   pixelDensity(1);
   createCanvas(windowWidth, windowHeight);
   W = width; H = height;
-  generateLetters();
+  buildChains();
 }
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
   W = width; H = height;
-  hexagons = [];
-  generateLetters();
+  chains = [];
+  buildChains();
 }
 
-function generateLetters() {
-  // Render "SWING" to offscreen buffer at large size
+function buildChains() {
   const text_str = "SWING";
-  const fontSize = Math.min(W * 0.28, 360);
+  const fontSize = Math.min(W * 0.16, H * 0.5);
   pg = createGraphics(W, H);
+  pg.pixelDensity(1);
   pg.background(255);
   pg.fill(0);
   pg.noStroke();
@@ -42,88 +42,105 @@ function generateLetters() {
   pg.text(text_str, W / 2, H / 2);
   pg.loadPixels();
 
-  // Sample hexagonal grid positions
+  // For each column in hexgrid, find which rows have text → build a chain
   const cols = Math.ceil(W / GRID_SPACING);
   const rows = Math.ceil(H / (GRID_SPACING * 0.866));
 
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
+  for (let col = 0; col < cols; col++) {
+    const chain = [];
+    for (let row = 0; row < rows; row++) {
       const x = col * GRID_SPACING + (row % 2) * (GRID_SPACING / 2);
       const y = row * GRID_SPACING * 0.866;
-
-      // Check if this position is on the text
-      const px = Math.floor(x);
-      const py = Math.floor(y);
+      const px = Math.floor(x), py = Math.floor(y);
       if (px < 0 || px >= W || py < 0 || py >= H) continue;
       const idx = (py * W + px) * 4;
-      const r = pg.pixels[idx];
-      // Black text on white bg → r < 128 means on text
-      if (r < 128) {
-        // Wire length varies slightly for organic feel
-        const wireLen = WIRE_LENGTH_BASE + random(-15, 15);
-        hexagons.push({
-          anchorX: x,
-          anchorY: y - wireLen,
-          x: x,
-          y: y,
-          vx: 0,
-          wireLen: wireLen,
-          col: col,
-          // Hex size: width and height vary independently
-          sizeW: HEX_SIZE + random(-2, 3),
-          sizeH: HEX_SIZE + random(-2, 12), // height varies a lot → elongated "hanging" feel
+      if (pg.pixels[idx] < 128) {
+        chain.push({
+          x: x, y: y,
+          oldX: x, oldY: y,
+          restX: x, restY: y,
+          sizeW: HEX_SIZE + random(-1, 2),
+          sizeH: HEX_SIZE + random(0, 8),
         });
       }
     }
+    if (chain.length > 0) chains.push(chain);
   }
 }
 
 function draw() {
   background(255);
-
   const mx = mouseX, my = mouseY;
 
-  // Update physics
-  for (const h of hexagons) {
-    // Mouse force (horizontal only)
-    const dx = h.x - mx;
-    const dy = h.y - my;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist < MOUSE_RADIUS && dist > 0) {
-      const force = (1 - dist / MOUSE_RADIUS) * MOUSE_FORCE;
-      h.vx += (dx / dist) * force;
+  // Physics: Verlet integration for each chain
+  for (const chain of chains) {
+    for (let i = 0; i < chain.length; i++) {
+      const node = chain[i];
+      if (i === 0) {
+        // First node: anchored at rest position (ceiling attachment)
+        node.x = node.restX;
+        node.y = node.restY;
+        continue;
+      }
+
+      // Verlet
+      let vx = (node.x - node.oldX) * DAMPING;
+      let vy = (node.y - node.oldY) * DAMPING;
+      node.oldX = node.x;
+      node.oldY = node.y;
+
+      // Gravity
+      vy += GRAVITY;
+
+      // Mouse force (horizontal push)
+      const dx = node.x - mx, dy = node.y - my;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < MOUSE_RADIUS && dist > 0) {
+        const f = (1 - dist / MOUSE_RADIUS) * MOUSE_FORCE;
+        vx += (dx / dist) * f;
+      }
+
+      node.x += vx;
+      node.y += vy;
     }
 
-    // Pendulum restore: pull back toward anchor X
-    const offsetX = h.x - h.anchorX;
-    h.vx -= offsetX * GRAVITY_RESTORE;
-
-    // Damping
-    h.vx *= DAMPING;
-
-    // Update position (horizontal swing only)
-    h.x += h.vx;
-
-    // Constrain to wire length (arc)
-    const maxSwing = h.wireLen * 0.7;
-    const clampedOffset = constrain(h.x - h.anchorX, -maxSwing, maxSwing);
-    h.x = h.anchorX + clampedOffset;
-    // Y adjusts along arc: y = anchor + sqrt(wireLen² - offsetX²)
-    h.y = h.anchorY + Math.sqrt(Math.max(0, h.wireLen * h.wireLen - clampedOffset * clampedOffset));
+    // Constraint solving: maintain distance between consecutive nodes
+    for (let iter = 0; iter < 5; iter++) {
+      for (let i = 1; i < chain.length; i++) {
+        const a = chain[i - 1], b = chain[i];
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 0.001;
+        const diff = (dist - SEGMENT_LENGTH) / dist * 0.5;
+        const ox = dx * diff, oy = dy * diff;
+        if (i === 1) {
+          // First node is pinned — only move b
+          b.x -= ox * 2; b.y -= oy * 2;
+        } else {
+          a.x += ox; a.y += oy;
+          b.x -= ox; b.y -= oy;
+        }
+      }
+    }
   }
 
-  // Draw wires (gray)
-  stroke(180);
-  strokeWeight(1);
-  for (const h of hexagons) {
-    line(h.anchorX, h.anchorY, h.x, h.y);
+  // Draw wires (between each pair of nodes in chain)
+  stroke(160);
+  strokeWeight(1.2);
+  for (const chain of chains) {
+    // Wire from ceiling to first node
+    line(chain[0].restX, chain[0].restY - 30, chain[0].x, chain[0].y);
+    for (let i = 1; i < chain.length; i++) {
+      line(chain[i-1].x, chain[i-1].y, chain[i].x, chain[i].y);
+    }
   }
 
-  // Draw hexagons (varied height)
+  // Draw hexagons
   noStroke();
-  fill(0);
-  for (const h of hexagons) {
-    drawHexagon(h.x, h.y, h.sizeW, h.sizeH);
+  fill(30);
+  for (const chain of chains) {
+    for (const node of chain) {
+      drawHexagon(node.x, node.y, node.sizeW, node.sizeH);
+    }
   }
 }
 
