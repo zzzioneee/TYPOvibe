@@ -1,8 +1,8 @@
 // Day 26 — Swing Display (Generative Typography)
 // Hexagon grid letters suspended on wires, pendulum swing on mouse proximity
 
-const HEX_SIZE = 9;
-const GRID_SPACING = HEX_SIZE * 3.8; // generous spacing — hexagons clearly separated
+const HEX_SIZE = 8;
+const GRID_SPACING = HEX_SIZE * 3.0; // clear separation between hexagons
 const WIRE_LENGTH_BASE = 60;
 const DAMPING = 0.88;
 const GRAVITY_RESTORE = 0.012;
