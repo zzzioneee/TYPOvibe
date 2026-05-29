@@ -1,8 +1,8 @@
 // Day 26 — Swing Display (Generative Typography)
 // Hexagon grid letters suspended on wires, pendulum swing on mouse proximity
 
-const HEX_SIZE = 12; // radius of each hexagon
-const GRID_SPACING = HEX_SIZE * 2.1;
+const HEX_SIZE = 9;
+const GRID_SPACING = HEX_SIZE * 3.8; // generous spacing — hexagons clearly separated
 const WIRE_LENGTH_BASE = 60;
 const DAMPING = 0.88;
 const GRAVITY_RESTORE = 0.012;
@@ -68,9 +68,10 @@ function generateLetters() {
           y: y,
           vx: 0,
           wireLen: wireLen,
+          col: col,
           // Hex size: width and height vary independently
-          sizeW: HEX_SIZE + random(-3, 4),
-          sizeH: HEX_SIZE + random(-4, 8), // height varies more → elongated hexagons
+          sizeW: HEX_SIZE + random(-2, 3),
+          sizeH: HEX_SIZE + random(-2, 12), // height varies a lot → elongated "hanging" feel
         });
       }
     }
