@@ -25,8 +25,6 @@ import Day023 from './works/day23'
 import Day024 from './works/day24'
 import Day025 from './works/day25'
 import Day026 from './works/day26'
-import Day027 from './works/day27'
-import Day027v2 from './works/day27_v2'
 
 type View = 'home' | string
 
@@ -291,26 +289,6 @@ const WORKS = [
     ratio: '4 / 3',
     bgTheme: 'dark' as const,
   },
-  {
-    id: 'day27',
-    day: '27',
-    date: '2026.06.01',
-    title: '교보갔다 가볼지도',
-    desc: '교보문고 로컬 큐레이션 프로젝트를 인터랙티브 맵으로. 대구/울산 두 도시의 추천 장소를 클릭하며 탐색.',
-    tags: ['React', 'Interactive', 'Map'],
-    ratio: '4 / 3',
-    bgTheme: 'light' as const,
-  },
-  {
-    id: 'day27_v2',
-    day: '27.v2',
-    date: '2026.06.01',
-    title: '교보갔다 가볼지도 v2',
-    desc: '로컬 큐레이션 인터랙티브 맵 — 클로드코드 버전. 대구/울산 장소를 클릭하며 탐색.',
-    tags: ['React', 'Interactive', 'Map'],
-    ratio: '4 / 3',
-    bgTheme: 'light' as const,
-  },
 ]
 
 export default function App() {
@@ -389,8 +367,6 @@ export default function App() {
           {view === 'day24' && <Day024 />}
           {view === 'day25' && <Day025 />}
           {view === 'day26' && <Day026 />}
-          {view === 'day27' && <Day027 />}
-          {view === 'day27_v2' && <Day027v2 />}
         </main>
       </div>
     )
