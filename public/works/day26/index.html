@@ -3,21 +3,285 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 26: Swing Display</title>
+<title>Day 28 — Chiky&Cheky</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: #fff; overflow: hidden; }
-canvas { display: block; }
-.from-wrap { position:fixed; top:24px; left:50%; transform:translateX(-50%); z-index:100; }
-.from-link { font-family:'Pretendard',sans-serif; font-size:20px; font-weight:500; color:rgba(0,0,0,0.4); text-decoration:none; letter-spacing:0.15em; }
-.from-link:hover { color:rgba(0,0,0,0.8); }
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden}
+body{background:#0a6de8;font-family:'Fredoka',sans-serif}
+canvas{display:block;width:100%;height:100%}
+.logo{
+  position:absolute;bottom:4%;left:50%;transform:translateX(-50%);
+  z-index:5;white-space:nowrap;
+  font-size:18vmin;font-weight:700;letter-spacing:0.02em;color:#fff;
+  font-family:'Fredoka',sans-serif;
+}
+.ch{display:inline-block;transition:margin 0.2s ease-out}
+.ch2{animation:stretchX 4s infinite 0s}
+.ch9{animation:stretchX 4s infinite 1s}
+.ch1{animation:stretchX 4s infinite 2s}
+.ch10{animation:stretchX 4s infinite 3s}
+@keyframes stretchX{0%,100%{transform:scaleX(1);margin:0 0}12%{transform:scaleX(1.8);margin:0 0.25em}25%{transform:scaleX(1);margin:0 0}}
+.from-wrap{position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:100}
+.from-link{font-family:'Pretendard',sans-serif;font-size:20px;font-weight:500;color:#fff;text-decoration:none;letter-spacing:0.15em}
+.from-link:hover{color:rgba(255,255,255,0.75)}
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
 </head>
 <body>
-<div class="from-wrap">
-  <a href="https://www.instagram.com/p/DKJKz0FTdGy/" target="_blank" rel="noopener" class="from-link">FROM</a>
+<canvas id="c"></canvas>
+<div class="logo">
+  <span class="ch ch1">C</span><span class="ch ch2">H</span><span class="ch ch3">i</span><span class="ch ch4">K</span><span class="ch ch5">Y</span><span class="ch ch6">&</span><span class="ch ch7">C</span><span class="ch ch8">H</span><span class="ch ch9">E</span><span class="ch ch10">K</span><span class="ch ch11">Y</span>
 </div>
-<script src="day26.js"></script>
+<div class="from-wrap">
+  <a href="https://designcompass.org/archive/chikycheky/" target="_blank" rel="noopener" class="from-link">FROM</a>
+</div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+
+// Scene
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a6de8);
+
+// Camera
+const camera = new THREE.PerspectiveCamera(35, window.innerWidth/window.innerHeight, 0.1, 200);
+camera.position.set(0, 1, 12);
+camera.lookAt(0, 0.5, 0);
+
+// Renderer
+const renderer = new THREE.WebGLRenderer({canvas:document.getElementById('c'), antialias:true});
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.3;
+
+// Lights — 균일한 조명 (그림자 없이 플랫하게)
+const amb = new THREE.AmbientLight(0xffffff, 1.8);
+scene.add(amb);
+const dir = new THREE.DirectionalLight(0xffffff, 0.3);
+dir.position.set(0, 2, 5);
+scene.add(dir);
+
+// Materials — 밝고 선명한 컬러
+const blueMat = new THREE.MeshStandardMaterial({color:0x125bda, roughness:0.4, metalness:0.0});
+const redMat = new THREE.MeshStandardMaterial({color:0xde1e1b, roughness:0.4, metalness:0.0});
+const whiteMat = new THREE.MeshStandardMaterial({color:0xffffff, roughness:0.3, metalness:0.0});
+const blackMat = new THREE.MeshStandardMaterial({color:0x111111, roughness:0.15, metalness:0.1});
+const orangeMat = new THREE.MeshStandardMaterial({color:0xfbac3d, roughness:0.35, metalness:0.0});
+const darkOrangeMat = new THREE.MeshStandardMaterial({color:0x1a1a1a, roughness:0.1, metalness:0.2});
+
+// Group for whole character
+const chiky = new THREE.Group();
+
+// ─── 몸통+머리 (파란, 하나의 긴 원통) ───
+const bodyGeo = new THREE.CapsuleGeometry(1.4, 3.0, 16, 24);
+const body = new THREE.Mesh(bodyGeo, blueMat);
+body.position.set(0, 0, 0);
+body.castShadow = true;
+chiky.add(body);
+
+// ─── 모자/벼슬 (빨간, 몸통 위 절반을 같은 폭으로 덮음) ───
+// 메인 기둥 — 몸통과 같은 폭, 위쪽 절반
+const combGeo = new THREE.CapsuleGeometry(1.42, 1.6, 16, 24);
+const combMain = new THREE.Mesh(combGeo, redMat);
+combMain.position.set(0, 1.7, 0);
+combMain.castShadow = true;
+chiky.add(combMain);
+
+// 벼슬 상부 (위로 좁아지면서 솟음)
+const combUpperGeo = new THREE.CapsuleGeometry(0.9, 1.2, 12, 16);
+const combUpper = new THREE.Mesh(combUpperGeo, redMat);
+combUpper.position.set(0, 3.2, 0);
+combUpper.castShadow = true;
+chiky.add(combUpper);
+
+// 벼슬 꼭대기
+const combTipGeo = new THREE.SphereGeometry(0.6, 16, 16);
+const combTip = new THREE.Mesh(combTipGeo, redMat);
+combTip.position.set(0, 4.1, 0);
+chiky.add(combTip);
+
+// 왼쪽 돌출 혹 위쪽 (ㅋ의 위 가로획)
+const knobTopGeo = new THREE.CapsuleGeometry(0.4, 0.6, 12, 12);
+const knobTop = new THREE.Mesh(knobTopGeo, redMat);
+knobTop.position.set(-1.4, 3.0, 0.2);
+knobTop.rotation.z = Math.PI / 2; // 가로로 눕힘
+knobTop.castShadow = true;
+chiky.add(knobTop);
+
+// 왼쪽 돌출 혹 아래쪽 (ㅋ의 아래 가로획) — 위와 같은 크기
+const knobBotGeo = new THREE.CapsuleGeometry(0.4, 0.6, 12, 12);
+const knobBot = new THREE.Mesh(knobBotGeo, redMat);
+knobBot.position.set(-1.4, 2.1, 0.2);
+knobBot.rotation.z = Math.PI / 2;
+knobBot.castShadow = true;
+chiky.add(knobBot);
+
+// ─── 눈 (숫자 "6" 형태 — 아래 큰 원 + 왼쪽 위로 돌출된 꼬리, 두 눈 같은 방향) ───
+function makeEyeWhite() {
+  const shape = new THREE.Shape();
+  // 큰 원 부분 (아래쪽, 중심 약간 아래)
+  // 12시 방향에서 시작, 시계방향
+  shape.moveTo(0, 0.35);
+  // 오른쪽으로 (큰 원 오른쪽 반)
+  shape.bezierCurveTo(0.35, 0.35, 0.42, 0.05, 0.4, -0.15);
+  // 아래쪽
+  shape.bezierCurveTo(0.38, -0.35, 0.15, -0.45, 0, -0.45);
+  // 왼쪽 아래
+  shape.bezierCurveTo(-0.2, -0.45, -0.4, -0.3, -0.42, -0.1);
+  // 왼쪽 위로 올라가면서 꼬리 시작
+  shape.bezierCurveTo(-0.4, 0.1, -0.35, 0.3, -0.28, 0.45);
+  // 꼬리 (왼쪽 위로 솟아오르는 돌출부)
+  shape.bezierCurveTo(-0.22, 0.58, -0.15, 0.65, -0.08, 0.62);
+  // 꼬리 안쪽 (오목하게 들어감 — "6"의 구멍 느낌)
+  shape.bezierCurveTo(-0.02, 0.58, 0.02, 0.5, 0, 0.35);
+  
+  const extrudeSettings = {
+    depth: 0.3,
+    bevelEnabled: true,
+    bevelThickness: 0.12,
+    bevelSize: 0.1,
+    bevelSegments: 10,
+    curveSegments: 24
+  };
+  return new THREE.ExtrudeGeometry(shape, extrudeSettings);
+}
+
+function makeEye(x) {
+  const eyeGroup = new THREE.Group();
+  
+  const whiteGeo = makeEyeWhite();
+  const white = new THREE.Mesh(whiteGeo, whiteMat);
+  white.position.z = -0.15;
+  eyeGroup.add(white);
+  
+  // 눈동자 (큰 원 중앙, 약간 아래)
+  const pupilGeo = new THREE.SphereGeometry(0.14, 16, 16);
+  const pupil = new THREE.Mesh(pupilGeo, blackMat);
+  pupil.position.set(0, -0.1, 0.33);
+  pupil.name = 'pupil';
+  eyeGroup.add(pupil);
+  
+  // 하이라이트
+  const hlGeo = new THREE.SphereGeometry(0.045, 8, 8);
+  const hlMat2 = new THREE.MeshBasicMaterial({color:0xffffff});
+  const hl = new THREE.Mesh(hlGeo, hlMat2);
+  hl.position.set(-0.04, -0.02, 0.42);
+  eyeGroup.add(hl);
+  
+  eyeGroup.position.set(x, 0.55, 1.2);
+  return eyeGroup;
+}
+
+const eyeL = makeEye(-0.4);
+const eyeR = makeEye(0.4);
+chiky.add(eyeL);
+chiky.add(eyeR);
+
+// ─── 입/부리 (노란 도넛/튜브 — 정면 향한 반지) ───
+const beakGeo = new THREE.TorusGeometry(0.2, 0.1, 16, 32);
+const beak = new THREE.Mesh(beakGeo, orangeMat);
+beak.position.set(0, -0.05, 1.5);
+beak.castShadow = true;
+chiky.add(beak);
+
+// 부리 안쪽 검정
+const holeGeo = new THREE.CircleGeometry(0.12, 20);
+const hole = new THREE.Mesh(holeGeo, darkOrangeMat);
+hole.position.set(0, -0.05, 1.51);
+chiky.add(hole);
+
+// ─── 발 ───
+function makeFoot(x) {
+  const footGeo = new THREE.CapsuleGeometry(0.28, 0.35, 8, 12);
+  const foot = new THREE.Mesh(footGeo, redMat);
+  foot.position.set(x, -2.7, 0.3);
+  foot.rotation.z = Math.PI / 2;
+  foot.castShadow = true;
+  return foot;
+}
+chiky.add(makeFoot(-0.5));
+chiky.add(makeFoot(0.5));
+
+// Position character
+chiky.position.set(0, 0.5, 0);
+scene.add(chiky);
+
+// 왼쪽 복제
+const chikyL = chiky.clone();
+chikyL.position.set(-3.5, 0.5, 0);
+scene.add(chikyL);
+
+// 오른쪽 복제
+const chikyR = chiky.clone();
+chikyR.position.set(3.5, 0.5, 0);
+scene.add(chikyR);
+
+// ─── 마우스 추적 ───
+const mouse = {x: 0, y: 0};
+const targetRot = {x: 0, y: 0};
+
+document.addEventListener('mousemove', (e) => {
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+});
+
+// ─── 애니메이션 루프 ───
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+  
+  // 부드러운 마우스 추적 (3개 모두 회전)
+  targetRot.y = mouse.x * 0.4;
+  targetRot.x = mouse.y * 0.2;
+  
+  [chiky, chikyL, chikyR].forEach(c => {
+    c.rotation.y += (targetRot.y - c.rotation.y) * 0.05;
+    c.rotation.x += (-targetRot.x - c.rotation.x) * 0.05;
+  });
+  
+  // 플로팅 모션 (각각 약간 다른 위상)
+  chiky.position.y = 0.5 + Math.sin(t * 1.2) * 0.08;
+  chikyL.position.y = 0.5 + Math.sin(t * 1.2 + 0.5) * 0.08;
+  chikyR.position.y = 0.5 + Math.sin(t * 1.2 + 1.0) * 0.08;
+  
+  // 눈동자 마우스 추적
+  const pupilOffsetX = mouse.x * 0.08;
+  const pupilOffsetY = mouse.y * 0.05;
+  [chiky, chikyL, chikyR].forEach(c => {
+    c.children.forEach(child => {
+      if (child.isGroup && child.children[1] && child.children[1].name === 'pupil') {
+        child.children[1].position.x = pupilOffsetX;
+        child.children[1].position.y = -0.2 + pupilOffsetY;
+      }
+    });
+  });
+  
+  // 깜빡임 — 3개 모두
+  const blinkCycle = t % 5;
+  const blinkScale = (blinkCycle > 4.7 && blinkCycle < 4.9) ? 0.1 : 1.1;
+  [chiky, chikyL, chikyR].forEach(c => {
+    // eyeL = children[5], eyeR = children[6] (그룹 내 순서)
+    c.children.forEach(child => {
+      if (child.isGroup && child.children[0] && child.children[0].material === whiteMat) {
+        child.children[0].scale.y = blinkScale;
+      }
+    });
+  });
+  
+  renderer.render(scene, camera);
+}
+
+animate();
+
+// Resize
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
 </body>
 </html>

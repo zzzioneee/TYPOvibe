@@ -27,7 +27,6 @@ import Day025 from './works/day25'
 import Day026 from './works/day26'
 import Day027 from './works/day27'
 import Day027v2 from './works/day27_v2'
-import Day028 from './works/day28'
 
 type View = 'home' | string
 
@@ -276,21 +275,21 @@ const WORKS = [
     id: 'day25',
     day: '25',
     date: '2026.05.29',
-    title: 'Pizza War',
-    desc: '전사행사용 모바일 피자 만들기 게임. 6팀이 각자 역할을 하지만 모여야 한 판의 피자가 완성된다.',
-    tags: ['Canvas', 'Game', 'Mobile'],
-    ratio: '4 / 3',
-    bgTheme: 'dark' as const,
-  },
-  {
-    id: 'day26',
-    day: '26',
-    date: '2026.05.29',
     title: 'SWING Display',
     desc: '샹들리에처럼 매달린 도트들이 글자를 이루는 제너레이티브 타이포그래피. 마우스로 흔들 수 있다.',
     tags: ['p5.js', 'Matter.js', 'Generative'],
     ratio: '4 / 3',
     bgTheme: 'light' as const,
+  },
+  {
+    id: 'day26',
+    day: '26',
+    date: '2026.06.01',
+    title: 'Chiky&Cheky',
+    desc: 'KOREAN STREET 캐릭터 브랜드 Chiky를 Three.js로 구현. 마우스를 따라 눈이 움직이고 몸이 기울어진다.',
+    tags: ['Three.js', 'Character', 'Interactive'],
+    ratio: '4 / 3',
+    bgTheme: 'dark' as const,
   },
   {
     id: 'day27',
@@ -309,16 +308,6 @@ const WORKS = [
     title: '교보갔다 가볼지도 v2',
     desc: '로컬 큐레이션 인터랙티브 맵 — 클로드코드 버전. 대구/울산 장소를 클릭하며 탐색.',
     tags: ['React', 'Interactive', 'Map'],
-    ratio: '4 / 3',
-    bgTheme: 'light' as const,
-  },
-  {
-    id: 'day28',
-    day: '28',
-    date: '2026.06.01',
-    title: 'Chiky&Cheky',
-    desc: 'KOREAN STREET 캐릭터 브랜드 Chiky를 순수 CSS 3D로 구현. 마우스를 따라 눈이 움직이고 몸이 기울어진다.',
-    tags: ['CSS 3D', 'Character', 'Interactive'],
     ratio: '4 / 3',
     bgTheme: 'light' as const,
   },
@@ -402,7 +391,6 @@ export default function App() {
           {view === 'day26' && <Day026 />}
           {view === 'day27' && <Day027 />}
           {view === 'day27_v2' && <Day027v2 />}
-          {view === 'day28' && <Day028 />}
         </main>
       </div>
     )
