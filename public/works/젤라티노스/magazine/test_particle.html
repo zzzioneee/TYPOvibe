@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head><style>body{background:#fff;}</style></head>
+<body>
+<div id="box" style="width:400px;height:200px;background:#eee;margin:100px auto;position:relative;cursor:pointer;">
+  Click me
+</div>
+<script>
+document.getElementById('box').addEventListener('click', function() {
+  const box = this.getBoundingClientRect();
+
+  const canvas = document.createElement('canvas');
+  const PAD = 20;
+  const W = box.width + PAD*2;
+  const H = box.height + PAD*2;
+  canvas.width  = W;
+  canvas.height = H;
+  canvas.style.cssText = `position:fixed;left:${box.left-PAD}px;top:${box.top-PAD}px;width:${W}px;height:${H}px;pointer-events:none;z-index:9999;display:block;border:2px solid red;`;
+  document.body.appendChild(canvas);
+
+  const ctx = canvas.getContext('2d');
+  console.log('ctx:', ctx);
+  console.log('W:', W, 'H:', H);
+
+  // 즉시 테스트 드로잉
+  ctx.fillStyle = 'rgba(255,0,0,0.5)';
+  ctx.fillRect(10, 10, 50, 50);
+
+  // 파티클 1개
+  ctx.beginPath();
+  ctx.arc(W/2, H/2, 20, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(255,100,180,0.8)';
+  ctx.fill();
+
+  const start = performance.now();
+  let frameCount = 0;
+  function frame(now) {
+    frameCount++;
+    const t = Math.min((now - start) / 1000, 1);
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = `rgba(255,100,180,${1-t})`;
+    ctx.beginPath();
+    ctx.arc(W/2, H/2, 20*(1-t*0.5), 0, Math.PI*2);
+    ctx.fill();
+    if (t < 1) requestAnimationFrame(frame);
+    else {
+      document.body.removeChild(canvas);
+      console.log('done, frames:', frameCount);
+    }
+  }
+  requestAnimationFrame(frame);
+});
+</script>
+</body>
+</html>

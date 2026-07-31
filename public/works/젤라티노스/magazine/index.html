@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Not From Here — VHREKWION</title>
+
+<!-- WebGL Fluid Shaders -->
+<script type="x-shader/x-vertex" id="vShader">
+precision highp float;
+attribute vec2 a_pos;
+varying vec2 vUv, vL, vR, vT, vB;
+uniform vec2 texel;
+void main(){
+  vUv = .5*(a_pos+1.);
+  vL = vUv-vec2(texel.x,0.); vR = vUv+vec2(texel.x,0.);
+  vT = vUv+vec2(0.,texel.y); vB = vUv-vec2(0.,texel.y);
+  gl_Position = vec4(a_pos,0.,1.);
+}
+</script>
+<script type="x-shader/x-fragment" id="fAdv">
+precision highp float; precision highp sampler2D;
+varying vec2 vUv; uniform sampler2D uVel, uIn; uniform vec2 texel; uniform float dt;
+vec4 bilerp(sampler2D s,vec2 uv,vec2 t){
+  vec2 st=uv/t-.5,f=fract(st),i=floor(st);
+  vec4 a=texture2D(s,(i+vec2(.5,.5))*t), b=texture2D(s,(i+vec2(1.5,.5))*t),
+       c=texture2D(s,(i+vec2(.5,1.5))*t), d=texture2D(s,(i+vec2(1.5,1.5))*t);
+  return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);
+}
+void main(){
+  vec2 coord=vUv-dt*bilerp(uVel,vUv,texel).xy*texel;
+  gl_FragColor=.97*bilerp(uIn,coord,texel); gl_FragColor.a=1.;
+}
+</script>
+<script type="x-shader/x-fragment" id="fDiv">
+precision highp float; precision highp sampler2D;
+varying vec2 vUv,vL,vR,vT,vB; uniform sampler2D uVel;
+void main(){
+  float L=texture2D(uVel,vL).x,R=texture2D(uVel,vR).x,
+        T=texture2D(uVel,vT).y,B=texture2D(uVel,vB).y;
+  gl_FragColor=vec4(.5*(R-L+T-B),0.,0.,1.);
+}
+</script>
+<script type="x-shader/x-fragment" id="fPres">
+precision highp float; precision highp sampler2D;
+varying vec2 vUv,vL,vR,vT,vB; uniform sampler2D uPres,uDiv;
+void main(){
+  float L=texture2D(uPres,vL).x,R=texture2D(uPres,vR).x,
+        T=texture2D(uPres,vT).x,B=texture2D(uPres,vB).x,
+        div=texture2D(uDiv,vUv).x;
+  gl_FragColor=vec4((L+R+B+T-div)*.25,0.,0.,1.);
+}
+</script>
+<script type="x-shader/x-fragment" id="fGrad">
+precision highp float; precision highp sampler2D;
+varying vec2 vUv,vL,vR,vT,vB; uniform sampler2D uPres,uVel;
+void main(){
+  float L=texture2D(uPres,vL).x,R=texture2D(uPres,vR).x,
+        T=texture2D(uPres,vT).x,B=texture2D(uPres,vB).x;
+  vec2 v=texture2D(uVel,vUv).xy; v-=vec2(R-L,T-B);
+  gl_FragColor=vec4(v,0.,1.);
+}
+</script>
+<script type="x-shader/x-fragment" id="fSplat">
+precision highp float; precision highp sampler2D;
+varying vec2 vUv; uniform sampler2D uIn; uniform float ratio,size;
+uniform vec2 pt; uniform vec3 val;
+void main(){
+  vec2 p=vUv-pt; p.x*=ratio;
+  vec3 s=pow(2.,-dot(p,p)/size)*val;
+  gl_FragColor=vec4(texture2D(uIn,vUv).xyz+s,1.);
+}
+</script>
+<script type="x-shader/x-fragment" id="fOut">
+precision highp float; precision highp sampler2D;
+varying vec2 vUv; uniform sampler2D uOut;
+void main(){
+  /* 색만 출력, 배경은 검정 — screen blend로 투명하게 합성 */
+  gl_FragColor=vec4(texture2D(uOut,vUv).rgb,1.);
+}
+</script>
+
+<style>
+/* ===== FONTS ===== */
+@font-face {
+  font-family: 'Pretendard';
+  src: url('fonts/Pretendard-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'NotoSansCuneiform';
+  src: url('Noto_Sans_Cuneiform/NotoSansCuneiform-Regular.ttf') format('truetype');
+}
+
+/* ===== HOTSPOT COORDS (SVG 1924×2609 기준 %) ===== */
+/* alien PDF 실좌표 — 위아래 좌우 여유 포함 */
+:root {
+  /* p3 A1 */
+  --p3-a1-l:39.5%; --p3-a1-t:50.5%; --p3-a1-w:59.0%; --p3-a1-h:21.0%;
+  /* p3 A2 */
+  --p3-a2-l:39.5%; --p3-a2-t:74.5%; --p3-a2-w:59.0%; --p3-a2-h:24.0%;
+  /* p4 A3 */
+  --p4-a3-l:39.5%; --p4-a3-t:3.0%; --p4-a3-w:59.0%; --p4-a3-h:21.0%;
+  /* p4 A4 */
+  --p4-a4-l:39.5%; --p4-a4-t:74.0%; --p4-a4-w:59.0%; --p4-a4-h:24.0%;
+  /* p5 A5 */
+  --p5-a5-l:39.5%; --p5-a5-t:1.0%; --p5-a5-w:59.0%; --p5-a5-h:28.0%;
+  /* p5 A6 */
+  --p5-a6-l:39.5%; --p5-a6-t:31.0%; --p5-a6-w:59.0%; --p5-a6-h:26.0%;
+  /* p6 A7 */
+  --p6-a7-l:39.5%; --p6-a7-t:3.0%; --p6-a7-w:59.0%; --p6-a7-h:30.0%;
+  /* p10 A8 */
+  --p10-a8-l:39.5%; --p10-a8-t:1.0%; --p10-a8-w:59.0%; --p10-a8-h:30.0%;
+}
+
+/* ===== RESET ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  width: 100%; height: 100%;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* ===== VIEWER WRAPPER (< 잡지 >) ===== */
+#viewer-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  gap: 0;
+}
+
+/* < > 화살표 버튼 */
+.nav-btn {
+  flex-shrink: 0;
+  width: 10vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: rgba(255,255,255,0.35);
+  user-select: none;
+  transition: color 0.2s;
+  z-index: 50;
+}
+.nav-btn:hover { color: rgba(255,255,255,0.85); }
+.nav-btn.disabled { opacity: 0.15; pointer-events: none; }
+
+/* SVG 꺽쇠 — 얇고 크게 */
+.nav-btn svg {
+  width: clamp(30px, 6vw, 80px);
+  height: clamp(60px, 12vw, 160px);
+}
+
+/* ===== VIEWER ===== */
+#viewer {
+  position: relative;
+  height: 90vh;
+  width: calc(90vh * 3848 / 2609);
+  max-width: 88vw;
+  overflow: hidden;
+  background: #000;
+  /* perspective 제거 — flap 왜곡/확대 원인 */
+  flex-shrink: 0;
+}
+
+/* ===== SPREAD ===== */
+.spread {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  gap: 8px;
+  pointer-events: none;
+  visibility: hidden;
+  align-items: stretch;
+}
+.spread.active {
+  visibility: visible;
+  pointer-events: auto;
+  z-index: 2;
+}
+.spread.prev-spread {
+  visibility: visible;
+  z-index: 1;
+}
+
+/* ===== PAGE ===== */
+.page {
+  position: relative;
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  min-width: 0;
+}
+/* canvas 파티클은 page 바깥으로 넘칠 수 있도록 — canvas만 예외 */
+.page > canvas {
+  overflow: visible;
+  pointer-events: none;
+}
+.page .svg-alien,
+.page img {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill; /* SVG가 1924:2609 비율이면 fill이 정확 */
+  display: block;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ===== HOTSPOT ===== */
+.hotspot {
+  position: absolute;
+  cursor: pointer;
+  z-index: 10;
+  border-radius: 2px;
+  overflow: visible; /* glow가 경계 밖으로 번지도록 */
+}
+.hotspot:hover {
+  /* hover 배경 제거 — 파티클 이펙트로 대체 */
+}
+
+/* ===== GLOW CANVAS ===== */
+.hotspot-glow-canvas {
+  position: absolute;
+  /* hotspot보다 사방 40px 크게 */
+  top: -40px; left: -40px;
+  width: calc(100% + 80px);
+  height: calc(100% + 80px);
+  pointer-events: none;
+  z-index: 11;
+  opacity: 0;
+  display: none;
+}
+.hotspot-glow-canvas.firing {
+  display: block;
+}
+
+/* ===== KOREAN LAYER ===== */
+/* page 전체를 덮는 절대 레이어 — hotspot 안에 있지만 page 기준으로 크기 설정은 JS에서 */
+.hotspot-kr {
+  position: absolute;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 50;
+  background: #fff;
+  display: none;
+  transition: opacity 0.5s ease-out;
+}
+.hotspot-kr.visible {
+  display: block;
+  opacity: 1;
+  pointer-events: auto;
+}
+.hotspot-kr img {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  object-fit: fill;
+  display: block;
+  pointer-events: none;
+}
+/* 한글 SVG는 페이지 전체 크기로 렌더링 후 절대위치로 맞춤 */
+.hotspot-kr img {
+  position: absolute;
+  /* top/left/width/height는 JS에서 페이지 비율로 계산해서 설정 */
+  display: block;
+  pointer-events: none;
+}
+
+@keyframes krIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.hotspot-kr.appearing {
+  animation: krIn 0.4s ease-out forwards;
+}
+@keyframes krOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+.hotspot-kr.disappearing {
+  animation: krOut 0.25s ease-in forwards;
+}
+
+/* ===== PAGE TURN FLAP ===== */
+.flap-front,
+.flap-back {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.flap-front { background: #fff; }
+.flap-back  { transform: rotateY(180deg); background: #fff; }
+
+/* 가운데 바인딩 그림자 — gap으로 분리되므로 제거 */
+#viewer::after { display: none; }
+
+/* ===== COVER ===== */
+.page-cover {
+  width: 100%; height: 100%;
+  background: #fff; /* mp4 넣을 자리 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cover-hint {
+  color: rgba(0,0,0,0.25);
+  font-family: 'Pretendard', sans-serif;
+  font-size: clamp(10px, 1vw, 14px);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  animation: blink 2.5s ease-in-out infinite;
+}
+@keyframes blink {
+  0%, 100% { opacity: 0.3; }
+  50%       { opacity: 0.9; }
+}
+
+/* ===== HOTSPOT / OVERLAY — 한글SVG 방식으로 대체됨 ===== */
+
+/* ===== NAV HINT (제거됨) ===== */
+#page-counter {
+  position: fixed;
+  bottom: 2.5vh;
+  right: 3vw;
+  color: rgba(255,255,255,0.15);
+  font-family: 'Pretendard', monospace;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  z-index: 100;
+}
+</style>
+</head>
+<body>
+<!-- Sparkle cursor canvas (비활성화) -->
+<canvas id="sparkle-canvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;display:none;"></canvas>
+<!-- WebGL fluid cursor canvas — screen blend, 검정=투명 -->
+<canvas id="fluid-canvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9998;mix-blend-mode:screen;"></canvas>
+
+<div id="page-counter">COVER</div>
+
+<div id="viewer-wrap">
+  <div class="nav-btn disabled" id="btn-prev">
+    <svg viewBox="0 0 24 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <polyline points="18,4 4,30 18,56" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </div>
+
+  <div id="viewer">
+
+  <!-- 표지: 왼쪽은 검은 빈 공간, 오른쪽만 표지 -->
+  <div class="spread" id="sp-cover">
+    <div class="page" style="background:#000;"></div>
+    <div class="page" style="background:#000;overflow:hidden;">
+      <video
+        src="cover.mp4"
+        autoplay loop muted playsinline
+        style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;display:block;"
+      ></video>
+    </div>
+  </div>
+
+  <!-- 스프레드 1: p1 + p2 -->
+  <div class="spread" id="sp-1">
+    <div class="page"><img class="svg-alien" src="p1.svg" alt="p1"></div>
+    <div class="page"><img class="svg-alien" src="p2.svg" alt="p2"></div>
+  </div>
+
+  <!-- 스프레드 2: p3 + p4 -->
+  <div class="spread" id="sp-2">
+    <div class="page" id="pg-p3">
+      <img class="svg-alien" src="p3.svg" alt="p3">
+      <!-- A1: y=1385~1585 x=785 w=1061 -->
+      <div class="hotspot" id="hs-a1"
+        style="left:var(--p3-a1-l);top:var(--p3-a1-t);width:var(--p3-a1-w);height:var(--p3-a1-h)"
+        data-kr="p3_kr.svg">
+        <canvas class="hotspot-glow-canvas"></canvas>
+        <div class="hotspot-kr"></div>
+      </div>
+      <!-- A2: y=2008~2209 x=785 w=1061 -->
+      <div class="hotspot" id="hs-a2"
+        style="left:var(--p3-a2-l);top:var(--p3-a2-t);width:var(--p3-a2-w);height:var(--p3-a2-h)"
+        data-kr="p3_kr.svg">
+        <canvas class="hotspot-glow-canvas"></canvas>
+        <div class="hotspot-kr"></div>
+      </div>
+    </div>
+    <div class="page" id="pg-p4">
+      <img class="svg-alien" src="p4.svg" alt="p4">
+      <!-- A3: y=141~342 x=785 w=1063 -->
+      <div class="hotspot" id="hs-a3"
+        style="left:var(--p4-a3-l);top:var(--p4-a3-t);width:var(--p4-a3-w);height:var(--p4-a3-h)"
+        data-kr="p4_kr.svg">
+        <canvas class="hotspot-glow-canvas"></canvas>
+        <div class="hotspot-kr"></div>
+      </div>
+      <!-- A4: y=2048~2250 x=785 w=1063 -->
+      <div class="hotspot" id="hs-a4"
+        style="left:var(--p4-a4-l);top:var(--p4-a4-t);width:var(--p4-a4-w);height:var(--p4-a4-h)"
+        data-kr="p4_kr.svg">
+        <canvas class="hotspot-glow-canvas"></canvas>
+        <div class="hotspot-kr"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 스프레드 3: p5 + p6 -->
+  <div class="spread" id="sp-3">
+    <div class="page" id="pg-p5">
+      <img class="svg-alien" src="p5.svg" alt="p5">
+      <!-- A5: y=88~343 x=785 w=1059 -->
+      <div class="hotspot" id="hs-a5"
+        style="left:var(--p5-a5-l);top:var(--p5-a5-t);width:var(--p5-a5-w);height:var(--p5-a5-h)"
+        data-kr="p5_kr.svg">
+        <canvas class="hotspot-glow-canvas"></canvas>
+        <div class="hotspot-kr"></div>
+      </div>
+      <!-- A6: y=926~1182 x=785 w=1059 -->
+      <div class="hotspot" id="hs-a6"
+        style="left:var(--p5-a6-l);top:var(--p5-a6-t);width:var(--p5-a6-w);height:var(--p5-a6-h)"
+        data-kr="p5_kr.svg">
+        <canvas class="hotspot-glow-canvas"></canvas>
+        <div class="hotspot-kr"></div>
+      </div>
+    </div>
+    <div class="page" id="pg-p6">
+      <img class="svg-alien" src="p6.svg" alt="p6">
+      <!-- A7: y=145~400 x=785 w=1031 -->
+      <div class="hotspot" id="hs-a7"
+        style="left:var(--p6-a7-l);top:var(--p6-a7-t);width:var(--p6-a7-w);height:var(--p6-a7-h)"
+        data-kr="p6_kr.svg">
+        <canvas class="hotspot-glow-canvas"></canvas>
+        <div class="hotspot-kr"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 스프레드 4: p7 + p8 -->
+  <div class="spread" id="sp-4">
+    <div class="page"><img class="svg-alien" src="p7.svg" alt="p7"></div>
+    <div class="page"><img class="svg-alien" src="p8.svg" alt="p8"></div>
+  </div>
+
+  <!-- 스프레드 5: p9 + p10 -->
+  <div class="spread" id="sp-5">
+    <div class="page"><img class="svg-alien" src="p9.svg" alt="p9"></div>
+    <div class="page" id="pg-p10">
+      <img class="svg-alien" src="p10.svg" alt="p10">
+      <!-- A8: y=88~343 x=785 w=1059 -->
+      <div class="hotspot" id="hs-a8"
+        style="left:var(--p10-a8-l);top:var(--p10-a8-t);width:var(--p10-a8-w);height:var(--p10-a8-h)"
+        data-kr="p10_kr.svg">
+        <canvas class="hotspot-glow-canvas"></canvas>
+        <div class="hotspot-kr"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 뒤표지 -->
+  <div class="spread" id="sp-back">
+    <div class="page" style="background:#000"></div>
+    <div class="page" style="background:#000"></div>
+  </div>
+
+</div><!-- /viewer -->
+
+  <div class="nav-btn" id="btn-next">
+    <svg viewBox="0 0 24 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <polyline points="6,4 20,30 6,56" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </div>
+</div><!-- /viewer-wrap -->
+
+<script>
+(function () {
+  const spreads = Array.from(document.querySelectorAll('.spread'));
+  const total   = spreads.length;
+  let cur  = 0;
+  let busy = false;
+
+  const counter = document.getElementById('page-counter');
+  const viewer  = document.getElementById('viewer');
+  const btnPrev = document.getElementById('btn-prev');
+  const btnNext = document.getElementById('btn-next');
+
+  /* ── 초기화 ── */
+  spreads[0].classList.add('active');
+
+  // 모든 SVG 이미지 미리 로드 (회색 면 방지)
+  document.querySelectorAll('.page img').forEach(img => {
+    if (img.complete) return;
+    const preload = new Image();
+    preload.src = img.src;
+  });
+
+  function updateCounter() {
+    if (cur === 0)         counter.textContent = 'COVER';
+    else if (cur === total - 1) counter.textContent = 'END';
+    else counter.textContent = cur + ' / ' + (total - 2);
+  }
+
+  function updateBtns() {
+    btnPrev.classList.toggle('disabled', cur === 0);
+    btnNext.classList.toggle('disabled', cur === total - 1);
+  }
+
+  /* ── 페이지 턴 애니메이션 ──
+     forward: 현재 스프레드의 오른쪽 페이지가 왼쪽으로 접히며 넘어감
+     backward: 다음(이전) 스프레드의 왼쪽 페이지가 오른쪽으로 펼쳐지며 들어옴
+  */
+  function doPageTurn(fromIdx, toIdx, direction) {
+    const fromSpread = spreads[fromIdx];
+    const toSpread   = spreads[toIdx];
+
+    toSpread.classList.add('prev-spread');
+    toSpread.style.visibility = 'visible';
+
+    const DURATION = 620;
+
+    const flap  = document.createElement('div');
+    const front = document.createElement('div');
+    const back  = document.createElement('div');
+    front.className = 'flap-front';
+    back.className  = 'flap-back';
+
+    if (direction === 'forward') {
+      const pages    = fromSpread.querySelectorAll('.page');
+      const rightPage = pages.length > 1 ? pages[pages.length - 1] : pages[0];
+      const img = rightPage ? rightPage.querySelector('img.svg-alien, img') : null;
+      if (img) {
+        const fi = document.createElement('img');
+        fi.src = img.src;
+        fi.style.cssText = 'width:100%;height:100%;object-fit:fill;display:block;position:absolute;inset:0;';
+        front.appendChild(fi);
+      } else {
+        front.style.background = '#fff';
+      }
+      flap.style.cssText = `
+        position:absolute; top:0; right:0;
+        width:50%; height:100%;
+        transform-origin: left center;
+        transform-style: preserve-3d;
+        perspective: 2000px;
+        z-index: 20;
+        pointer-events: none;
+      `;
+      flap.appendChild(front);
+      flap.appendChild(back);
+      viewer.appendChild(flap);
+      requestAnimationFrame(() => {
+        flap.style.transition = `transform ${DURATION}ms cubic-bezier(0.645,0.045,0.355,1)`;
+        flap.style.transform = 'rotateY(-180deg)';
+        setTimeout(() => {
+          front.style.transition = 'box-shadow 0.2s';
+          front.style.boxShadow = '-14px 0 30px rgba(0,0,0,0.25)';
+        }, DURATION * 0.3);
+      });
+    } else {
+      const pages    = fromSpread.querySelectorAll('.page');
+      const leftPage = pages[0];
+      const img = leftPage ? leftPage.querySelector('img.svg-alien, img') : null;
+      if (img) {
+        const fi = document.createElement('img');
+        fi.src = img.src;
+        fi.style.cssText = 'width:100%;height:100%;object-fit:fill;display:block;position:absolute;inset:0;';
+        front.appendChild(fi);
+      } else {
+        front.style.background = '#fff';
+      }
+      flap.style.cssText = `
+        position:absolute; top:0; left:0;
+        width:50%; height:100%;
+        transform-origin: right center;
+        transform-style: preserve-3d;
+        perspective: 2000px;
+        z-index: 20;
+        pointer-events: none;
+      `;
+      flap.appendChild(front);
+      flap.appendChild(back);
+      viewer.appendChild(flap);
+      requestAnimationFrame(() => {
+        flap.style.transition = `transform ${DURATION}ms cubic-bezier(0.645,0.045,0.355,1)`;
+        flap.style.transform = 'rotateY(180deg)';
+        setTimeout(() => {
+          front.style.transition = 'box-shadow 0.2s';
+          front.style.boxShadow = '14px 0 30px rgba(0,0,0,0.25)';
+        }, DURATION * 0.3);
+      });
+    }
+
+    setTimeout(() => {
+      viewer.removeChild(flap);
+      fromSpread.classList.remove('active', 'prev-spread');
+      fromSpread.style.visibility = '';
+      toSpread.classList.remove('prev-spread');
+      toSpread.classList.add('active');
+      cur = toIdx;
+      updateCounter();
+      updateBtns();
+      busy = false;
+    }, DURATION + 30);
+  }
+
+  function goTo(next) {
+    if (busy || next === cur || next < 0 || next >= total) return;
+    busy = true;
+
+    // 열려있는 한글 레이어 모두 즉시 닫기
+    document.querySelectorAll('.hotspot-kr').forEach(el => {
+      el.style.display = 'none';
+      el.innerHTML = '';
+    });
+
+    const dir = next > cur ? 'forward' : 'backward';
+    doPageTurn(cur, next, dir);
+  }
+
+  /* ── 버튼 클릭으로 페이지 전환 (viewer 클릭 제거) ── */
+  btnPrev.addEventListener('click', () => goTo(cur - 1));
+  btnNext.addEventListener('click', () => goTo(cur + 1));
+
+  /* ── 키보드 ── */
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); goTo(cur + 1); }
+    if (e.key === 'ArrowLeft')                   { e.preventDefault(); goTo(cur - 1); }
+  });
+
+
+  /* ── 핫스팟 인터랙션 ── */
+
+  // 파티클이 다다다닥 흩어지며 빛이 날아가는 효과
+  function runParticles(canvas, duration, onDone) {
+    const hs  = canvas._hotspot;
+    const hr  = hs.getBoundingClientRect();
+
+    const PAD = 40;
+    const W   = hr.width  + PAD * 2;
+    const H   = hr.height + PAD * 2;
+
+    // 크기 먼저 설정 후 body로 이동 (DOM 이동 전에 크기 설정해야 컨텍스트 유지)
+    canvas.width  = W;
+    canvas.height = H;
+
+    // body fixed로 붙임 — 모든 overflow:hidden 우회
+    document.body.appendChild(canvas);
+
+    canvas.style.cssText = `
+      position: fixed;
+      left: ${hr.left - PAD}px;
+      top:  ${hr.top  - PAD}px;
+      width: ${W}px;
+      height: ${H}px;
+      pointer-events: none;
+      z-index: 9999;
+      display: block;
+    `;
+
+    const ctx = canvas.getContext('2d');
+
+    // 파티클 초기화
+    const COUNT = 80;
+    const pts = Array.from({length: COUNT}, () => ({
+      x:    PAD + Math.random() * hr.width,
+      y:    PAD + Math.random() * hr.height,
+      vx:   (Math.random() - 0.5) * 4,
+      vy:   (Math.random() - 0.8) * 3,
+      r:    1.5 + Math.random() * 5,
+      born: Math.random() * 0.4,   // 언제 나타날지
+      life: 0.4 + Math.random() * 0.6,
+      isPink: Math.random() < 0.55,
+    }));
+
+    const start = performance.now();
+
+    function frame(now) {
+      const t = Math.min((now - start) / duration, 1);
+      ctx.clearRect(0, 0, W, H);
+
+      // 배경 글로우 — 처음엔 부드럽게 올라왔다가 사라짐
+      const bgAlpha = t < 0.3
+        ? (t / 0.3) * 0.35
+        : t < 0.7
+          ? 0.35
+          : (1 - t) / 0.3 * 0.35;
+
+      if (bgAlpha > 0) {
+        ctx.save();
+        ctx.filter = 'blur(16px)';
+        const g = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W, H) * 0.7);
+        g.addColorStop(0,   `rgba(255,255,255,${bgAlpha * 1.2})`);
+        g.addColorStop(0.25,`rgba(255,160,210,${bgAlpha * 0.9})`);
+        g.addColorStop(0.55,`rgba(168,237,234,${bgAlpha * 0.6})`);
+        g.addColorStop(1,   'transparent');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, W, H);
+        ctx.restore();
+      }
+
+      // 개별 파티클
+      pts.forEach(p => {
+        const age = (t - p.born) / p.life;
+        if (age < 0 || age > 1) return;
+        const alpha = age < 0.2
+          ? age / 0.2
+          : (1 - age) * (1 - age);
+        p.x += p.vx * 0.7;
+        p.y += p.vy * 0.7;
+        p.vy -= 0.06;
+
+        ctx.save();
+        ctx.filter = 'blur(3px)';
+        const r = p.r * (1 - age * 0.4);
+        const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 2.5);
+        if (p.isPink) {
+          grad.addColorStop(0,   `rgba(255,255,255,${alpha})`);
+          grad.addColorStop(0.4, `rgba(255,140,200,${alpha * 0.8})`);
+          grad.addColorStop(1,   'transparent');
+        } else {
+          grad.addColorStop(0,   `rgba(255,255,255,${alpha})`);
+          grad.addColorStop(0.4, `rgba(160,235,230,${alpha * 0.8})`);
+          grad.addColorStop(1,   'transparent');
+        }
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r * 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+
+      if (t < 1) {
+        requestAnimationFrame(frame);
+      } else {
+        ctx.clearRect(0, 0, W, H);
+        canvas.style.display = 'none';
+        // canvas 원래 page로 복귀
+        const origPage = canvas._hotspot.closest('.page');
+        origPage.appendChild(canvas);
+        if (onDone) onDone();
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  document.querySelectorAll('.hotspot').forEach(hs => {
+    const krLayer = hs.querySelector('.hotspot-kr');
+    const krSrc   = hs.dataset.kr;
+
+    // canvas를 hotspot 밖 page 레벨로 이동 (page overflow:hidden 회피)
+    const canvas = hs.querySelector('.hotspot-glow-canvas');
+    if (canvas) {
+      canvas._hotspot = hs; // hotspot 참조 저장
+      const page = hs.closest('.page');
+      page.appendChild(canvas);
+      canvas.style.display = 'none';
+    }
+
+    function showKr() {
+      const page   = hs.closest('.page');
+      const pr     = page.getBoundingClientRect();
+      const vr     = viewer.getBoundingClientRect();
+      const hr     = hs.getBoundingClientRect();
+
+      // viewer 기준 hotspot 좌표
+      const left = hr.left - vr.left;
+      const top  = hr.top  - vr.top;
+
+      // krLayer를 viewer 직속으로 이동 → page overflow:hidden 탈출
+      viewer.appendChild(krLayer);
+
+      krLayer.style.cssText = `
+        position: absolute;
+        left: ${left}px;
+        top:  ${top}px;
+        width:  ${hr.width}px;
+        height: ${hr.height}px;
+        overflow: hidden;
+        background: #fff;
+        z-index: 50; display: block;
+        opacity: 0; pointer-events: auto;
+        transition: opacity 1s ease-out;
+      `;
+
+      krLayer.innerHTML = '';
+      const img = document.createElement('img');
+      img.src = krSrc;
+      // viewer 기준으로 page가 시작하는 위치를 계산해서 SVG 전체 렌더링
+      const pageLeft = pr.left - vr.left;
+      const pageTop  = pr.top  - vr.top;
+      img.style.cssText = `
+        position: absolute;
+        top:  ${pageTop - top}px;
+        left: ${pageLeft - left}px;
+        width:  ${pr.width}px;
+        height: ${pr.height}px;
+        object-fit: fill;
+        display: block;
+        pointer-events: none;
+      `;
+      krLayer.appendChild(img);
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        krLayer.style.opacity = '1';
+      }));
+    }
+
+    function hideKr() {
+      krLayer.style.transition = 'opacity 0.25s ease-in';
+      krLayer.style.opacity = '0';
+      setTimeout(() => {
+        krLayer.style.display = 'none';
+        krLayer.innerHTML = '';
+        hs.appendChild(krLayer); // hotspot으로 복귀
+      }, 280);
+    }
+
+    hs.addEventListener('click', e => {
+      e.stopPropagation();
+      if (krLayer.style.display === 'block') {
+        hideKr();
+      } else {
+        // 파티클 없이 바로 한글 fade in
+        showKr();
+      }
+    });
+  });
+
+
+  /* ── nav hint (제거됨) ── */
+
+  updateCounter();
+  updateBtns();
+})();
+
+/* ===== Sparkle Cursor ===== */
+(function () {
+  const canvas = document.getElementById('sparkle-canvas');
+  const ctx    = canvas.getContext('2d');
+  let W, H;
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // 스파클 색상 — 핑크+오팔펄, 밝은 계열만
+  const COLORS = [
+    'rgba(255, 110, 180, A)',   // 핫핑크
+    'rgba(255, 170, 220, A)',   // 연핑크
+    'rgba(168, 237, 234, A)',   // 오팔 민트
+    'rgba(200, 245, 245, A)',   // 페일 오팔
+    'rgba(255, 200, 230, A)',   // 베이비 핑크
+    'rgba(180, 240, 240, A)',   // 오팔 블루
+    'rgba(255, 255, 255, A)',   // 흰 글리터
+  ];
+
+  const particles = [];
+
+  function spawnParticle(x, y) {
+    if (particles.length > 120) return;
+    const count = 2 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < count; i++) {
+      const angle  = Math.random() * Math.PI * 2;
+      const speed  = 0.2 + Math.random() * 1.2;
+      const color  = COLORS[Math.floor(Math.random() * COLORS.length)];
+      const size   = 2.5 + Math.random() * 5.0;   // 살짝 키움
+      const isStar = Math.random() < 0.55;          // 별 비율 늘림
+      particles.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 0.5,
+        r:  size,
+        life: 1.0,
+        decay: 0.008 + Math.random() * 0.01,
+        color,
+        isStar,
+        rotation: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 0.08,
+        twinkle: Math.random() * Math.PI * 2,  // 반짝임 위상
+      });
+    }
+  }
+
+  function drawStar(ctx, x, y, r, rotation) {
+    // 4-point 빛줄기 별 (이미지 레퍼런스 스타일)
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rotation);
+    for (let arm = 0; arm < 4; arm++) {
+      ctx.save();
+      ctx.rotate((arm / 4) * Math.PI * 2);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.bezierCurveTo(r * 0.2, -r * 0.5, r * 0.1, -r * 1.5, 0, -r * 2.5);
+      ctx.bezierCurveTo(-r * 0.1, -r * 1.5, -r * 0.2, -r * 0.5, 0, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  let lastX = -1, lastY = -1;
+  window.addEventListener('mousemove', (e) => {
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist > 6) { // 일정 거리마다 스파클 생성
+      spawnParticle(e.clientX, e.clientY);
+      lastX = e.clientX;
+      lastY = e.clientY;
+    }
+  });
+
+  function loop() {
+    ctx.clearRect(0, 0, W, H);
+
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x  += p.vx;
+      p.y  += p.vy;
+      p.vy += 0.012;
+      p.life -= p.decay;
+      p.rotation += p.rotSpeed;
+      p.twinkle  += 0.25;
+
+      if (p.life <= 0) { particles.splice(i, 1); continue; }
+
+      const twinkMod = 0.7 + 0.3 * Math.abs(Math.sin(p.twinkle));
+      const alpha = p.life * p.life * twinkMod;
+      const col = p.color.replace('A', Math.min(alpha, 1).toFixed(2));
+
+      if (p.isStar) {
+        ctx.fillStyle = col;
+        drawStar(ctx, p.x, p.y, p.r, p.rotation);
+        ctx.fill();
+      } else {
+        // 단순 원 — gradient 제거
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r * 1.8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    requestAnimationFrame(loop);
+  }
+  loop();
+})();
+
+/* ===== WebGL Fluid Cursor ===== */
+(function(){
+  const cv = document.getElementById('fluid-canvas');
+  const gl = cv.getContext('webgl');
+  if(!gl) return;
+  gl.getExtension('OES_texture_float');
+
+  // 핑크+오팔 색상, 어두운 색 제외
+  const PALETTE = [
+    [1.0, 0.43, 0.71],  // 핫핑크
+    [0.66, 0.93, 0.92], // 오팔
+    [1.0, 0.75, 0.90],  // 연핑크
+    [0.72, 0.95, 0.98], // 오팔블루
+  ];
+  let ci=0, ct=0;
+  function getColor(){
+    ct+=0.015; if(ct>=1){ct=0;ci=(ci+1)%PALETTE.length;}
+    const a=PALETTE[ci],b=PALETTE[(ci+1)%PALETTE.length];
+    return [a[0]+(b[0]-a[0])*ct, a[1]+(b[1]-a[1])*ct, a[2]+(b[2]-a[2])*ct];
+  }
+
+  const ptr={x:0,y:0,dx:0,dy:0,moved:false};
+
+  function mkShader(src,type){
+    const s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s); return s;
+  }
+  function mkProg(vid,fid){
+    const vs=mkShader(document.getElementById(vid).innerHTML,gl.VERTEX_SHADER);
+    const fs=mkShader(document.getElementById(fid).innerHTML,gl.FRAGMENT_SHADER);
+    const p=gl.createProgram(); gl.attachShader(p,vs); gl.attachShader(p,fs); gl.linkProgram(p);
+    const u={}; const n=gl.getProgramParameter(p,gl.ACTIVE_UNIFORMS);
+    for(let i=0;i<n;i++){const nm=gl.getActiveUniform(p,i).name; u[nm]=gl.getUniformLocation(p,nm);}
+    return {p,u};
+  }
+
+  gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,-1,1,1,1,1,-1]),gl.STATIC_DRAW);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,gl.createBuffer());
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array([0,1,2,0,2,3]),gl.STATIC_DRAW);
+  gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0); gl.enableVertexAttribArray(0);
+
+  const splat=mkProg('vShader','fSplat'), div=mkProg('vShader','fDiv'),
+        pres=mkProg('vShader','fPres'), grad=mkProg('vShader','fGrad'),
+        adv=mkProg('vShader','fAdv'),   out=mkProg('vShader','fOut');
+
+  let color,vel,diverge,pressure;
+
+  function fbo(w,h,type=gl.RGBA){
+    const tex=gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D,tex);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D,0,type,w,h,0,type,gl.FLOAT,null);
+    const fb=gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER,fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,tex,0);
+    gl.viewport(0,0,w,h); gl.clear(gl.COLOR_BUFFER_BIT);
+    return {fb,w,h,tx:1/w,ty:1/h,bind(id){gl.activeTexture(gl.TEXTURE0+id);gl.bindTexture(gl.TEXTURE_2D,tex);return id;}};
+  }
+  function dfbo(w,h,type){
+    let a=fbo(w,h,type),b=fbo(w,h,type);
+    return {w,h,tx:1/w,ty:1/h,r:()=>a,wt:()=>b,swap(){let t=a;a=b;b=t;}};
+  }
+  function blit(t){
+    if(!t){gl.viewport(0,0,gl.drawingBufferWidth,gl.drawingBufferHeight);gl.bindFramebuffer(gl.FRAMEBUFFER,null);}
+    else{gl.viewport(0,0,t.w,t.h);gl.bindFramebuffer(gl.FRAMEBUFFER,t.fb);}
+    gl.drawElements(gl.TRIANGLES,6,gl.UNSIGNED_SHORT,0);
+  }
+  function init(){
+    const W=Math.floor(window.innerWidth*.5),H=Math.floor(window.innerHeight*.5);
+    color=dfbo(W,H); vel=dfbo(W,H,gl.RG||gl.RGBA);
+    diverge=fbo(W,H,gl.RGB||gl.RGBA); pressure=dfbo(W,H,gl.RGB||gl.RGBA);
+  }
+  function resize(){cv.width=window.innerWidth;cv.height=window.innerHeight;init();}
+  window.addEventListener('resize',resize); resize();
+
+  window.addEventListener('mousemove',e=>{
+    ptr.moved=true;
+    ptr.dx=5*(e.clientX-ptr.x); ptr.dy=5*(e.clientY-ptr.y);
+    ptr.x=e.clientX; ptr.y=e.clientY;
+  });
+
+  // 포인터 크기 — 아주 작게
+  const SZ = 0.00008;
+
+  function render(){
+    const dt=1/60;
+    if(ptr.moved){
+      ptr.moved=false;
+      const c=getColor();
+      const px=ptr.x/cv.width, py=1-ptr.y/cv.height;
+      const ratio=cv.width/cv.height;
+
+      gl.useProgram(splat.p);
+      gl.uniform1i(splat.u.uIn,vel.r().bind(1));
+      gl.uniform1f(splat.u.ratio,ratio);
+      gl.uniform2f(splat.u.pt,px,py);
+      gl.uniform3f(splat.u.val,ptr.dx,-ptr.dy,1);
+      gl.uniform1f(splat.u.size,SZ);
+      blit(vel.wt()); vel.swap();
+
+      gl.uniform1i(splat.u.uIn,color.r().bind(1));
+      gl.uniform3f(splat.u.val,c[0]*0.9,c[1]*0.9,c[2]*0.9); // 색 그대로, 흰색 억제
+      blit(color.wt()); color.swap();
+    }
+
+    gl.useProgram(div.p);
+    gl.uniform2f(div.u.texel,vel.tx,vel.ty);
+    gl.uniform1i(div.u.uVel,vel.r().bind(1));
+    blit(diverge);
+
+    gl.useProgram(pres.p);
+    gl.uniform2f(pres.u.texel,vel.tx,vel.ty);
+    gl.uniform1i(pres.u.uDiv,diverge.bind(1));
+    for(let i=0;i<10;i++){gl.uniform1i(pres.u.uPres,pressure.r().bind(2));blit(pressure.wt());pressure.swap();}
+
+    gl.useProgram(grad.p);
+    gl.uniform2f(grad.u.texel,vel.tx,vel.ty);
+    gl.uniform1i(grad.u.uPres,pressure.r().bind(1));
+    gl.uniform1i(grad.u.uVel,vel.r().bind(2));
+    blit(vel.wt()); vel.swap();
+
+    gl.useProgram(adv.p);
+    gl.uniform2f(adv.u.texel,vel.tx,vel.ty);
+    gl.uniform1i(adv.u.uVel,vel.r().bind(1));
+    gl.uniform1i(adv.u.uIn,vel.r().bind(1));
+    gl.uniform1f(adv.u.dt,dt);
+    blit(vel.wt()); vel.swap();
+
+    gl.uniform2f(adv.u.texel,color.tx,color.ty);
+    gl.uniform1i(adv.u.uIn,color.r().bind(2));
+    blit(color.wt()); color.swap();
+
+    gl.useProgram(out.p);
+    gl.uniform1i(out.u.uOut,color.r().bind(1));
+    blit(null);
+
+    requestAnimationFrame(render);
+  }
+  render();
+})();
+</script>
