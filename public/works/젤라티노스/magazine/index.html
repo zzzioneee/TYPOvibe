@@ -832,6 +832,12 @@ html, body {
         showKr();
       }
     });
+
+    // krLayer가 viewer로 이동된 후에도 클릭으로 닫히도록
+    krLayer.addEventListener('click', e => {
+      e.stopPropagation();
+      hideKr();
+    });
   });
 
 
