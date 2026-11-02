@@ -25,6 +25,7 @@ import Day023 from './works/day23'
 import Day024 from './works/day24'
 import Day025 from './works/day25'
 import Day026 from './works/day26'
+import Day027 from './works/day27'
 
 type View = 'home' | string
 
@@ -289,6 +290,16 @@ const WORKS = [
     ratio: '4 / 3',
     bgTheme: 'dark' as const,
   },
+  {
+    id: 'day27',
+    day: '27',
+    date: '2026.11.02',
+    title: '구멍',
+    desc: '두 손으로 동그라미를 만들면 그 사이로 고양이가 튀어나옵니다.',
+    tags: ['Camera', 'Hand', 'Interactive'],
+    ratio: '16 / 9',
+    bgTheme: 'light' as const,
+  },
 ]
 
 export default function App() {
@@ -367,6 +378,7 @@ export default function App() {
           {view === 'day24' && <Day024 />}
           {view === 'day25' && <Day025 />}
           {view === 'day26' && <Day026 />}
+          {view === 'day27' && <Day027 />}
         </main>
       </div>
     )
