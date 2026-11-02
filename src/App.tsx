@@ -293,11 +293,11 @@ const WORKS = [
   {
     id: 'day27',
     day: '27',
-    date: '2026.11.02',
+    date: '2026.11.03',
     title: '구멍',
-    desc: '두 손으로 동그라미를 만들면 그 사이로 고양이가 튀어나옵니다.',
+    desc: '한 손이나 두 손으로 원을 만들면 그 구멍으로 얼굴이 나옵니다.',
     tags: ['Camera', 'Hand', 'Interactive'],
-    ratio: '16 / 9',
+    ratio: '4 / 3',
     bgTheme: 'light' as const,
   },
 ]
