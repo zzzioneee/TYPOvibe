@@ -7,6 +7,10 @@ const TIP_SETS = [
 ]
 
 export function detectHole(hands, opts = {}) {
+  return detectHoles(hands, opts)[0]
+}
+
+export function detectHoles(hands, opts = {}) {
   const sens = clamp(opts.sensitivity ?? 62, 0, 100) / 100
   const gates = {
     minR: opts.minR ?? 28,
@@ -18,21 +22,33 @@ export function detectHole(hands, opts = {}) {
   }
 
   const valid = (hands || []).filter((hand) => hand && hand.length >= 21)
-  if (!valid.length) return blank('wait')
+  if (!valid.length) return [blank('wait')]
 
-  const candidates = []
+  const shared = []
   if (valid.length >= 2) {
-    candidates.push(evaluate(valid, TIP_SETS[0], gates))
-    candidates.push(evaluate(valid, TIP_SETS[1], gates))
+    shared.push(evaluate(valid, TIP_SETS[0], gates))
+    shared.push(evaluate(valid, TIP_SETS[1], gates))
   }
-  for (const hand of valid) candidates.push(evaluateOne(hand, gates))
+  const ones = valid.map((hand) => evaluateOne(hand, gates))
+  const openOnes = ones.filter((item) => item.open).sort((a, b) => a.x - b.x)
+  const openShared = shared.filter((item) => item.open)
 
-  const open = candidates.filter((item) => item.open)
-  if (open.length) {
-    open.sort((a, b) => b.r * (0.7 + b.score) - a.r * (0.7 + a.score))
-    return open[0]
+  if (openOnes.length >= 2) {
+    const a = openOnes[0]
+    const b = openOnes[1]
+    const sep = dist(a, b)
+    if (sep > (a.r + b.r) * 0.85) return openOnes.slice(0, 2)
   }
-  return candidates[0] || blank('hands')
+
+  if (openShared.length) {
+    openShared.sort((a, b) => b.r * (0.7 + b.score) - a.r * (0.7 + a.score))
+    return [openShared[0]]
+  }
+  if (openOnes.length) return [openOnes[0]]
+
+  const rest = [...shared, ...ones]
+  rest.sort((a, b) => b.score - a.score)
+  return [rest[0] || blank('hands')]
 }
 
 export function stepSpring(state, target, dt, stiffness, damping) {

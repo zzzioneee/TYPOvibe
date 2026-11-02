@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { applyCategoryCutout, applySaliencyAlpha, cleanMatte, coverRect, cutoutSubject, detectHole, faceSquare, findFace, keepBlobAt, keepLargestOpaque, mapLandmark, peekRise, springGains, stepSpring, syntheticHoleHands, syntheticOkHand, trimToSubject } from './hole.js'
+import { applyCategoryCutout, applySaliencyAlpha, cleanMatte, coverRect, cutoutSubject, detectHole, detectHoles, faceSquare, findFace, keepBlobAt, keepLargestOpaque, mapLandmark, peekRise, springGains, stepSpring, syntheticHoleHands, syntheticOkHand, trimToSubject } from './hole.js'
 
 test('닫힌 동그라미는 구멍으로 인정한다', () => {
   const hands = syntheticHoleHands(400, 300, 120, 0)
@@ -37,6 +37,24 @@ test('한 손 작은 원도 구멍으로 인정한다', () => {
 test('한 손 원이 벌어지면 닫힌다', () => {
   const hole = detectHole([syntheticOkHand(220, 180, 36, 1)], { sensitivity: 62, minR: 28, maxR: 800 })
   assert.equal(hole.open, false)
+})
+
+test('양손 작은 원은 구멍 두 개로 인정한다', () => {
+  const holes = detectHoles(
+    [syntheticOkHand(220, 180, 36, 0), syntheticOkHand(520, 190, 40, 0)],
+    { sensitivity: 62, minR: 28, maxR: 800 },
+  )
+  assert.equal(holes.length, 2)
+  assert.equal(holes.every((item) => item.open), true)
+  assert.ok(Math.abs(holes[0].x - 220) < 16)
+  assert.ok(Math.abs(holes[1].x - 520) < 16)
+})
+
+test('양손이 만든 큰 원은 구멍 하나로 남긴다', () => {
+  const holes = detectHoles(syntheticHoleHands(400, 300, 120, 0), { sensitivity: 62, minR: 28, maxR: 800 })
+  assert.equal(holes.length, 1)
+  assert.equal(holes[0].open, true)
+  assert.ok(Math.abs(holes[0].x - 400) < 8)
 })
 
 test('눈 위치를 얼굴 중심으로 잡는다', () => {

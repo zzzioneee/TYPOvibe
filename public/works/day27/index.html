@@ -612,7 +612,7 @@
 <video id="video" playsinline autoplay muted></video>
 <script type="module">
 import {
-  applySaliencyAlpha, cleanMatte, clipPeekHole, coverRect, coverageInSquare, cutoutSubject, detectHole,
+  applySaliencyAlpha, cleanMatte, clipPeekHole, coverRect, coverageInSquare, cutoutSubject, detectHoles,
   faceSquare, findFace, keepBlobAt, mapLandmark, peekRise, springGains, stepSpring, syntheticHoleHands,
   trimToSubject,
 } from './hole.js'
@@ -683,10 +683,7 @@ const settings = { ...DEFAULTS }
 const defaults = { open: loadImage('./cat-open.png'), shut: loadImage('./cat-shut.png') }
 const images = { open: defaults.open, shut: defaults.shut }
 const customPhoto = { open: false, shut: false }
-const spring = { x: 0, v: 0 }
-const smooth = { x: 0, y: 0, r: 0, a: 0 }
-let haveHole = false
-let miss = 0
+let tracks = []
 let cameraOn = false
 let simOn = false
 let looping = false
@@ -1111,6 +1108,13 @@ async function createLandmarker(delegate) {
   lastTs = -1
 }
 
+function nextTs() {
+  let ts = performance.now()
+  if (ts <= lastTs) ts = lastTs + 1
+  lastTs = ts
+  return ts
+}
+
 function stopCamera() {
   cameraOn = false
   stage.classList.remove('cam')
@@ -1188,14 +1192,8 @@ function draw(now) {
   if (cameraOn && video.readyState >= 2) {
     ctx.fillStyle = '#1c1916'
     ctx.fillRect(0, 0, w, h)
-    ctx.save()
-    if (settings.mirror) {
-      ctx.translate(w, 0)
-      ctx.scale(-1, 1)
-    }
-    ctx.drawImage(video, rect.x, rect.y, rect.w, rect.h)
-    ctx.restore()
     handsPx = readHands(rect, w)
+    drawCameraLayer(w, h, rect)
   } else if (simOn) {
     drawSimBackdrop(w, h)
     const radius = Math.min(w, h) * 0.2
@@ -1206,36 +1204,42 @@ function draw(now) {
   }
 
   const minSide = Math.min(w, h)
-  const det = detectHole(handsPx, {
+  const dets = detectHoles(handsPx, {
     sensitivity: settings.sensitivity,
     minR: minSide * 0.032,
     maxR: minSide * 0.46,
   })
-  followHole(det)
   const gains = springGains(settings.bounce, settings.emerge)
-  const holding = det.open || (haveHole && miss < 8)
-  stepSpring(spring, holding ? 1 : 0, dt, gains.stiffness, gains.damping)
-  if (!Number.isFinite(spring.x) || spring.x > 2.2 || spring.x < -0.3) {
-    spring.x = holding ? 1 : 0
-    spring.v = 0
-  }
+  followHoles(dets, dt, gains)
 
   const img = images[settings.cat]
   if (simOn) drawSimPalms()
-  if (img && img.complete && img.naturalWidth && haveHole && spring.x > 0.02) {
-    drawCat(smooth.x, smooth.y, smooth.r, spring.x, img)
+  if (img && img.complete && img.naturalWidth) {
+    for (const track of tracks) {
+      if (track.have && track.spring.x > 0.02) {
+        drawCat(track.smooth.x, track.smooth.y, track.smooth.r, track.spring.x, img, track.smooth.a)
+      }
+    }
   }
   if (simOn) drawSimTips(dpr)
-  if (settings.guide) drawGuide(det, dpr)
+  if (settings.guide) drawGuide(dets, dpr)
   if (settings.skeleton) drawSkeleton(dpr)
-  writeReadout(det)
+  writeReadout(dets)
+}
+
+function drawCameraLayer(w, h, rect) {
+  ctx.save()
+  if (settings.mirror) {
+    ctx.translate(w, 0)
+    ctx.scale(-1, 1)
+  }
+  ctx.drawImage(video, rect.x, rect.y, rect.w, rect.h)
+  ctx.restore()
 }
 
 function readHands(rect, viewW) {
   if (!landmarker || video.readyState < 2) return []
-  let ts = performance.now()
-  if (ts <= lastTs) ts = lastTs + 1
-  lastTs = ts
+  const ts = nextTs()
   let result
   try {
     result = landmarker.detectForVideo(video, ts)
@@ -1259,36 +1263,88 @@ function readHands(rect, viewW) {
   ))
 }
 
-function followHole(det) {
-  if (det.open) {
-    if (!haveHole || spring.x < 0.05) {
-      smooth.x = det.x
-      smooth.y = det.y
-      smooth.r = det.r
-      smooth.a = det.angle
-    } else {
-      smooth.x += (det.x - smooth.x) * 0.42
-      smooth.y += (det.y - smooth.y) * 0.42
-      smooth.r += (det.r - smooth.r) * 0.42
-      smooth.a = lerpAngle(smooth.a, det.angle, 0.42)
-    }
-    haveHole = true
-    miss = 0
-    return
-  }
-  if (haveHole) miss += 1
-  if (miss >= 8) {
-    if (spring.x < 0.02) haveHole = false
+function newTrack() {
+  return {
+    have: false,
+    miss: 0,
+    spring: { x: 0, v: 0 },
+    smooth: { x: 0, y: 0, r: 0, a: 0 },
   }
 }
 
-function drawCat(x, y, holeR, pop, img) {
+function stepTrackSpring(track, holding, dt, gains) {
+  stepSpring(track.spring, holding ? 1 : 0, dt, gains.stiffness, gains.damping)
+  if (!Number.isFinite(track.spring.x) || track.spring.x > 2.2 || track.spring.x < -0.3) {
+    track.spring.x = holding ? 1 : 0
+    track.spring.v = 0
+  }
+}
+
+function snapTrack(track, det) {
+  track.smooth.x = det.x
+  track.smooth.y = det.y
+  track.smooth.r = det.r
+  track.smooth.a = det.angle
+}
+
+function blendTrack(track, det) {
+  track.smooth.x += (det.x - track.smooth.x) * 0.42
+  track.smooth.y += (det.y - track.smooth.y) * 0.42
+  track.smooth.r += (det.r - track.smooth.r) * 0.42
+  track.smooth.a = lerpAngle(track.smooth.a, det.angle, 0.42)
+}
+
+function followHoles(dets, dt, gains) {
+  const open = dets.filter((item) => item.open)
+  const used = new Set()
+  const next = []
+  for (const track of tracks) {
+    let best = -1
+    let bestD = Infinity
+    open.forEach((det, index) => {
+      if (used.has(index)) return
+      const d = Math.hypot(det.x - track.smooth.x, det.y - track.smooth.y)
+      if (d < bestD) {
+        bestD = d
+        best = index
+      }
+    })
+    const reach = Math.max(90, track.smooth.r * 3.2)
+    if (best >= 0 && bestD < reach) {
+      used.add(best)
+      const det = open[best]
+      if (!track.have || track.spring.x < 0.05) snapTrack(track, det)
+      else blendTrack(track, det)
+      track.have = true
+      track.miss = 0
+      stepTrackSpring(track, true, dt, gains)
+      next.push(track)
+    } else {
+      track.miss += 1
+      const holding = track.have && track.miss < 8
+      stepTrackSpring(track, holding, dt, gains)
+      if (track.miss >= 8 && track.spring.x < 0.02) track.have = false
+      if (track.have || track.spring.x > 0.02) next.push(track)
+    }
+  }
+  for (let i = 0; i < open.length; i++) {
+    if (used.has(i)) continue
+    const track = newTrack()
+    snapTrack(track, open[i])
+    track.have = true
+    stepTrackSpring(track, true, dt, gains)
+    next.push(track)
+  }
+  tracks = next
+}
+
+function drawCat(x, y, holeR, pop, img, tilt) {
   const emerge = settings.emerge / 100
   const grow = Math.min(1, Math.max(0, pop))
   const over = Math.max(0, pop - 1)
   if (!(holeR > 4) || holeR > Math.min(wSafe(), 1600)) return
   const zoom = (settings.size / 100) * (0.22 + 0.78 * grow) * (1 + over * 0.08)
-  const angle = settings.tilt ? smooth.a : 0
+  const angle = settings.tilt ? tilt : 0
   const box = holeR * 2 * (0.96 + emerge * 0.08)
   const scale = (box * zoom) / Math.min(img.width, img.height)
   const dw = img.width * scale
@@ -1347,16 +1403,30 @@ function drawSimTips(dpr) {
   ctx.restore()
 }
 
-function drawGuide(det, dpr) {
-  const hole = det.open ? smooth : det
-  if (!(hole.r > 8)) return
+function drawGuide(dets, dpr) {
   ctx.save()
-  ctx.beginPath()
-  ctx.arc(hole.x, hole.y, hole.r, 0, Math.PI * 2)
-  ctx.strokeStyle = det.open ? 'rgba(0, 122, 255, 0.92)' : 'rgba(29, 29, 31, 0.28)'
   ctx.lineWidth = 1.5 * dpr
   ctx.setLineDash([5 * dpr, 5 * dpr])
-  ctx.stroke()
+  for (const det of dets) {
+    let hole = det
+    if (det.open) {
+      let nearest = null
+      let best = Infinity
+      for (const track of tracks) {
+        const d = Math.hypot(track.smooth.x - det.x, track.smooth.y - det.y)
+        if (d < best) {
+          best = d
+          nearest = track
+        }
+      }
+      if (nearest) hole = nearest.smooth
+    }
+    if (!(hole.r > 8)) continue
+    ctx.beginPath()
+    ctx.arc(hole.x, hole.y, hole.r, 0, Math.PI * 2)
+    ctx.strokeStyle = det.open ? 'rgba(0, 122, 255, 0.92)' : 'rgba(29, 29, 31, 0.28)'
+    ctx.stroke()
+  }
   ctx.restore()
 }
 
@@ -1386,19 +1456,24 @@ function drawSimBackdrop(w, h) {
   ctx.fillRect(0, 0, w, h)
 }
 
-function writeReadout(det) {
+function writeReadout(dets) {
+  const det = dets[0] || { reason: 'wait', circularity: 0, gap: 1, r: 0, open: false }
+  const opened = dets.filter((item) => item.open)
   if (busyStatus || (!cameraOn && !simOn)) return
-  statusEl.textContent = REASON[det.reason] || REASON.wait
+  statusEl.textContent = opened.length >= 2 ? '구멍 열림 · 2개' : (REASON[det.reason] || REASON.wait)
   if (det.reason === 'wait') {
     numsEl.textContent = '원형도 — · 틈 —'
+  } else if (opened.length >= 2) {
+    numsEl.textContent = `구멍 ${opened.length}개 · 지름 ${opened.map((item) => Math.round(item.r * 2)).join(', ')}`
   } else {
     const circ = Math.round(det.circularity * 100)
     numsEl.textContent = `원형도 ${circ}% · 틈 ${det.gap.toFixed(2)} · 지름 ${Math.round(det.r * 2)}`
   }
-  writeQuality(det)
+  writeQuality(dets)
 }
 
-function writeQuality(det) {
+function writeQuality(dets) {
+  const det = Array.isArray(dets) ? dets[0] : dets
   const hands = handsPx.length
   let value = 0
   let label = '손을 보여 주세요'
@@ -1408,7 +1483,7 @@ function writeQuality(det) {
     value = Math.round(Math.min(100, lastHandScore * 32 + circ * 52 + (1 - gap) * 18))
     if (det.open) {
       value = Math.max(value, 88)
-      label = '인식 좋음'
+      label = Array.isArray(dets) && dets.filter((item) => item.open).length >= 2 ? '양쪽 원 인식' : '인식 좋음'
     } else if (hands === 1 && value < 40) label = '엄지와 검지로 작은 원을 만들어 주세요'
     else if (value >= 70) label = '거의 됐어요'
     else if (value >= 40) label = '원을 모아 주세요'
@@ -1437,7 +1512,7 @@ function takeDt(now) {
   const raw = (now - lastNow) / 1000
   lastNow = now
   if (!Number.isFinite(raw) || raw <= 0 || raw > 0.1) {
-    spring.v = 0
+    for (const track of tracks) track.spring.v = 0
     return 1 / 60
   }
   return raw
