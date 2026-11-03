@@ -26,6 +26,7 @@ import Day024 from './works/day24'
 import Day025 from './works/day25'
 import Day026 from './works/day26'
 import Day027 from './works/day27'
+import Day028 from './works/day28'
 
 type View = 'home' | string
 
@@ -300,6 +301,16 @@ const WORKS = [
     ratio: '4 / 3',
     bgTheme: 'light' as const,
   },
+  {
+    id: 'day28',
+    day: '28',
+    date: '2026.11.04',
+    title: '환승',
+    desc: '그림자가 다른 존재로 갈아타고, 발걸음은 서로 다른 곳으로 간다.',
+    tags: ['Silhouette', 'Cutout', 'Sound'],
+    ratio: '4 / 3',
+    bgTheme: 'light' as const,
+  },
 ]
 
 export default function App() {
@@ -379,6 +390,7 @@ export default function App() {
           {view === 'day25' && <Day025 />}
           {view === 'day26' && <Day026 />}
           {view === 'day27' && <Day027 />}
+          {view === 'day28' && <Day028 />}
         </main>
       </div>
     )
