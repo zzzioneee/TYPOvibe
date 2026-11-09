@@ -27,6 +27,7 @@ import Day025 from './works/day25'
 import Day026 from './works/day26'
 import Day027 from './works/day27'
 import Day028 from './works/day28'
+import Day029 from './works/day29'
 
 type View = 'home' | string
 
@@ -311,6 +312,16 @@ const WORKS = [
     ratio: '4 / 3',
     bgTheme: 'light' as const,
   },
+  {
+    id: 'day29',
+    day: '29',
+    date: '2026.11.06',
+    title: '소음',
+    desc: '공사장 인부의 브레이킹이 잔상으로 남고, 발걸음은 현장 소음으로 바뀐다.',
+    tags: ['Three.js', 'Motion Trail', 'Sound'],
+    ratio: '16 / 9',
+    bgTheme: 'dark' as const,
+  },
 ]
 
 export default function App() {
@@ -391,6 +402,7 @@ export default function App() {
           {view === 'day26' && <Day026 />}
           {view === 'day27' && <Day027 />}
           {view === 'day28' && <Day028 />}
+          {view === 'day29' && <Day029 />}
         </main>
       </div>
     )
