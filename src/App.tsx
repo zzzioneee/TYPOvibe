@@ -318,8 +318,8 @@ const WORKS = [
     date: '2026.11.06',
     title: '소음',
     desc: '공사장 인부의 브레이킹이 잔상으로 남고, 발걸음은 현장 소음으로 바뀐다.',
-    tags: ['Three.js', 'Motion Trail', 'Sound'],
-    ratio: '16 / 9',
+    tags: ['Three.js', 'Afterimage', 'Sound'],
+    ratio: '4 / 3',
     bgTheme: 'dark' as const,
   },
 ]
