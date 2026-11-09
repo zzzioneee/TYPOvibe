@@ -28,6 +28,7 @@ import Day026 from './works/day26'
 import Day027 from './works/day27'
 import Day028 from './works/day28'
 import Day029 from './works/day29'
+import Day030 from './works/day30'
 
 type View = 'home' | string
 
@@ -322,6 +323,16 @@ const WORKS = [
     ratio: '4 / 3',
     bgTheme: 'dark' as const,
   },
+  {
+    id: 'day30',
+    day: '30',
+    date: '2026.11.08',
+    title: '지도 밖',
+    desc: '서울·뉴욕·런던 랜드마크를 당겨 구부리고, 지도 시트 밖으로 날려 보낸다.',
+    tags: ['Three.js', 'Map', 'Physics'],
+    ratio: '4 / 3',
+    bgTheme: 'light' as const,
+  },
 ]
 
 export default function App() {
@@ -403,6 +414,7 @@ export default function App() {
           {view === 'day27' && <Day027 />}
           {view === 'day28' && <Day028 />}
           {view === 'day29' && <Day029 />}
+          {view === 'day30' && <Day030 />}
         </main>
       </div>
     )
