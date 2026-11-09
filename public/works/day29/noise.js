@@ -73,7 +73,7 @@ function createSound() {
   let drillGain = null
   let drillSrc = null
   let bgmSrc = null
-  const BGM_LEVEL = 0.08
+  const BGM_LEVEL = 0.055
   async function unlock() {
     if (!ctx) {
       ctx = new AudioContext()
@@ -81,7 +81,7 @@ function createSound() {
       master.gain.value = 0.85
       master.connect(ctx.destination)
       sfxGain = ctx.createGain()
-      sfxGain.gain.value = 1.35
+      sfxGain.gain.value = 1.7
       sfxGain.connect(master)
       bgmGain = ctx.createGain()
       bgmGain.gain.value = BGM_LEVEL
@@ -122,13 +122,13 @@ function createSound() {
     const src = ctx.createBufferSource()
     src.buffer = buffers[name]
     const g = ctx.createGain()
-    g.gain.value = vol * 1.8
+    g.gain.value = vol * 2.1
     src.connect(g).connect(sfxGain)
     src.start()
   }
   function setSpin(amount) {
     if (!drillGain || muted) return
-    drillGain.gain.setTargetAtTime(amount * 0.65, ctx.currentTime, 0.08)
+    drillGain.gain.setTargetAtTime(0.2 + amount * 0.7, ctx.currentTime, 0.08)
   }
   return {
     get muted() { return muted },
@@ -397,11 +397,22 @@ async function boot() {
     model.position.y = yLift
   }
 
-  const prevFoot = { l: null, r: null }
-  const footVel = { l: 0, r: 0 }
-  const footCool = { l: 0, r: 0 }
+  const handL = findBone(model, 'LeftHand')
+  const handR = findBone(model, 'RightHand')
+  const limbs = [
+    { bone: toeL, key: 'fl', sfx: 'wrench' },
+    { bone: toeR, key: 'fr', sfx: 'clang' },
+    { bone: handL, key: 'hl', sfx: 'clang' },
+    { bone: handR, key: 'hr', sfx: 'wrench' },
+  ]
+  const limbState = {}
+  limbs.forEach((L) => {
+    limbState[L.key] = { y: null, v: 0, cool: 0, x: 0, z: 0 }
+  })
   const hipPrev = new THREE.Vector3()
   const hipNow = new THREE.Vector3()
+  let hipReady = false
+  let hipHitCool = 0
   let shake = 0
   let clipElapsed = 0
   let last = performance.now()
@@ -431,27 +442,42 @@ async function boot() {
       }
       if (hips) {
         hips.getWorldPosition(hipNow)
-        const spd = hipNow.distanceTo(hipPrev) / Math.max(dt, 1e-3)
-        sound.setSpin(Math.min(1, spd * 0.5))
+        const spd = hipReady ? hipNow.distanceTo(hipPrev) / Math.max(dt, 1e-3) : 0
+        hipReady = true
+        sound.setSpin(Math.min(1, spd * 0.7))
+        hipHitCool -= dt
+        if (hipHitCool <= 0 && spd > 1.35) {
+          sound.beep(Math.random() < 0.5 ? 'clang' : 'wrench', 0.55)
+          if (Math.random() < 0.35) sound.beep('saw', 0.38)
+          hipHitCool = 0.16
+        }
         hipPrev.copy(hipNow)
       }
-      for (const [bone, key, sample] of [[toeL, 'l', 'wrench'], [toeR, 'r', 'clang']]) {
-        if (!bone) continue
-        bone.getWorldPosition(footWorld)
+      for (const L of limbs) {
+        if (!L.bone) continue
+        L.bone.getWorldPosition(footWorld)
+        const s = limbState[L.key]
+        s.cool -= dt
         const y = footWorld.y
-        const v = prevFoot[key] == null ? 0 : (y - prevFoot[key]) / Math.max(dt, 1e-3)
-        footCool[key] -= dt
-        if (footCool[key] <= 0 && footVel[key] < -1.1 && v > -0.2) {
-          sound.beep(sample, 0.9 + Math.random() * 0.3)
-          if (Math.random() < 0.5) sound.beep('saw', 0.4)
-          footCool[key] = 0.11
-          burst(footWorld, 22)
-          ring.position.set(footWorld.x, groundY + 0.025, footWorld.z)
-          ringAge = 0
-          shake = Math.max(shake, 0.016)
+        const v = s.y == null ? 0 : (y - s.y) / Math.max(dt, 1e-3)
+        const horiz = s.y == null ? 0 : Math.hypot(footWorld.x - s.x, footWorld.z - s.z) / Math.max(dt, 1e-3)
+        const stomp = s.v < -0.35 && v > 0.02
+        const swipe = horiz > 1.8
+        if (s.cool <= 0 && s.y != null && (stomp || swipe)) {
+          sound.beep(L.sfx, stomp ? 1.05 : 0.7)
+          if (Math.random() < (stomp ? 0.55 : 0.28)) sound.beep('saw', 0.48)
+          s.cool = stomp ? 0.07 : 0.1
+          burst(footWorld, stomp ? 18 : 8)
+          if (stomp) {
+            ring.position.set(footWorld.x, groundY + 0.025, footWorld.z)
+            ringAge = 0
+            shake = Math.max(shake, 0.016)
+          }
         }
-        footVel[key] = v
-        prevFoot[key] = y
+        s.v = v
+        s.y = y
+        s.x = footWorld.x
+        s.z = footWorld.z
       }
     }
     plantOnGround()
