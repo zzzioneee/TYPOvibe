@@ -29,6 +29,7 @@ import Day027 from './works/day27'
 import Day028 from './works/day28'
 import Day029 from './works/day29'
 import Day030 from './works/day30'
+import Day031 from './works/day31'
 
 type View = 'home' | string
 
@@ -333,6 +334,16 @@ const WORKS = [
     ratio: '4 / 3',
     bgTheme: 'light' as const,
   },
+  {
+    id: 'day31',
+    day: '31',
+    date: '2026.11.09',
+    title: '충전 중',
+    desc: '물레 앞에 앉아, 방향키로 흙을 만져 그릇을 만든다.',
+    tags: ['Three.js', 'Pottery', 'Keyboard'],
+    ratio: '4 / 3',
+    bgTheme: 'dark' as const,
+  },
 ]
 
 export default function App() {
@@ -415,6 +426,7 @@ export default function App() {
           {view === 'day28' && <Day028 />}
           {view === 'day29' && <Day029 />}
           {view === 'day30' && <Day030 />}
+          {view === 'day31' && <Day031 />}
         </main>
       </div>
     )

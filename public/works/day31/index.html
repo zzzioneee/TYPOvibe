@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Day 31: 충전 중</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #1c1612; }
+    canvas { display: block; width: 100%; height: 100%; }
+    #ui {
+      position: absolute; inset: 0; pointer-events: none;
+      font-family: "Noto Sans KR", system-ui, sans-serif;
+      color: #f4eadc;
+    }
+    #hint {
+      position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%);
+      text-align: center; color: rgba(255, 246, 232, .9);
+      text-shadow: 0 1px 10px rgba(0, 0, 0, .55);
+    }
+    #hint::before {
+      content: "";
+      position: absolute; left: 50%; bottom: -28px; z-index: -1;
+      width: 520px; height: 110px; transform: translateX(-50%);
+      background: radial-gradient(ellipse at 50% 80%, rgba(8, 5, 3, .5), transparent 72%);
+    }
+    #hint .row {
+      display: flex; justify-content: center; align-items: baseline; gap: 22px;
+      font-size: 13px; font-weight: 400; letter-spacing: .12em; line-height: 1;
+    }
+    #hint .row + .row { margin-top: 14px; }
+    #hint i {
+      font-style: normal; font-weight: 500; letter-spacing: .04em;
+      color: #fff; margin-right: 8px; opacity: .95;
+    }
+    #credits {
+      position: absolute; left: 20px; bottom: 14px;
+      font-size: 10px; letter-spacing: .06em; line-height: 1.6;
+      color: rgba(243, 230, 212, .42);
+    }
+    html.thumb #ui { display: none; }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="view"></canvas>
+  <div id="ui">
+    <div id="hint">
+      <div class="row">
+        <span><i>↑↓</i>손 높이</span>
+        <span><i>←</i>모으기</span>
+        <span><i>→</i>밀기</span>
+      </div>
+      <div class="row">
+        <span><i>R</i>새 흙</span>
+        <span><i>Enter</i>제출</span>
+      </div>
+    </div>
+    <div id="credits">
+      나무 테이블 · Poly Haven CC0<br />
+      벽난로 · schulmancreative CC0 · 흙 · Funky_Audio CC0
+    </div>
+  </div>
+  <script type="module" src="./wheel.js"></script>
+</body>
+</html>
