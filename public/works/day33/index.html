@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Day 33: 낙엽</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; background: #0f0c0a; overflow: hidden; }
+    canvas { display: block; width: 100vw; height: 100vh; }
+    #rand {
+      position: fixed;
+      left: 50%;
+      bottom: 28px;
+      transform: translateX(-50%);
+      padding: 10px 22px;
+      border: 1px solid rgba(255, 236, 210, 0.28);
+      border-radius: 999px;
+      background: rgba(15, 12, 10, 0.72);
+      color: #f3e6d4;
+      font: 500 14px/1 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      backdrop-filter: blur(6px);
+      transition: background 0.2s, border-color 0.2s;
+    }
+    #rand:hover { background: rgba(60, 38, 20, 0.85); border-color: rgba(255, 200, 120, 0.6); }
+    html.thumb #rand { display: none; }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <button id="rand" type="button">↻ 랜덤</button>
+  <script>
+    const thumb = new URLSearchParams(location.search).has('thumb')
+    if (thumb) document.documentElement.classList.add('thumb')
+
+    const cv = document.getElementById('c')
+    const ctx = cv.getContext('2d')
+
+    const rnd = (a, b) => a + Math.random() * (b - a)
+    const pick = (a) => a[Math.floor(Math.random() * a.length)]
+    const hueDiff = (a, b) => ((a - b + 540) % 360) - 180
+    const TAU = Math.PI * 2
+
+    // 낙엽 대표 색. [hue, 밝기]
+    const ANCHORS = {
+      pale: [50, 0.86], yellow: [44, 0.76], gold: [37, 0.64], orange: [24, 0.8],
+      rust: [15, 0.62], red: [4, 0.74], crimson: [352, 0.58], brown: [30, 0.42], umber: [24, 0.28],
+    }
+    // 띠 하나를 이루는 가닥들의 색 순서. 끝에 닿으면 거꾸로 되돌아온다.
+    const STRIPES = [
+      ['pale', 'yellow', 'gold', 'orange', 'rust', 'red', 'crimson', 'brown', 'umber'],
+      ['umber', 'brown', 'rust', 'orange', 'gold', 'yellow', 'pale'],
+      ['yellow', 'orange', 'gold', 'red', 'orange', 'crimson', 'rust'],
+      ['pale', 'gold', 'brown', 'yellow', 'umber', 'gold'],
+      ['red', 'crimson', 'rust', 'orange', 'red', 'brown'],
+      ['gold', 'orange', 'yellow', 'rust', 'pale', 'red', 'gold', 'brown'],
+    ]
+
+    // 홀수 가닥에 쓰는 짝 색. 밝은 가닥과 어두운 가닥이 번갈아 선처럼 읽히게 한다.
+    const PARTNER = {
+      pale: 'gold', yellow: 'brown', gold: 'umber', orange: 'rust', rust: 'umber',
+      red: 'crimson', crimson: 'umber', brown: 'gold', umber: 'brown',
+    }
+
+    let atlas, hsv, TS, ACOLS, LUT, shade
+    let W, H, M
+    let bands = [], params = null, now = 0
+
+    // 사각 조각을 나누는 방식. pw는 가로로 몇 칸을 차지하는지, a는 가장 큰 조각의 칸 수.
+    const TILINGS = [
+      { kind: 'grid', w: 1, h: 1, pw: 1, a: 1 }, { kind: 'grid', w: 2, h: 2, pw: 2, a: 4 },
+      { kind: 'grid', w: 1, h: 2, pw: 1, a: 2 }, { kind: 'grid', w: 1, h: 3, pw: 1, a: 3 },
+      { kind: 'grid', w: 2, h: 1, pw: 2, a: 2 }, { kind: 'grid', w: 2, h: 3, pw: 2, a: 6 },
+      { kind: 'brickH', pw: 2, a: 2 }, { kind: 'brickV', pw: 1, a: 2 }, { kind: 'quilt', pw: 2.5, a: 4 },
+    ]
+    const tilingKey = (t) => t.kind + (t.w || '') + (t.h || '')
+    // 한 칸의 크기. 화면 짧은 변을 몇 칸으로 나누는지로 정한다.
+    const SIZES = [{ name: 'S', d: 56 }, { name: 'M', d: 30 }, { name: 'L', d: 16 }, { name: 'XL', d: 9 }]
+    // 흐름의 모양.
+    // ribbon: 넓은 띠 하나가 흔들리며 내려온다. meander: 좁은 띠가 크게 굽이친다.
+    // fan: 위는 좁고 아래로 갈수록 넓게 퍼진다. arc: 한쪽으로 크게 휘어 내려온다.
+    // braid: 가는 띠 두세 개가 서로 꼬이듯 엇갈린다. cascade: 나란한 띠 여럿이 차례로 늦게 내려온다.
+    const FORMS = ['ribbon', 'meander', 'fan', 'arc', 'braid', 'cascade']
+    const COLORS = ['grad', 'lines', 'checker']
+
+    // 직전 랜덤과 다른 것만 고른다.
+    const pickNew = (list, prev, key = (x) => x) => pick(prev === undefined ? list : list.filter((x) => key(x) !== key(prev)))
+
+    function buildLut() {
+      LUT = {}
+      for (const [name, [th, tv]] of Object.entries(ANCHORS)) {
+        LUT[name] = hsv.map((m, idx) => {
+          const dh = hueDiff(m[0], th) / 22
+          const dv = (m[2] - tv) / 0.2
+          return [dh * dh + dv * dv, idx]
+        }).sort((a, b) => a[0] - b[0]).slice(0, 5).map((x) => x[1])
+      }
+    }
+
+    function hash(x, y, seed) {
+      const n = Math.sin(x * 127.1 + y * 311.7 + seed * 74.7) * 43758.5453
+      return n - Math.floor(n)
+    }
+
+    // 화면을 사각 조각들로 빈틈없이 나눈다. row는 체크 무늬를 엇갈리게 할 때 쓴다.
+    function buildPieces(C, t) {
+      const cols = Math.ceil(W / C) + 2, rows = Math.ceil(H / C) + 2
+      const ox = Math.floor((W - cols * C) / 2), oy = Math.floor((H - rows * C) / 2)
+      const pieces = []
+      const add = (gx, gy, w, h, row) => pieces.push({ gx, gy, w, h, row, x: ox + gx * C, y: oy + gy * C, k: hash(gx, gy, 9.3) })
+      if (t.kind === 'grid') {
+        for (let gy = 0, r = 0; gy < rows; gy += t.h, r++) for (let gx = 0; gx < cols; gx += t.w) add(gx, gy, t.w, t.h, r)
+      } else if (t.kind === 'brickH') {
+        for (let gy = 0; gy < rows; gy++) for (let gx = gy % 2 ? -1 : 0; gx < cols; gx += 2) add(gx, gy, 2, 1, gy)
+      } else if (t.kind === 'brickV') {
+        for (let gx = 0; gx < cols; gx++) {
+          const o = gx % 2 ? -1 : 0
+          for (let gy = o, r = 0; gy < rows; gy += 2, r++) add(gx, gy, 1, 2, r)
+        }
+      } else {
+        // 2×2 블록마다 통째로, 세로 둘, 가로 둘, 넷 중 하나로 자른다.
+        for (let gy = 0; gy < rows; gy += 2) for (let gx = 0; gx < cols; gx += 2) {
+          const r = gy / 2, k = hash(gx, gy, 3.3)
+          if (k < 0.3) add(gx, gy, 2, 2, r)
+          else if (k < 0.6) { add(gx, gy, 1, 2, r); add(gx + 1, gy, 1, 2, r + 1) }
+          else if (k < 0.85) { add(gx, gy, 2, 1, r * 2); add(gx, gy + 1, 2, 1, r * 2 + 1) }
+          else { add(gx, gy, 1, 1, r * 2); add(gx + 1, gy, 1, 1, r * 2 + 1); add(gx, gy + 1, 1, 1, r * 2 + 1); add(gx + 1, gy + 1, 1, 1, r * 2) }
+        }
+      }
+      return pieces
+    }
+
+    function randomize() {
+      const prev = params || {}
+      const size = pickNew(SIZES, prev.size, (s) => s.name)
+      const C = Math.max(8, Math.round(M / size.d))
+      // 칸이 크면 큰 조각까지 쓰지 않는다. 띠 하나에 조각이 한두 개만 들어가면 흐름이 안 보인다.
+      const maxA = size.name === 'XL' ? 2 : size.name === 'L' ? 4 : 6
+      const tiling = pickNew(TILINGS.filter((t) => t.a <= maxA), prev.tiling, tilingKey)
+      const form = pickNew(FORMS, prev.form)
+      let tilt = rnd(-0.7, 0.7)
+      for (let k = 0; k < 8 && prev.tilt !== undefined && Math.abs(tilt - prev.tilt) < 0.45; k++) tilt = rnd(-0.7, 0.7)
+      params = {
+        size, C, tiling, form, tilt,
+        pieces: buildPieces(C, tiling),
+        color: pickNew(COLORS, prev.color),
+        stair: Math.random() < 0.4,
+        flip: Math.random() < 0.5,
+        shade: Math.random() < 0.45,
+        count: { ribbon: pick([1, 2]), meander: 1, fan: 1, arc: 1, braid: pick([2, 3]), cascade: pick([3, 4, 5]) }[form],
+        // 여러 띠가 함께 쓰는 물결. 위상만 어긋나게 해서 꼬이거나 차례로 출렁이게 한다.
+        wave: { a: M * rnd(0.1, 0.16), k: TAU / (M * rnd(1.1, 1.6)), w: rnd(0.2, 0.3), ph: rnd(0, TAU) },
+      }
+      // 이전 띠는 그 자리에서 깜빡이며 곧바로 꺼지고, 새 띠가 빠르게 내려오기 시작한다.
+      for (const b of bands) if (!b.leaving) { b.leaving = true; b.leaveT = now }
+      for (let i = 0; i < params.count; i++) bands.push(newBand(i, true))
+    }
+
+    // 화면을 위에서 아래로 가로지르며 흔들리는 띠 하나.
+    function newBand(i, boost) {
+      const P = params, C = P.C
+      const group = P.form === 'braid' || P.form === 'cascade'
+      const angle = Math.PI / 2 + P.tilt + (group ? 0 : rnd(-0.15, 0.15))
+      const ca = Math.cos(angle), sa = Math.sin(angle)
+      const corners = [[0, 0], [W, 0], [0, H], [W, H]].map(([x, y]) => (x - W / 2) * ca + (y - H / 2) * sa)
+      const umin = Math.min(...corners), umax = Math.max(...corners)
+      const len = umax - umin
+      const big = { a: M * rnd(0.08, 0.18), k: TAU / (len * rnd(0.8, 1.4)), w: rnd(0.12, 0.28), ph: rnd(0, TAU) }
+      const small = { a: M * rnd(0.015, 0.04), k: TAU / (len * rnd(0.4, 0.6)), w: rnd(0.2, 0.35), ph: rnd(0, TAU) }
+
+      let hw, off = rnd(-0.28, 0.28) * M, waves = [big, small], grow = false, bend = 0
+      let lag = i * len * rnd(0.3, 0.5)
+      if (P.form === 'ribbon') {
+        hw = M * rnd(0.16, 0.3)
+      } else if (P.form === 'meander') {
+        hw = M * rnd(0.1, 0.15)
+        off = rnd(-0.08, 0.08) * M
+        waves = [{ a: M * rnd(0.2, 0.28), k: TAU / (len * rnd(0.5, 0.7)), w: rnd(0.15, 0.25), ph: rnd(0, TAU) }, small]
+      } else if (P.form === 'fan') {
+        hw = M * rnd(0.24, 0.34)
+        off = rnd(-0.12, 0.12) * M
+        grow = true
+        waves = [{ ...big, a: big.a * 0.6 }, small]
+      } else if (P.form === 'arc') {
+        hw = M * rnd(0.13, 0.2)
+        bend = (P.flip ? -1 : 1) * M * rnd(1.5, 2.1)
+        off = -bend * 0.12
+        waves = [small]
+      } else if (P.form === 'braid') {
+        hw = M * rnd(0.07, 0.1)
+        off = rnd(-0.06, 0.06) * M
+        waves = [{ ...P.wave, a: P.wave.a * 1.3, ph: P.wave.ph + (i * TAU) / P.count }, small]
+        lag = i * len * 0.05
+      } else {
+        const spacing = (Math.min(W, H * 1.3) * 0.78) / P.count
+        hw = Math.min(spacing * 0.4, M * 0.09)
+        off = (i - (P.count - 1) / 2) * spacing
+        waves = [{ ...P.wave, ph: P.wave.ph - i * 0.3 }]
+        lag = i * len * 0.12
+      }
+      hw = Math.max(hw, C * P.tiling.pw * 1.6)
+      const seq = pick(STRIPES)
+      const band = {
+        P, C, i, ca, sa, umin, umax, len,
+        seed: Math.random() * 1000,
+        off, waves, hw, grow, bend,
+        pinch: { m: grow ? 0.15 : rnd(0.15, 0.4), k: TAU / (len * rnd(0.4, 0.9)), w: rnd(0.15, 0.35), ph: rnd(0, TAU) },
+        seq: Math.random() < 0.5 ? seq : [...seq].reverse(),
+        head: umin - C * 2 - lag,
+        speed: len / rnd(9, 13),
+        span: len * rnd(0.85, 1.15),
+        tail: -Infinity,
+        frontAmp: Math.max(C * 2, M * (P.stair ? rnd(0.2, 0.4) : rnd(0.06, 0.16))),
+        backAmp: M * rnd(0.05, 0.12),
+        born: now, boost,
+        ph: rnd(0, TAU),
+        leaving: false,
+      }
+      const sw = C * Math.max(1.5, P.tiling.pw) * (P.color === 'grad' ? rnd(1.4, 2.2) : rnd(1, 1.4))
+      band.n = Math.max(2, Math.min(14, Math.round((hw * 2) / sw)))
+      return band
+    }
+
+    function update(dt) {
+      now += dt
+      for (const b of bands) {
+        // 바람 세기가 오르내리듯 속도가 살랑인다. 랜덤 직후에는 빠르게 쏟아지다 원래 속도로 돌아온다.
+        const rush = b.boost ? 1 + 9 * Math.exp(-(now - b.born) / 0.7) : 1
+        const v = b.speed * (0.75 + 0.35 * Math.sin(now * 0.8 + b.ph)) * rush
+        b.head += v * dt
+        if (!b.leaving) b.tail = b.head - b.span
+      }
+      bands = bands.filter((b) => (b.leaving ? now - b.leaveT < 1.4 : b.tail - b.backAmp < b.umax + b.C * 4))
+      // 다 내려간 띠는 위에서 다시 내려온다. 한 프레임에 하나씩만 채운다.
+      const live = new Set(bands.filter((b) => !b.leaving).map((b) => b.i))
+      for (let i = 0; i < params.count; i++) {
+        if (live.has(i)) continue
+        const b = newBand(i, false)
+        b.head = b.umin - b.C * 2
+        bands.push(b)
+        break
+      }
+    }
+
+    // 조각 하나가 띠 안에 있으면 어느 가닥인지 돌려준다. 없으면 -1.
+    function stripeAt(b, p, x, y) {
+      const dx = x - W / 2, dy = y - H / 2
+      const u = dx * b.ca + dy * b.sa
+      if (u > b.head + b.frontAmp || u < b.tail) return -1
+      const v = -dx * b.sa + dy * b.ca
+      const t = Math.min(1, Math.max(0, (u - b.umin) / b.len))
+      let vc = b.off, slope = 0
+      for (const w of b.waves) {
+        const ph = w.k * u + w.w * now + w.ph
+        vc += w.a * Math.sin(ph)
+        slope += w.a * w.k * Math.cos(ph)
+      }
+      if (b.bend) {
+        vc += b.bend * (t - 0.5) * (t - 0.5)
+        slope += (b.bend * 2 * (t - 0.5)) / b.len
+      }
+      let hw = b.hw * (1 + b.pinch.m * Math.sin(b.pinch.k * u + b.pinch.w * now + b.pinch.ph))
+      if (b.grow) hw *= 0.2 + 1.5 * (b.P.flip ? 1 - t : t)
+      const d = (v - vc) / Math.sqrt(1 + slope * slope)
+      if (Math.abs(d) >= hw) return -1
+      const s = Math.min(b.n - 1, Math.floor(((d / hw + 1) / 2) * b.n))
+
+      // 랜덤으로 물러난 띠: 생긴 모양 그대로 조각마다 깜빡이다가 1초 남짓에 모두 꺼진다.
+      if (b.leaving) {
+        const e = (now - b.leaveT) / 1.1
+        const h = hash(p.gx, p.gy, b.seed + 5)
+        if (h < e - 0.15) return -1
+        if (h < e + 0.2 && Math.sin(now * (10 + 8 * h) + h * TAU) < 0) return -1
+      }
+
+      // 머리: 가닥마다 끝이 다르게 늘어난다. 계단형은 한쪽부터 차례로 길어진다.
+      const ts = b.n > 1 ? s / (b.n - 1) : 0
+      const reach = b.P.stair
+        ? (b.P.flip ? 1 - ts : ts) * (0.85 + 0.15 * Math.sin(now * 0.9 + b.ph))
+        : 0.5 + 0.5 * Math.sin(s * 0.75 + now * 1.2 + b.ph)
+      const front = b.head + b.frontAmp * reach
+      const q = (front - u) / (b.C * (b.P.stair ? 1.2 : 2.5))
+      if (q <= 0) return -1
+      if (q < 1 && hash(p.gx, p.gy, b.seed) > q) return -1
+
+      // 꼬리: 생긴 모양 그대로 깜빡이다가 꺼진다.
+      const back = b.tail + b.backAmp * (0.5 + 0.5 * Math.sin(s * 0.6 - now * 0.9 + b.ph * 2))
+      const z = (u - back) / Math.max(b.C * 3, M * 0.2)
+      if (z <= 0) return -1
+      if (z < 1) {
+        const f = 5 + 9 * hash(p.gx, p.gy, b.seed + 1)
+        if (Math.sin(now * f + hash(p.gx, p.gy, b.seed + 2) * TAU) < 1 - 2 * z) return -1
+      }
+      return s
+    }
+
+    function draw() {
+      ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0)
+      ctx.fillStyle = '#0f0c0a'
+      ctx.fillRect(0, 0, W, H)
+      // 먼저 생긴 띠부터 그려, 새 띠가 위에 얹힌다.
+      for (const b of bands) {
+        const C = b.C, P = b.P
+        for (const p of P.pieces) {
+          const pw = p.w * C, ph = p.h * C
+          const s = stripeAt(b, p, p.x + pw / 2, p.y + ph / 2)
+          if (s < 0) continue
+          // 띠를 가로질러 색이 바뀐다. 선은 가닥마다, 체크는 가닥과 줄마다 밝고 어두운 색이 엇갈린다.
+          const base = b.seq[Math.round((s / Math.max(1, b.n - 1)) * (b.seq.length - 1))]
+          const alt = P.color === 'lines' ? s % 2 : P.color === 'checker' ? (s + p.row) % 2 : 0
+          const lut = LUT[alt ? PARTNER[base] : base]
+          // 가닥마다 주로 쓰는 잎 하나를 정해, 같은 가닥은 한 면처럼 읽히게 한다.
+          const main = Math.floor(hash(s, alt, b.seed) * lut.length)
+          const tile = lut[(main + (hash(p.gx, p.gy, b.seed + s * 7.1) < 0.72 ? 0 : 1)) % lut.length]
+          // 조각 비율대로 잎 사진을 잘라 쓴다. 늘이지 않으므로 잎맥이 찌그러지지 않는다.
+          const a = p.w / p.h
+          const sw = a >= 1 ? TS : TS * a, sh = a >= 1 ? TS / a : TS
+          const sx = (tile % ACOLS) * TS + (TS - sw) * p.k
+          const sy = Math.floor(tile / ACOLS) * TS + (TS - sh) * (1 - p.k)
+          ctx.drawImage(atlas, sx, sy, sw, sh, p.x, p.y, pw, ph)
+          if (P.shade) ctx.drawImage(shade, (s + p.row) % 2 ? 1 : 0, 0, 1, 64, p.x, p.y, pw, ph)
+        }
+      }
+    }
+
+    function layout() {
+      W = innerWidth
+      H = innerHeight
+      cv.width = Math.round(W * devicePixelRatio)
+      cv.height = Math.round(H * devicePixelRatio)
+      M = Math.min(W, H)
+      bands = []
+      randomize()
+    }
+
+    // 조각 안쪽에 얹는 그늘. 0열은 아래로, 1열은 위로 어두워진다.
+    function buildShade() {
+      const c = document.createElement('canvas')
+      c.width = 2
+      c.height = 64
+      const g = c.getContext('2d')
+      for (const [x, y0, y1] of [[0, 0, 64], [1, 64, 0]]) {
+        const gr = g.createLinearGradient(0, y0, 0, y1)
+        gr.addColorStop(0, 'rgba(15,10,6,0)')
+        gr.addColorStop(1, 'rgba(15,10,6,0.42)')
+        g.fillStyle = gr
+        g.fillRect(x, 0, 1, 64)
+      }
+      return c
+    }
+
+    const img = new Image()
+    Promise.all([
+      new Promise((resolve) => { img.onload = resolve; img.src = 'fall/atlas.jpg' }),
+      fetch('fall/atlas.json').then((r) => r.json()),
+    ]).then(([, meta]) => {
+      atlas = img
+      hsv = meta.hsv
+      TS = meta.ts
+      ACOLS = meta.cols
+      shade = buildShade()
+      buildLut()
+      layout()
+      if (thumb) {
+        for (const b of bands) b.head = b.umin + b.len * 0.75
+        for (let t = 0; t < 2; t += 1 / 30) update(1 / 30)
+        draw()
+        return
+      }
+      // 첫 화면부터 띠가 내려오는 중이도록 조금 앞서 돌려 둔다.
+      for (let t = 0; t < 2; t += 1 / 60) update(1 / 60)
+      let last = performance.now()
+      const loop = (t) => {
+        update(Math.min(0.05, Math.max(0, (t - last) / 1000)))
+        last = t
+        draw()
+        requestAnimationFrame(loop)
+      }
+      requestAnimationFrame(loop)
+      let timer
+      addEventListener('resize', () => { clearTimeout(timer); timer = setTimeout(layout, 150) })
+    })
+
+    document.getElementById('rand').addEventListener('click', randomize)
+    addEventListener('keydown', (e) => { if (e.key === 'r' || e.key === ' ') { e.preventDefault(); randomize() } })
+  </script>
+</body>
+</html>

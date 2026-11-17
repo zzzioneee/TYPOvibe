@@ -30,6 +30,7 @@ import Day028 from './works/day28'
 import Day029 from './works/day29'
 import Day030 from './works/day30'
 import Day031 from './works/day31'
+import Day033 from './works/day33'
 
 type View = 'home' | string
 
@@ -344,6 +345,16 @@ const WORKS = [
     ratio: '4 / 3',
     bgTheme: 'dark' as const,
   },
+  {
+    id: 'day33',
+    day: '33',
+    date: '2026.11.16',
+    title: '낙엽',
+    desc: '실제 낙엽을 크기와 비율이 다른 사각 조각으로 오려, 굽이치고 퍼지고 꼬이며 흘러내리는 줄무늬 띠를 그린다. 먼저 내려온 부분부터 깜빡이며 사라진다.',
+    tags: ['Pattern', 'Leaf', 'Flow'],
+    ratio: '4 / 3',
+    bgTheme: 'dark' as const,
+  },
 ]
 
 export default function App() {
@@ -427,6 +438,7 @@ export default function App() {
           {view === 'day29' && <Day029 />}
           {view === 'day30' && <Day030 />}
           {view === 'day31' && <Day031 />}
+          {view === 'day33' && <Day033 />}
         </main>
       </div>
     )
