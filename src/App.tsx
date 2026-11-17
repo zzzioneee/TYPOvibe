@@ -31,6 +31,7 @@ import Day029 from './works/day29'
 import Day030 from './works/day30'
 import Day031 from './works/day31'
 import Day032 from './works/day32'
+import Day033 from './works/day33'
 
 type View = 'home' | string
 
@@ -355,6 +356,16 @@ const WORKS = [
     ratio: '4 / 3',
     bgTheme: 'dark' as const,
   },
+  {
+    id: 'day33',
+    day: '33',
+    date: '2026.11.17',
+    title: '별소리',
+    desc: '별 모양 종이접기의 입을 벌리면 누군가의 한 마디를 휘파람으로 옮겨 말하고, 말풍선을 누르면 원래 말이 보인다.',
+    tags: ['Three.js', 'Origami', 'Sound'],
+    ratio: '4 / 3',
+    bgTheme: 'dark' as const,
+  },
 ]
 
 export default function App() {
@@ -439,6 +450,7 @@ export default function App() {
           {view === 'day30' && <Day030 />}
           {view === 'day31' && <Day031 />}
           {view === 'day32' && <Day032 />}
+          {view === 'day33' && <Day033 />}
         </main>
       </div>
     )
