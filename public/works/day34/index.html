@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Day 34: 알림음</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #fff; }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: ew-resize; }
+    #ui { position: absolute; inset: 0; pointer-events: none; font-family: "Noto Sans KR", system-ui, sans-serif; color: #24201c; }
+    #hint {
+      position: absolute; left: 50%; top: 26px; transform: translateX(-50%);
+      display: flex; gap: 20px; white-space: nowrap; font-size: 12px; letter-spacing: .08em; color: rgba(36, 32, 28, .5);
+    }
+    #hint i { font-style: normal; font-weight: 500; color: #24201c; margin-right: 7px; }
+    /* 타이틀은 가장 길게 늘인 파형보다 아래, 알약은 화면 아래에 따로 둔다 */
+    #label { position: absolute; left: 50%; top: 76.5vh; transform: translateX(-50%); text-align: center; white-space: nowrap; }
+    #name { font-size: clamp(15px, 2.2vh, 19px); font-weight: 500; letter-spacing: .1em; }
+    #len { margin-top: 6px; font-size: 12px; letter-spacing: .12em; color: rgba(36, 32, 28, .5); font-variant-numeric: tabular-nums; }
+    #pills { position: absolute; left: 50%; bottom: 5vh; transform: translateX(-50%); display: flex; gap: 18px; pointer-events: auto; }
+    #pills button {
+      font: inherit; font-size: 13px; font-weight: 500; letter-spacing: .04em; cursor: pointer;
+      padding: .42em 1.1em .48em; border-radius: 999px; border: 1.5px solid #111; color: #111; background: #fff;
+      transition: background-color .2s, color .2s;
+    }
+    #pills button:hover { background: #f1f1f1; }
+    #pills button.on { background: #111; color: #fff; }
+    #credit { position: absolute; right: 22px; bottom: 16px; font-size: 10px; letter-spacing: .06em; color: rgba(36, 32, 28, .35); }
+    @media (max-width: 560px) { #hint { gap: 12px; font-size: 11px; } }
+    html.thumb #hint, html.thumb #credit, html.thumb #label, html.thumb #pills { display: none; }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="view"></canvas>
+  <div id="ui">
+    <div id="hint">
+      <span><i>←→ · 드래그</i>늘이고 줄이기</span>
+      <span><i>클릭</i>그 자리부터 듣기</span>
+      <span><i>Space</i>처음부터</span>
+      <span><i>1–4</i>소리 바꾸기</span>
+    </div>
+    <div id="label"><div id="name"></div><div id="len"></div></div>
+    <div id="pills"></div>
+    <div id="credit">장면 · AI 생성 이미지</div>
+  </div>
+  <script type="module" src="./sound.js"></script>
+</body>
+</html>

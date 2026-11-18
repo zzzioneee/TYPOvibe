@@ -32,6 +32,7 @@ import Day030 from './works/day30'
 import Day031 from './works/day31'
 import Day032 from './works/day32'
 import Day033 from './works/day33'
+import Day034 from './works/day34'
 
 type View = 'home' | string
 
@@ -366,6 +367,16 @@ const WORKS = [
     ratio: '4 / 3',
     bgTheme: 'light' as const,
   },
+  {
+    id: 'day34',
+    day: '34',
+    date: '2026.11.18',
+    title: '알림음',
+    desc: '익숙한 알림음을 길게 늘이면, 파형 안에서 그 소리가 울리던 장면이 펼쳐진다.',
+    tags: ['WebGL', 'Sound', 'Stretch'],
+    ratio: '4 / 3',
+    bgTheme: 'light' as const,
+  },
 ]
 
 export default function App() {
@@ -451,6 +462,7 @@ export default function App() {
           {view === 'day31' && <Day031 />}
           {view === 'day32' && <Day032 />}
           {view === 'day33' && <Day033 />}
+          {view === 'day34' && <Day034 />}
         </main>
       </div>
     )
