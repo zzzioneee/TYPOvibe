@@ -361,10 +361,10 @@ const WORKS = [
     day: '33',
     date: '2026.11.17',
     title: '별소리',
-    desc: '별 모양 종이접기의 입을 벌리면 누군가의 한 마디를 휘파람으로 옮겨 말하고, 말풍선을 누르면 원래 말이 보인다.',
-    tags: ['Three.js', 'Origami', 'Sound'],
+    desc: '별 모양 종이접기가 같은 한 마디를 다른 톤으로 내뱉을 때마다, 그 온도에 맞춰 색과 몸이 바뀐다.',
+    tags: ['Three.js', 'Origami', 'Voice'],
     ratio: '4 / 3',
-    bgTheme: 'dark' as const,
+    bgTheme: 'light' as const,
   },
 ]
 

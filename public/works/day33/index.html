@@ -9,62 +9,31 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: #3c60b4; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #f2eee7; }
     canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
     canvas:active { cursor: grabbing; }
-    #ui {
-      position: absolute; inset: 0; pointer-events: none;
-      font-family: "Noto Sans KR", system-ui, sans-serif;
-      color: #fff7e8;
+    #ui { position: absolute; inset: 0; pointer-events: none; font-family: "Noto Sans KR", system-ui, sans-serif; color: #1b1b1d; }
+    /* 어떤 톤이어도 자막은 같은 한 줄 */
+    #sub {
+      position: absolute; left: 50%; bottom: 9vh; transform: translateX(-50%);
+      font-size: clamp(16px, 2.6vh, 22px); font-weight: 500; white-space: nowrap;
+      background: rgba(255, 255, 255, .55); border-radius: 999px; padding: .4em 1.1em .45em;
+      opacity: 0; transition: opacity .3s;
     }
+    #tone {
+      position: absolute; left: 50%; bottom: calc(9vh + clamp(16px, 2.6vh, 22px) * 2.5); transform: translateX(-50%);
+      font-size: 12px; letter-spacing: .14em; color: rgba(27, 27, 29, .5); white-space: nowrap;
+      opacity: 0; transition: opacity .3s;
+    }
+    body.said #sub, body.said #tone { opacity: 1; }
     #hint {
-      position: absolute; left: 50%; bottom: 32px; transform: translateX(-50%);
-      display: flex; gap: 22px; white-space: nowrap;
-      font-size: 13px; letter-spacing: .1em; line-height: 1;
-      color: rgba(255, 247, 232, .78);
+      position: absolute; left: 50%; top: 26px; transform: translateX(-50%);
+      display: flex; gap: 20px; white-space: nowrap; font-size: 12px; letter-spacing: .08em; color: rgba(27, 27, 29, .5);
     }
-    #hint i { font-style: normal; font-weight: 500; color: #fff; margin-right: 8px; letter-spacing: .04em; }
-    #deg {
-      position: absolute; right: 26px; top: 22px;
-      font-size: 12px; letter-spacing: .12em; color: rgba(255, 247, 232, .6);
-      font-variant-numeric: tabular-nums;
-    }
-    @media (max-width: 560px) {
-      #hint { gap: 14px; font-size: 11px; bottom: 20px; }
-    }
-    /* 말풍선도 별과 같은 결: 선 없이 납작한 면, 고운 입자, 어긋나게 겹친 진한 면 */
-    #bubble {
-      --fill: #fbf1dc; --shadow: #2c4684; --ink: #1d2c55;
-      position: absolute; left: 0; top: 0; pointer-events: auto; cursor: pointer;
-      max-width: calc(100vw - 32px); padding: 14px 20px 13px;
-      color: var(--ink);
-      filter: drop-shadow(8px 8px 0 var(--shadow));
-      opacity: 0; transform: scale(.85) translateY(6px); transform-origin: 0 100%;
-      transition: opacity .18s, transform .22s cubic-bezier(.3, 1.6, .5, 1);
-      visibility: hidden;
-    }
-    #bubble::before, #bubble::after {
-      content: ""; position: absolute; z-index: -1;
-      background-color: var(--fill);
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.35 0 0 0 0 0.3 0 0 0 0 0.25 0 0 0 0.28 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
-    }
-    #bubble::before { inset: 0; border-radius: 999px; }
-    #bubble::after { left: 16px; bottom: -15px; width: 26px; height: 22px; clip-path: polygon(0 0, 100% 0, 8% 100%); }
-    #bubble.show { opacity: 1; transform: none; visibility: visible; }
-    #bubble .notes { display: flex; align-items: flex-end; gap: 5px; height: 26px; white-space: nowrap; overflow: hidden; }
-    #bubble .notes i {
-      flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--ink);
-      opacity: .16; transition: opacity .12s;
-    }
-    #bubble .notes i.on { opacity: 1; }
-    #bubble .notes i.gap { margin-right: 10px; }
-    #bubble .text {
-      display: none; font-size: 15px; font-weight: 500; letter-spacing: .02em; line-height: 26px;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    #bubble.open .notes { display: none; }
-    #bubble.open .text { display: block; }
-    html.thumb #ui { display: none; }
+    #hint i { font-style: normal; font-weight: 500; color: #1b1b1d; margin-right: 7px; }
+    #credit { position: absolute; right: 22px; bottom: 16px; font-size: 10px; letter-spacing: .06em; color: rgba(27, 27, 29, .35); }
+    @media (max-width: 560px) { #hint { gap: 12px; font-size: 11px; } }
+    html.thumb #hint, html.thumb #credit { display: none; }
   </style>
   <script type="importmap">
   {
@@ -77,15 +46,14 @@
 <body>
   <canvas id="view"></canvas>
   <div id="ui">
-    <div id="bubble" title="누르면 무슨 말인지 보여요"><div class="notes"></div><div class="text"></div></div>
-    <div id="deg">위아래 0° · 양옆 0°</div>
     <div id="hint">
-      <span><i>↑↓</i>위아래로 벌리기</span>
-      <span><i>←→</i>양옆으로 벌리기</span>
-      <span><i>손 떼면</i>말하기</span>
-      <span><i>말풍선</i>번역</span>
-      <span><i>R</i>새 별</span>
+      <span><i>↑↓←→</i>입 벌리기</span>
+      <span><i>손 떼면</i>한 마디</span>
+      <span><i>클릭 · Space</i>아무 말</span>
     </div>
+    <div id="tone"></div>
+    <div id="sub"></div>
+    <div id="credit">음성 · Google Cloud TTS</div>
   </div>
   <script type="module" src="./star.js"></script>
 </body>
