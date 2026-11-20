@@ -9,7 +9,7 @@ const THUMB = new URLSearchParams(location.search).has('thumb')
 if (THUMB) document.documentElement.classList.add('thumb')
 
 // ── 무늬: 지우고 다시 칠할 수 있게 획 목록으로 들고 있는다 (좌표는 0~1) ──
-const state = { ops: [], repeat: 'grid', scale: 1, brush: 'glow', size: 7, pen: '#2ec9d8', bg: '#f4f1ea' }
+const state = { ops: [], repeat: 'grid', scale: 1, brush: 'pen', size: 7, pen: '#1fa35b', bg: '#f4f1ea' }
 const BRUSHES = [
   ['pen', '펜'], ['ink', '붓'], ['glow', '빛번짐'],
   ['hatch', '빗금'], ['dots', '망점'], ['spray', '스프레이'],
@@ -171,7 +171,7 @@ const canvas = document.getElementById('view')
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
 renderer.toneMapping = THREE.ACESFilmicToneMapping
-renderer.toneMappingExposure = 1.0
+renderer.toneMappingExposure = .9
 renderer.shadowMap.enabled = true
 renderer.shadowMap.type = THREE.PCFSoftShadowMap
 const scene = new THREE.Scene()
@@ -197,8 +197,8 @@ function spot(color, power, pos, target, angle, pen) {
   l.castShadow = true; l.shadow.mapSize.set(2048, 2048); l.shadow.bias = -0.0003; l.shadow.normalBias = .02
   scene.add(l, l.target); return l
 }
-spot('#fff3e2', 260, new THREE.Vector3(1.8, 7.5, 4.2), new THREE.Vector3(.2, .9, -.6), .5, .65)
-spot('#fff1dc', 70, new THREE.Vector3(4.2, 6.5, 2.6), new THREE.Vector3(2.7, .5, -.2), .42, .7)
+spot('#fff3e2', 140, new THREE.Vector3(1.8, 7.5, 4.2), new THREE.Vector3(.2, .9, -.6), .5, .65)
+spot('#fff1dc', 45, new THREE.Vector3(4.2, 6.5, 2.6), new THREE.Vector3(2.7, .5, -.2), .42, .7)
 const rim = new THREE.DirectionalLight('#c9d4ff', 1.6); rim.position.set(-3, 3, -7); scene.add(rim)
 const rim2 = new THREE.DirectionalLight('#ffd9b0', .9); rim2.position.set(6, 2.5, -4); scene.add(rim2)
 scene.add(new THREE.HemisphereLight('#3a3a44', '#050505', 0.15))
@@ -576,6 +576,7 @@ function drawPad() {
 // ② 포장지 미리보기: 무늬가 이어 붙은 모습
 const preview = document.getElementById('preview')
 function drawPreview(img) {
+  if (!preview) return
   const w = preview.width = 504, h = preview.height = 168
   const g = preview.getContext('2d'), t = h * 1.05
   for (let x = 0; x < w; x += t) for (let y = -t * .4; y < h; y += t) g.drawImage(img, x, y, t, t)
@@ -624,7 +625,7 @@ function hslToHex(h, s, l) {
 function picker(el, key, onChange) {
   el.innerHTML = `<div class="chip"><input type="color" title="직접 고르기" /></div>
     <div class="bars"><input type="range" class="hue" min="0" max="360" /><input type="range" class="tone" min="3" max="97" /></div>
-    <div class="tools"><button class="pill eye">스포이드</button></div>`
+    <button class="pill eye" title="스포이드: 화면에서 색 집기">⌖</button>`
   const chip = el.querySelector('.chip'), native = el.querySelector('input[type=color]')
   const hue = el.querySelector('.hue'), tone = el.querySelector('.tone'), eye = el.querySelector('.eye')
   let sat = 85
@@ -690,7 +691,7 @@ function refresh() {
 drawBrushSamples()
 
 // ── 시작 ─────────────────────────────────────────────
-state.ops = demoOps(1)
+state.ops = THUMB ? demoOps(1) : []
 applyPattern(); refresh()
 
 function resize() {
@@ -698,7 +699,7 @@ function resize() {
   renderer.setSize(w, h, false)
   camera.aspect = w / h
   // 패널이 왼쪽을 가리니 화면 중심을 오른쪽으로 민다
-  const shift = 0
+  const shift = w > 700 ? Math.min(170, w * .1) : 0
   camera.setViewOffset(w, h, -shift, w > 700 ? 0 : h * .18, w, h)
   camera.updateProjectionMatrix()
 }
