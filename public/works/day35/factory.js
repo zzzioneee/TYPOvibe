@@ -9,7 +9,7 @@ const THUMB = new URLSearchParams(location.search).has('thumb')
 if (THUMB) document.documentElement.classList.add('thumb')
 
 // ── 무늬: 지우고 다시 칠할 수 있게 획 목록으로 들고 있는다 (좌표는 0~1) ──
-const state = { ops: [], repeat: 'grid', scale: 1, brush: 'pen', size: 7, pen: '#1fa35b', bg: '#f4f1ea' }
+const state = { ops: [], repeat: 'grid', scale: 1, brush: 'pen', size: 7, pen: '#1fa35b', bg: '#ffffff' }
 const BRUSHES = [
   ['pen', '펜'], ['ink', '붓'], ['glow', '빛번짐'],
   ['hatch', '빗금'], ['dots', '망점'], ['spray', '스프레이'],
