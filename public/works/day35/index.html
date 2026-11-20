@@ -43,7 +43,10 @@
     input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: #fff; border: 1.5px solid #111; }
     .hue { background: linear-gradient(90deg, hsl(0,85%,50%), hsl(60,85%,50%), hsl(120,85%,50%), hsl(180,85%,50%), hsl(240,85%,50%), hsl(300,85%,50%), hsl(360,85%,50%)); }
     .size { background: linear-gradient(90deg, #ddd, #111); height: 4px; }
-    .picker { display: grid; grid-template-columns: 30px 1fr 30px; gap: 8px; align-items: center; }
+    .picker { display: grid; grid-template-columns: 30px 1fr; gap: 8px; align-items: center; }
+    .line { display: flex; align-items: center; gap: 10px; }
+    .line .lab { margin: 0; flex: none; }
+    #sizeVal { width: 16px; justify-content: flex-end; }
     .picker .chip { width: 30px; height: 30px; border-radius: 10px; border: 1.5px solid rgba(0, 0, 0, .15); cursor: pointer; position: relative; }
     .picker .bars { display: flex; flex-direction: column; gap: 10px; }
     .picker .eye { width: 30px; height: 30px; padding: 0; font-size: 14px; }
@@ -80,10 +83,7 @@
       <h2>무늬 그리기</h2>
       <canvas id="pad"></canvas>
       <div class="brushes" id="brushes"></div>
-      <div class="sec">
-        <div class="lab"><span>굵기</span><span id="sizeVal"></span></div>
-        <input type="range" class="size" id="size" min="1" max="20" value="7" />
-      </div>
+      <div class="sec line"><span class="lab">굵기</span><input type="range" class="size" id="size" min="1" max="20" value="7" /><span class="lab" id="sizeVal"></span></div>
       <div class="sec"><div class="lab">펜 색</div><div class="picker" id="penPicker"></div></div>
       <div class="sec"><div class="lab">바탕 색</div><div class="picker" id="bgPicker"></div></div>
       <div class="row" style="margin-top:12px"><button class="pill" id="undo">되돌리기</button><button class="pill" id="clear">비우기</button></div>

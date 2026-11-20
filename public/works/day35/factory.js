@@ -182,9 +182,9 @@ scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
 scene.environmentIntensity = 0.42
 
 const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 60)
-camera.position.set(5.2, 3.1, 5.4)
+camera.position.set(4.0, 3.0, 4.3)
 const controls = new OrbitControls(camera, canvas)
-controls.target.set(1.0, 0.95, -0.2)
+controls.target.set(0.75, 1.05, -0.45)
 controls.enableDamping = true
 controls.enablePan = false
 controls.minDistance = 3.2; controls.maxDistance = 11
@@ -625,9 +625,9 @@ function hslToHex(h, s, l) {
 function picker(el, key, onChange) {
   el.innerHTML = `<div class="chip"><input type="color" title="직접 고르기" /></div>
     <div class="bars"><input type="range" class="hue" min="0" max="360" /><input type="range" class="tone" min="3" max="97" /></div>
-    <button class="pill eye" title="스포이드: 화면에서 색 집기">⌖</button>`
+`
   const chip = el.querySelector('.chip'), native = el.querySelector('input[type=color]')
-  const hue = el.querySelector('.hue'), tone = el.querySelector('.tone'), eye = el.querySelector('.eye')
+  const hue = el.querySelector('.hue'), tone = el.querySelector('.tone')
   let sat = 85
   const paint = () => {
     chip.style.background = state[key]; native.value = state[key]
@@ -637,11 +637,6 @@ function picker(el, key, onChange) {
   const fromBars = () => { if (sat < 30) sat = 85; state[key] = hslToHex(+hue.value, sat, +tone.value); paint(); onChange() }
   hue.addEventListener('input', fromBars); tone.addEventListener('input', fromBars)
   native.addEventListener('input', () => fromHex(native.value))
-  // 화면 어디서든 색을 집어 오는 스포이드 (지원하지 않는 브라우저는 색 고르기 창을 연다)
-  eye.addEventListener('click', async () => {
-    if (window.EyeDropper) { try { const r = await new EyeDropper().open(); fromHex(r.sRGBHex.length === 7 ? r.sRGBHex : '#' + r.sRGBHex.match(/\d+/g).slice(0, 3).map((v) => (+v).toString(16).padStart(2, '0')).join('')) } catch (e) {} }
-    else native.click()
-  })
   fromHex(state[key])
 }
 picker(document.getElementById('penPicker'), 'pen', () => { drawBrushSamples(); inkMat.color.set(state.pen); trayInk.material.color.set(state.pen) })
@@ -699,7 +694,7 @@ function resize() {
   renderer.setSize(w, h, false)
   camera.aspect = w / h
   // 패널이 왼쪽을 가리니 화면 중심을 오른쪽으로 민다
-  const shift = w > 700 ? Math.min(170, w * .1) : 0
+  const shift = w > 700 ? Math.min(260, w * .16) : 0
   camera.setViewOffset(w, h, -shift, w > 700 ? 0 : h * .18, w, h)
   camera.updateProjectionMatrix()
 }
