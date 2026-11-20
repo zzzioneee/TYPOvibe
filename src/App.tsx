@@ -33,6 +33,7 @@ import Day031 from './works/day31'
 import Day032 from './works/day32'
 import Day033 from './works/day33'
 import Day034 from './works/day34'
+import Day035 from './works/day35'
 
 type View = 'home' | string
 
@@ -377,6 +378,16 @@ const WORKS = [
     ratio: '4 / 3',
     bgTheme: 'light' as const,
   },
+  {
+    id: 'day35',
+    day: '35',
+    date: '2026.11.19',
+    title: '포장지 공장',
+    desc: '내가 만든 무늬 하나가 사방 연속 무늬가 되어 공장 롤에서 끝없이 찍혀 나오고, 그 종이로 상자를 포장한다.',
+    tags: ['Three.js', 'Pattern', 'Factory'],
+    ratio: '4 / 3',
+    bgTheme: 'light' as const,
+  },
 ]
 
 export default function App() {
@@ -463,6 +474,7 @@ export default function App() {
           {view === 'day32' && <Day032 />}
           {view === 'day33' && <Day033 />}
           {view === 'day34' && <Day034 />}
+          {view === 'day35' && <Day035 />}
         </main>
       </div>
     )

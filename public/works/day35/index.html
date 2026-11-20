@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Day 35: 포장지 공장</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;900&display=swap" rel="stylesheet" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a0b; font-family: "Noto Sans KR", system-ui, sans-serif; color: #111; }
+    canvas#view { display: block; width: 100%; height: 100%; }
+    /* ① 그리기는 왼쪽, ② 포장지는 오른쪽: 하는 일이 다른 두 구좌를 떼어 둔다 */
+    .side { position: absolute; top: 20px; width: 284px; max-height: calc(100% - 40px); overflow-y: auto; scrollbar-width: none; }
+    .side::-webkit-scrollbar { display: none; }
+    #panel { left: 20px; }
+    #panel2 { right: 20px; }
+    .card { background: rgba(255, 255, 255, .95); border-radius: 18px; padding: 16px 16px 18px; box-shadow: 0 10px 30px rgba(0, 0, 0, .35); }
+    .card.paper { background: rgba(244, 240, 232, .96); }
+    .head { display: flex; align-items: baseline; gap: 8px; }
+    .num { width: 20px; height: 20px; border-radius: 50%; background: #111; color: #fff; font-size: 11px; font-weight: 900; display: inline-flex; align-items: center; justify-content: center; flex: none; transform: translateY(3px); }
+    h2 { font-size: 15px; font-weight: 900; }
+    .sub { font-size: 11px; color: #8a847b; margin: 3px 0 0 28px; }
+    .sec { margin-top: 14px; }
+    .lab { font-size: 11px; font-weight: 500; color: #8a847b; letter-spacing: .06em; margin-bottom: 7px; display: flex; justify-content: space-between; }
+    .row { display: flex; flex-wrap: wrap; gap: 6px; }
+    button.pill {
+      font: inherit; font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap;
+      padding: .38em .85em .42em; border-radius: 999px; border: 1.5px solid #111; color: #111; background: #fff;
+      transition: background-color .15s, color .15s;
+    }
+    button.pill:hover { background: #f1f1f1; }
+    button.pill.on { background: #111; color: #fff; }
+    .brushes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .brushes button { font: inherit; font-size: 11px; font-weight: 500; cursor: pointer; border: 1.5px solid #111; background: #fff; border-radius: 12px; padding: 4px 0 5px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .brushes button canvas { width: 64px; height: 26px; }
+    .brushes button.on { background: #111; color: #fff; }
+    #pad { display: block; width: 252px; height: 252px; margin-top: 12px; border-radius: 12px; touch-action: none; cursor: crosshair; box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, .08); }
+    input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 14px; border-radius: 999px; outline: none; cursor: pointer; margin: 0; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 2px solid #111; box-shadow: 0 1px 4px rgba(0, 0, 0, .3); }
+    input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: #fff; border: 2px solid #111; }
+    .hue { background: linear-gradient(90deg, hsl(0,85%,50%), hsl(60,85%,50%), hsl(120,85%,50%), hsl(180,85%,50%), hsl(240,85%,50%), hsl(300,85%,50%), hsl(360,85%,50%)); }
+    .size { background: linear-gradient(90deg, #ddd, #111); height: 6px; }
+    .picker { display: grid; grid-template-columns: 34px 1fr; gap: 6px 10px; align-items: center; }
+    .picker .chip { grid-row: span 2; width: 34px; height: 34px; border-radius: 10px; border: 1.5px solid rgba(0, 0, 0, .15); cursor: pointer; position: relative; }
+    .picker .bars { display: flex; flex-direction: column; gap: 8px; }
+    .picker .tools { grid-column: 2; display: flex; gap: 6px; }
+    .picker input[type=color] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    #preview { display: block; width: 252px; height: 84px; border-radius: 10px; margin-top: 4px; }
+    #wrap {
+      width: 100%; font: inherit; font-size: 14px; font-weight: 900; letter-spacing: .04em; cursor: pointer;
+      padding: .85em 0; border-radius: 999px; border: 0; background: #111; color: #fff; margin-top: 14px;
+    }
+    #wrap:disabled { opacity: .35; cursor: default; }
+    #hint { position: absolute; right: 22px; bottom: 18px; font-size: 11px; letter-spacing: .06em; color: rgba(255, 255, 255, .45); text-align: right; }
+    @media (max-width: 700px) {
+      #panel { top: auto; left: 10px; right: 10px; bottom: 10px; width: auto; height: 50vh; }
+      #panel2 { top: 10px; left: 10px; right: 10px; width: auto; max-height: 30vh; }
+      #pad { width: 200px; height: 200px; }
+      #hint { display: none; }
+    }
+    html.thumb #panel, html.thumb #panel2, html.thumb #hint { display: none; }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="view"></canvas>
+  <div id="panel" class="side">
+    <!-- ① 무늬 그리기 -->
+    <div class="card">
+      <div class="head"><span class="num">1</span><h2>무늬 그리기</h2></div>
+      <div class="sub">패드에 그린 한 칸이 포장지의 무늬가 돼요</div>
+      <canvas id="pad"></canvas>
+      <div class="row" style="margin-top:8px"><button class="pill" id="undo">되돌리기</button><button class="pill" id="clear">비우기</button></div>
+
+      <div class="sec">
+        <div class="lab">붓 효과</div>
+        <div class="brushes" id="brushes"></div>
+      </div>
+      <div class="sec">
+        <div class="lab"><span>굵기</span><span id="sizeVal"></span></div>
+        <input type="range" class="size" id="size" min="1" max="20" value="7" />
+      </div>
+      <div class="sec">
+        <div class="lab">펜 색</div>
+        <div class="picker" id="penPicker"></div>
+      </div>
+      <div class="sec">
+        <div class="lab">바탕 색</div>
+        <div class="picker" id="bgPicker"></div>
+      </div>
+    </div>
+  </div>
+  <div id="panel2" class="side">
+    <!-- ② 포장지 만들기 -->
+    <div class="card paper">
+      <div class="head"><span class="num">2</span><h2>포장지 만들기</h2></div>
+      <div class="sub">그린 무늬를 어떻게 이어 붙일지 정해요</div>
+      <div class="sec">
+        <div class="lab">포장지 미리보기</div>
+        <canvas id="preview"></canvas>
+      </div>
+      <div class="sec">
+        <div class="lab">포장지 패턴 반복</div>
+        <div class="row" id="repeat"></div>
+      </div>
+      <div class="sec">
+        <div class="lab">패턴 크기</div>
+        <div class="row" id="scale"></div>
+      </div>
+      <button id="wrap">이 포장지로 상자 포장하기</button>
+    </div>
+  </div>
+  <div id="hint">드래그 · 둘러보기<br />휠 · 가까이</div>
+  <script type="module" src="./factory.js"></script>
+</body>
+</html>
