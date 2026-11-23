@@ -34,6 +34,7 @@ import Day032 from './works/day32'
 import Day033 from './works/day33'
 import Day034 from './works/day34'
 import Day035 from './works/day35'
+import Day036 from './works/day36'
 
 type View = 'home' | string
 
@@ -388,6 +389,16 @@ const WORKS = [
     ratio: '4 / 3',
     bgTheme: 'light' as const,
   },
+  {
+    id: 'day36',
+    day: '36',
+    date: '2026.11.23',
+    title: '채점장',
+    desc: '차가운 소재 두 개로 따뜻함을 그리라는 실기 주제를 내고, 강당에 깔린 답안지를 교수의 막대기로 한 장씩 채점한다.',
+    tags: ['Three.js', 'AI Image', 'Exam'],
+    ratio: '4 / 3',
+    bgTheme: 'dark' as const,
+  },
 ]
 
 export default function App() {
@@ -475,6 +486,7 @@ export default function App() {
           {view === 'day33' && <Day033 />}
           {view === 'day34' && <Day034 />}
           {view === 'day35' && <Day035 />}
+          {view === 'day36' && <Day036 />}
         </main>
       </div>
     )

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Day 36: 채점장</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=Noto+Serif+KR:wght@500;900&display=swap" rel="stylesheet" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #0d0f12; font-family: "Noto Sans KR", system-ui, sans-serif; color: #111; }
+    canvas#view { display: block; width: 100%; height: 100%; }
+    .screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity .9s; }
+    .hidden { opacity: 0; pointer-events: none; }
+    button { font: inherit; cursor: pointer; }
+    .pill { font-size: 14px; font-weight: 700; padding: .55em 1.3em .6em; border-radius: 999px; border: 1.5px solid #111; background: #fff; color: #111; transition: background-color .15s, color .15s, transform .15s; }
+    .pill:hover { background: #111; color: #fff; }
+    .pill:disabled { opacity: .3; cursor: default; background: #fff; color: #111; }
+    .ghost { background: transparent; color: #fff; border-color: rgba(255, 255, 255, .7); }
+    .ghost:hover { background: #fff; color: #111; }
+
+    /* 홈: 실기고사 문제지 */
+    #home { background: #d9d6cf; overflow-y: auto; justify-content: flex-start; padding: 4vh 16px; }
+    .sheet { width: min(720px, 100%); margin: auto; background: #fbfaf6; padding: 44px 52px 40px; box-shadow: 0 18px 50px rgba(0, 0, 0, .18); font-family: "Noto Serif KR", serif; color: #1b1b1b; }
+    .sheet .year { text-align: center; font-size: 13px; letter-spacing: .2em; font-weight: 500; }
+    .sheet .title { text-align: center; font-size: 38px; font-weight: 900; letter-spacing: .5em; margin: 10px 0 18px; padding-left: .5em; }
+    .meta { width: 100%; border-collapse: collapse; font-size: 12px; font-family: "Noto Sans KR", sans-serif; }
+    .meta th, .meta td { border: 1px solid #1b1b1b; padding: 7px 8px; text-align: center; }
+    .meta th { background: #efede6; font-weight: 700; width: 13%; }
+    .qh { margin-top: 26px; font-size: 15px; font-weight: 900; }
+    .q { margin-top: 8px; font-size: 17px; line-height: 1.8; word-break: keep-all; }
+    .box { margin-top: 14px; border: 1.5px solid #1b1b1b; padding: 14px 16px 16px; }
+    .boxh { text-align: center; font-weight: 900; font-size: 14px; margin-bottom: 10px; }
+    #keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 10px; }
+    .key { font-family: inherit; font-size: 16px; font-weight: 500; text-align: left; background: none; border: 0; padding: 8px 6px; border-radius: 6px; display: flex; align-items: center; gap: 8px; color: #1b1b1b; }
+    .key:hover { background: #efede6; }
+    .key i { font-style: normal; width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid #1b1b1b; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; flex: none; }
+    .key.on i { background: #1b1b1b; color: #fff; }
+    .key.on { font-weight: 900; }
+    .cond { margin: 8px 0 0 20px; font-size: 14px; line-height: 1.9; }
+    .foot { margin-top: 28px; padding-top: 18px; border-top: 1px solid #1b1b1b; display: flex; justify-content: space-between; align-items: center; gap: 12px; font-family: "Noto Sans KR", sans-serif; }
+    #picked { font-size: 13px; color: #6b665d; }
+    /* 출제와 그리는 중 */
+    #brief { background: #f3f1ec; }
+    #brief .kicker { font-size: 12px; letter-spacing: .3em; color: #8a847b; }
+    #brief .topic { font-family: "Noto Serif KR", serif; font-weight: 900; font-size: clamp(22px, 3vw, 36px); line-height: 1.5; text-align: center; max-width: 760px; margin-top: 18px; word-break: keep-all; }
+    #brief .status { margin-top: 40px; font-size: 13px; color: #8a847b; height: 20px; }
+    #brief .bar { width: 260px; height: 3px; background: #e2ddd4; border-radius: 99px; margin-top: 12px; overflow: hidden; }
+    #brief .bar i { display: block; height: 100%; width: 0; background: #111; }
+
+    /* 강당 */
+    #hud { position: absolute; inset: 0; pointer-events: none; color: #fff; }
+    #hud > * { pointer-events: auto; }
+    #topicBar { position: absolute; left: 24px; top: 20px; max-width: 46vw; pointer-events: none; }
+    #topicBar .kicker { font-size: 11px; letter-spacing: .24em; color: rgba(255, 255, 255, .6); }
+    #topicBar .t { font-family: "Noto Serif KR", serif; font-weight: 900; font-size: 16px; margin-top: 4px; line-height: 1.45; text-shadow: 0 1px 8px rgba(0, 0, 0, .5); word-break: keep-all; }
+    #again { position: absolute; right: 24px; top: 20px; font-size: 12px; padding: .5em 1.1em; }
+    #count { position: absolute; right: 26px; top: 64px; font-size: 12px; letter-spacing: .1em; color: rgba(255, 255, 255, .7); pointer-events: none; }
+    #grades { position: absolute; left: 50%; bottom: 34px; transform: translateX(-50%); display: flex; gap: 10px; transition: opacity .3s, transform .3s; }
+    #grades.off { opacity: 0; pointer-events: none; transform: translate(-50%, 10px); }
+    #grades .g { width: 58px; height: 44px; padding: 0; font-size: 18px; font-weight: 900; }
+    #grades .g.keep { border-color: #111; }
+    #detail { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); font-size: 12px; padding: .5em 1.1em; display: none; box-shadow: 0 6px 16px rgba(0,0,0,.3); }
+    .nav { position: absolute; top: 50%; transform: translateY(-50%); width: 46px; height: 46px; border-radius: 50%; font-size: 18px; padding: 0; }
+    #prev { left: 20px; } #next { right: 20px; }
+    #bubble {
+      position: absolute; left: 50%; top: 18%; transform: translate(-50%, 8px) scale(.96); opacity: 0; pointer-events: none;
+      background: #fff; color: #111; padding: 14px 22px 16px; border-radius: 20px; max-width: 420px; text-align: center;
+      font-size: 16px; font-weight: 700; line-height: 1.5; word-break: keep-all; box-shadow: 0 12px 30px rgba(0, 0, 0, .35);
+      transition: opacity .25s, transform .25s;
+    }
+    #bubble::after { content: ""; position: absolute; left: 50%; bottom: -10px; margin-left: -10px; border: 10px solid transparent; border-top-color: #fff; border-bottom: 0; }
+    #bubble.on { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    #bubble b { display: block; font-size: 11px; letter-spacing: .2em; color: #8a847b; margin-bottom: 4px; font-weight: 700; }
+    #hint { position: absolute; left: 24px; bottom: 22px; font-size: 11px; letter-spacing: .06em; color: rgba(255, 255, 255, .5); pointer-events: none; }
+
+    /* 자세히 보기 */
+    #zoom { position: absolute; inset: 0; background: rgba(10, 12, 15, .45); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); display: flex; align-items: center; justify-content: center; transition: opacity .3s; }
+    #zoom img { max-width: min(82vw, 1100px); max-height: 74vh; box-shadow: 0 20px 60px rgba(0, 0, 0, .5); border-radius: 2px; }
+    #zoom .close { position: absolute; top: 20px; right: 24px; }
+
+    /* 끝 */
+    #result { background: rgba(10, 12, 15, .72); backdrop-filter: blur(12px); color: #fff; }
+    #result h2 { font-family: "Noto Serif KR", serif; font-size: 30px; font-weight: 900; }
+    #result .sub { margin-top: 8px; font-size: 13px; color: rgba(255, 255, 255, .65); }
+    #kept { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; max-width: 900px; margin-top: 26px; }
+    #kept figure { width: 200px; background: #fff; padding: 6px 6px 8px; color: #111; font-size: 12px; font-weight: 900; text-align: center; }
+    #kept img { width: 100%; display: block; margin-bottom: 6px; }
+    #result .row { display: flex; gap: 10px; margin-top: 30px; }
+    html.thumb #hud, html.thumb #home, html.thumb #brief { display: none; }
+  </style>
+  <script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/" } }
+  </script>
+</head>
+<body>
+  <canvas id="view"></canvas>
+
+  <div id="hud" class="hidden">
+    <div id="topicBar"><div class="kicker">발상과 표현 · 주제</div><div class="t" id="topicText"></div></div>
+    <button class="pill ghost" id="again">다른 주제 내기</button>
+    <div id="count"></div>
+    <button class="pill ghost nav" id="prev" aria-label="왼쪽 그림">←</button>
+    <button class="pill ghost nav" id="next" aria-label="오른쪽 그림">→</button>
+    <div id="bubble"><span id="say"></span></div>
+    <button class="pill" id="detail">자세히 보기</button>
+    <div id="grades"></div>
+    <div id="hint">← → 걸어가기 · 1~5 점수</div>
+  </div>
+
+  <div id="zoom" class="hidden"><img id="zoomImg" alt="" /><button class="pill ghost close" id="zoomClose">닫기</button></div>
+
+  <div id="home" class="screen">
+    <div class="sheet">
+      <div class="year">2027학년도 미술대학 실기고사 문제지</div>
+      <div class="title">발상과 표현</div>
+      <table class="meta"><tr><th>수험번호</th><td>제 036 번</td><th>시험 시간</th><td>240분</td><th>용지</th><td>4절 켄트지 (가로)</td></tr></table>
+      <div class="qh">【문제】</div>
+      <p class="q">아래 〈제시어〉 중 <b>두 가지</b>를 선택하고, 선택한 사물을 활용하여 <b>‘따뜻함’</b>을 표현하시오.</p>
+      <div class="box"><div class="boxh">〈제시어〉</div><div id="keys"></div></div>
+      <div class="qh">【조건】</div>
+      <ol class="cond"><li>선택한 제시어 두 가지를 모두 화면에 등장시킬 것</li><li>재료는 자유로 하되, 화면에 글자를 쓰지 말 것</li><li>주어진 제시어의 차가운 성질을 역설적으로 활용할 것</li></ol>
+      <div class="foot"><span id="picked">제시어를 두 가지 고르세요</span><button class="pill" id="go" disabled>이 제시어로 출제</button></div>
+    </div>
+  </div>
+
+  <div id="brief" class="screen hidden">
+    <div class="kicker">발상과 표현 · 출제</div>
+    <div class="topic" id="briefTopic"></div>
+    <div class="status" id="briefStatus"></div>
+    <div class="bar"><i id="briefBar"></i></div>
+  </div>
+
+  <div id="result" class="screen hidden">
+    <h2>채점 끝</h2>
+    <div class="sub" id="resultSub"></div>
+    <div id="kept"></div>
+    <div class="row"><button class="pill" id="again2">다른 주제 내기</button></div>
+  </div>
+
+  <script type="module" src="./exam.js"></script>
+</body>
+</html>

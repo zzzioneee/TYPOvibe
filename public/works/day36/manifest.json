@@ -1,0 +1,567 @@
+{
+ "keywords": [
+  "녹슨 철조망",
+  "각얼음",
+  "깨진 유리",
+  "서리 낀 창문",
+  "꺼진 가로등",
+  "빈 그네"
+ ],
+ "pairs": {
+  "0-1": {
+   "topic": "녹슨 철조망과 각얼음를 활용하여 '따뜻함'을 역설적으로 표현하시오.",
+   "images": [
+    {
+     "file": "0-1-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "0-1-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "0-1-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "0-1-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "0-1-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "0-1-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "0-1-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "0-1-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "0-2": {
+   "topic": "녹슨 철조망과 깨진 유리 사이에 숨어 있는 '따뜻함'을 발견하여 표현하시오.",
+   "images": [
+    {
+     "file": "0-2-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "0-2-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "0-2-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "0-2-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "0-2-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "0-2-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "0-2-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "0-2-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "0-3": {
+   "topic": "녹슨 철조망과 서리 낀 창문, 가장 차가운 것에서 피어나는 '따뜻함'을 시각화하시오.",
+   "images": [
+    {
+     "file": "0-3-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "0-3-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "0-3-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "0-3-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "0-3-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "0-3-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "0-3-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "0-3-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "0-4": {
+   "topic": "녹슨 철조망과 꺼진 가로등를 활용하여 '따뜻함'을 역설적으로 표현하시오.",
+   "images": [
+    {
+     "file": "0-4-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "0-4-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "0-4-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "0-4-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "0-4-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "0-4-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "0-4-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "0-4-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "0-5": {
+   "topic": "녹슨 철조망과 빈 그네 사이에 숨어 있는 '따뜻함'을 발견하여 표현하시오.",
+   "images": [
+    {
+     "file": "0-5-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "0-5-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "0-5-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "0-5-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "0-5-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "0-5-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "0-5-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "0-5-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "1-2": {
+   "topic": "각얼음과 깨진 유리 사이에 숨어 있는 '따뜻함'을 발견하여 표현하시오.",
+   "images": [
+    {
+     "file": "1-2-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "1-2-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "1-2-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "1-2-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "1-2-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "1-2-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "1-2-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "1-2-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "1-3": {
+   "topic": "각얼음과 서리 낀 창문, 가장 차가운 것에서 피어나는 '따뜻함'을 시각화하시오.",
+   "images": [
+    {
+     "file": "1-3-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "1-3-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "1-3-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "1-3-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "1-3-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "1-3-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "1-3-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "1-3-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "1-4": {
+   "topic": "각얼음과 꺼진 가로등를 활용하여 '따뜻함'을 역설적으로 표현하시오.",
+   "images": [
+    {
+     "file": "1-4-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "1-4-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "1-4-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "1-4-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "1-4-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "1-4-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "1-4-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "1-4-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "1-5": {
+   "topic": "각얼음과 빈 그네 사이에 숨어 있는 '따뜻함'을 발견하여 표현하시오.",
+   "images": [
+    {
+     "file": "1-5-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "1-5-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "1-5-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "1-5-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "1-5-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "1-5-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "1-5-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "1-5-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "2-3": {
+   "topic": "깨진 유리와 서리 낀 창문, 가장 차가운 것에서 피어나는 '따뜻함'을 시각화하시오.",
+   "images": [
+    {
+     "file": "2-3-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "2-3-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "2-3-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "2-3-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "2-3-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "2-3-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "2-3-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "2-3-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "2-4": {
+   "topic": "깨진 유리와 꺼진 가로등를 활용하여 '따뜻함'을 역설적으로 표현하시오.",
+   "images": [
+    {
+     "file": "2-4-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "2-4-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "2-4-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "2-4-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "2-4-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "2-4-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "2-4-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "2-4-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "2-5": {
+   "topic": "깨진 유리와 빈 그네 사이에 숨어 있는 '따뜻함'을 발견하여 표현하시오.",
+   "images": [
+    {
+     "file": "2-5-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "2-5-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "2-5-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "2-5-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "2-5-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "2-5-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "2-5-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "2-5-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "3-4": {
+   "topic": "서리 낀 창문과 꺼진 가로등를 활용하여 '따뜻함'을 역설적으로 표현하시오.",
+   "images": [
+    {
+     "file": "3-4-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "3-4-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "3-4-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "3-4-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "3-4-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "3-4-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "3-4-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "3-4-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "3-5": {
+   "topic": "서리 낀 창문과 빈 그네 사이에 숨어 있는 '따뜻함'을 발견하여 표현하시오.",
+   "images": [
+    {
+     "file": "3-5-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "3-5-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "3-5-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "3-5-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "3-5-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "3-5-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "3-5-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "3-5-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "4-5": {
+   "topic": "꺼진 가로등과 빈 그네 사이에 숨어 있는 '따뜻함'을 발견하여 표현하시오.",
+   "images": [
+    {
+     "file": "4-5-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "4-5-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "4-5-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "4-5-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "4-5-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "4-5-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "4-5-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "4-5-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  }
+ }
+}
