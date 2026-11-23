@@ -393,7 +393,7 @@ const WORKS = [
     id: 'day36',
     day: '36',
     date: '2026.11.23',
-    title: '채점장',
+    title: '따뜻함',
     desc: '차가운 소재 두 개로 따뜻함을 그리라는 실기 주제를 내고, 강당에 깔린 답안지를 교수의 막대기로 한 장씩 채점한다.',
     tags: ['Three.js', 'AI Image', 'Exam'],
     ratio: '4 / 3',

@@ -9,28 +9,35 @@ const $ = (id) => document.getElementById(id)
 const manifest = await fetch('./manifest.json').then((r) => r.json())
 
 // ── 심사위원 한마디: 그림 수준과 매긴 점수가 맞물려야 말이 된다 ──
+// {a}, {b}에는 고른 제시어가 들어간다. 특정 소재를 단정하는 말은 쓰지 않는다
 const SAY = {
   best: {
-    hi: ['내가 찾던 인재군.', '얼음 굴절까지 잡았네. 손이 아니라 눈이 좋은 거야.', '올해 수석은 여기서 나오겠다.', '차가운 걸로 이렇게 데울 줄은 몰랐다.'],
-    mid: ['묘사는 합격인데, 내 기분이 오늘 C야. 미안하다.', '너무 잘 그려서 학원 냄새가 나.'],
-    lo: ['이걸 떨어뜨리면 내가 떨어지겠지만… 원칙은 원칙이다.', '완벽해서 오히려 차갑구나. 따뜻함은 어디 두고 왔니?'],
+    hi: ['내가 찾던 인재군.', '{a}에서 이런 온기를 꺼내다니. 오래 보게 되네.', '올해 수석은 여기서 나오겠는데?', '{a}{와} {b}, 이렇게 엮을 줄은 몰랐다.'],
+    mid: ['잘 그렸다. 근데 어디서 본 듯한 잘 그림이야.', '흠잡을 데는 없는데, 마음이 크게 움직이진 않네.'],
+    lo: ['손은 탐나는데, 따뜻함은 끝내 안 보이네.', '완벽하게 그렸는데 이상하게 차갑다.'],
   },
   good: {
-    hi: ['작년 합격 우수작 향기가 살짝 스치네?', '성실함이 보인다. 한 끗만 더 과감했으면.', '온기는 느껴진다. 조금 미지근하지만.'],
-    mid: ['무난해. 무난한 게 문제야.', '학원에서 배운 공식 그대로구나. 네 얘기를 해 봐.', '따뜻함이 미지근함에서 멈췄네.'],
-    lo: ['그라데이션만 예쁘다. 그림은 어디 있니?', '소재는 읽었는데 주제는 못 읽었구나.'],
+    hi: ['작년 합격 우수작 향기가 살짝 스치네?', '오, {b}{를} 이렇게 쓰네.', '은근히 따뜻하다. 좋다.'],
+    mid: ['무난하다. 딱 무난해.', '학원 냄새가 살짝 나네.', '따뜻한 듯, 미지근하네.'],
+    lo: ['색은 고운데, 주제는 어디 갔지.', '{a}{와} {b}는 있는데, 온기가 없네.'],
   },
   plain: {
-    hi: ['원근은 틀렸는데 마음은 맞았다. 이번만 봐준다.', '서툴러도 이상하게 끌리네.'],
-    mid: ['열심히 한 건 보여. 그게 다야.', '원근이 바닥에서 미끄러지고 있다.'],
-    lo: ['예술에 정답은 없다지만, 이건 오답에 가까워.', '그림에서 찬바람 불어서 감기 걸리겠어. 주제어 잘못 읽었니?', '색이 다 얼어붙었네.'],
+    hi: ['서툴러도 이상하게 마음이 가네.', '원근은 흔들려도 하고 싶은 말은 들린다.'],
+    mid: ['애쓴 흔적은 보인다.', '공간이 조금 기우뚱하네.'],
+    lo: ['그림에서 찬바람이 부네.', '따뜻함은… 어디 숨겨 놨니?'],
   },
   unfinished: {
-    hi: ['미완성이 주제라고 우기면… 그래, 한 번 믿어 본다.', '연필 선만으로도 온기가 있네. 다음엔 끝까지 칠하자.'],
-    mid: ['밑그림은 합격, 시간 관리는 불합격.', '칠하다 만 쪽이 제일 따뜻하구나.'],
-    lo: ['시험장 시계 고장 났었니? 스케치하다 끝났네.', '이건 그림이 아니라 계획서야.', '종이가 제일 따뜻하네. 하얘서.'],
+    hi: ['밑그림만으로도 온기가 느껴지네. 아깝다.', '다 칠했으면 어땠을까. 궁금하네.'],
+    mid: ['칠한 데까지는 좋았는데.', '시간이 조금만 더 있었으면.'],
+    lo: ['시험장 시계가 너무 빨랐나 보다.', '스케치하다 종이 울렸구나.'],
   },
 }
+const hasFinal = (w) => { const c = w.charCodeAt(w.length - 1) - 0xAC00; return c >= 0 && c % 28 > 0 }
+function fill(line) {
+  const [a, b] = currentKeys
+  return line.replace('{와}', hasFinal(a) ? '과' : '와').replace('{를}', hasFinal(b) ? '을' : '를').replace('{a}', a).replace('{b}', b)
+}
+let currentKeys = ['', '']
 const band = (g) => ('AB'.includes(g) ? 'hi' : g === 'C' ? 'mid' : 'lo')
 
 // ── 화면 ─────────────────────────────────────────────
@@ -132,15 +139,25 @@ function stampTex(letter) {
   g.font = '900 140px "Noto Serif KR", serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(letter, 128, 140)
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t
 }
-function clearPapers() { papers.forEach((p) => scene.remove(p.mesh)); papers = [] }
+function clearPapers() { papers.forEach((p) => { scene.remove(p.mesh); scene.remove(p.tag) }); papers = [] }
+function numTex(n) {
+  const c = document.createElement('canvas'); c.width = 192; c.height = 112
+  const g = c.getContext('2d'); g.fillStyle = 'rgba(255,255,255,.88)'; g.fillRect(0, 0, 192, 112)
+  g.fillStyle = '#1b1b1b'; g.font = '900 64px "Noto Sans KR", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'
+  g.fillText(String(n).padStart(2, '0'), 96, 60)
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t
+}
 async function layPapers(key) {
   clearPapers()
   pairKey = key
   const list = manifest.pairs[key].images.slice().sort(() => Math.random() - .5)
   const n = list.length
-  const loads = list.map((im, i) => new Promise((res) => {
-    loader.load(`./art/${im.file}`, (t) => res(t), undefined, () => res(null))
-  }).then((tex) => {
+  // 그림을 못 받으면 한 번 더 받는다 (빈 종이로 깔리지 않게)
+  const fetchTex = (src, again = true) => new Promise((res) => {
+    loader.load(src, res, undefined, () => (again ? fetchTex(src + '?r=' + Date.now(), false).then(res) : res(null)))
+  })
+  const built = []
+  const loads = list.map((im, i) => fetchTex(`./art/${im.file}`).then((tex) => {
     const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: .92, color: tex ? '#ffffff' : '#f4f1ea' })
     if (tex) { tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8 }
     const g = new THREE.PlaneGeometry(PW, PH); g.rotateX(-Math.PI / 2)
@@ -149,9 +166,14 @@ async function layPapers(key) {
     mesh.position.set(x + (Math.random() - .5) * .05, .003 + i * .0001, (Math.random() - .5) * .06)
     mesh.rotation.y = (Math.random() - .5) * .07
     scene.add(mesh)
-    papers[i] = { mesh, im, x, home: mesh.position.clone(), grade: null, anim: null }
+    // 바닥에 수험 자리 번호
+    const tag = new THREE.Mesh(new THREE.PlaneGeometry(.12, .07), new THREE.MeshBasicMaterial({ map: numTex(i + 1), transparent: true, depthWrite: false }))
+    tag.rotation.x = -Math.PI / 2; tag.position.set(x - PW / 2 + .07, .002, PH / 2 + .07); scene.add(tag)
+    built[i] = { mesh, im, x, tag, home: mesh.position.clone(), grade: null, anim: null }
   }))
   await Promise.all(loads)
+  // 다 받은 뒤에 한꺼번에 깐다: 받는 도중 빈자리가 생기면 그리기가 멈춘다
+  papers = built
   idx = 0; camX = papers[0].x
   stickTip.set(camX + .2, .1, .3); stickTipTo.copy(stickTip)
   updateUI()
@@ -201,7 +223,7 @@ function grade(g) {
   busy = true; p.grade = g; updateUI()
   // 한마디: 미완성 답안에 낮은 점수를 주면 그에 맞는 말
   const lines = SAY[p.im.tier][band(g)]
-  say(lines[Math.random() * lines.length | 0])
+  say(fill(lines[Math.random() * lines.length | 0]))
   // 도장
   const st = new THREE.Mesh(new THREE.PlaneGeometry(.13, .13), new THREE.MeshBasicMaterial({ map: stampTex(g), transparent: true, depthWrite: false }))
   st.rotation.x = -Math.PI / 2; st.rotation.z = (Math.random() - .5) * .5
@@ -315,6 +337,7 @@ function show(name) {
 $('go').addEventListener('click', async () => {
   const [a, b] = picked.slice().sort((x, y) => x - y)
   const key = `${a}-${b}`, topic = manifest.pairs[key].topic
+  currentKeys = [manifest.keywords[a], manifest.keywords[b]]
   $('briefTopic').textContent = topic; $('topicText').textContent = topic
   show('brief')
   const bar = $('briefBar'), st = $('briefStatus')
@@ -331,7 +354,7 @@ $('again').addEventListener('click', backHome)
 $('again2').addEventListener('click', backHome)
 refreshKeys()
 
-if (THUMB) { await layPapers('0-1'); show('hud') }
+if (THUMB) { currentKeys = [manifest.keywords[0], manifest.keywords[1]]; await layPapers('0-1'); show('hud') }
 
 // ── 그리기 ───────────────────────────────────────────
 function resize() {
@@ -349,7 +372,7 @@ renderer.setAnimationLoop((now) => {
   camera.position.set(camX, 1.38 + Math.sin(now / 120) * .006 * Math.min(1, walk * 4), .2)
   camera.lookAt(camX, 0, -.02)
   lamp.position.x = camX
-  for (const q of papers) if (q.anim && !q.anim.done) {
+  for (const q of papers) if (q && q.anim && !q.anim.done) {
     if (stepPaper(q, dt)) { q.anim.done = true; afterGrade() }
   }
   if (!busy) stickTipTo.set(camX + .2, .1 + Math.sin(now / 700) * .01, .3)

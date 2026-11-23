@@ -5,7 +5,10 @@
   "깨진 유리",
   "서리 낀 창문",
   "꺼진 가로등",
-  "빈 그네"
+  "빈 그네",
+  "고드름",
+  "멈춘 시계",
+  "녹슨 가위"
  ],
  "pairs": {
   "0-1": {
@@ -193,6 +196,117 @@
     }
    ]
   },
+  "0-6": {
+   "topic": "녹슨 철조망과 고드름, 가장 차가운 것에서 피어나는 '따뜻함'을 시각화하시오.",
+   "images": [
+    {
+     "file": "0-6-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "0-6-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "0-6-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "0-6-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "0-6-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "0-6-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "0-6-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "0-6-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "0-7": {
+   "topic": "녹슨 철조망과 멈춘 시계를 활용하여 '따뜻함'을 역설적으로 표현하시오.",
+   "images": [
+    {
+     "file": "0-7-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "0-7-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "0-7-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "0-7-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "0-7-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "0-7-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "0-7-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "0-7-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "0-8": {
+   "topic": "녹슨 철조망과 녹슨 가위 사이에 숨어 있는 '따뜻함'을 발견하여 표현하시오.",
+   "images": [
+    {
+     "file": "0-8-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "0-8-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "0-8-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "0-8-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "0-8-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "0-8-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "0-8-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "0-8-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
   "1-2": {
    "topic": "각얼음과 깨진 유리 사이에 숨어 있는 '따뜻함'을 발견하여 표현하시오.",
    "images": [
@@ -341,6 +455,117 @@
     }
    ]
   },
+  "1-6": {
+   "topic": "각얼음과 고드름, 가장 차가운 것에서 피어나는 '따뜻함'을 시각화하시오.",
+   "images": [
+    {
+     "file": "1-6-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "1-6-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "1-6-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "1-6-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "1-6-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "1-6-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "1-6-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "1-6-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "1-7": {
+   "topic": "각얼음과 멈춘 시계를 활용하여 '따뜻함'을 역설적으로 표현하시오.",
+   "images": [
+    {
+     "file": "1-7-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "1-7-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "1-7-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "1-7-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "1-7-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "1-7-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "1-7-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "1-7-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "1-8": {
+   "topic": "각얼음과 녹슨 가위 사이에 숨어 있는 '따뜻함'을 발견하여 표현하시오.",
+   "images": [
+    {
+     "file": "1-8-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "1-8-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "1-8-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "1-8-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "1-8-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "1-8-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "1-8-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "1-8-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
   "2-3": {
    "topic": "깨진 유리와 서리 낀 창문, 가장 차가운 것에서 피어나는 '따뜻함'을 시각화하시오.",
    "images": [
@@ -452,6 +677,117 @@
     }
    ]
   },
+  "2-6": {
+   "topic": "깨진 유리와 고드름, 가장 차가운 것에서 피어나는 '따뜻함'을 시각화하시오.",
+   "images": [
+    {
+     "file": "2-6-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "2-6-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "2-6-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "2-6-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "2-6-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "2-6-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "2-6-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "2-6-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "2-7": {
+   "topic": "깨진 유리와 멈춘 시계를 활용하여 '따뜻함'을 역설적으로 표현하시오.",
+   "images": [
+    {
+     "file": "2-7-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "2-7-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "2-7-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "2-7-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "2-7-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "2-7-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "2-7-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "2-7-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "2-8": {
+   "topic": "깨진 유리와 녹슨 가위 사이에 숨어 있는 '따뜻함'을 발견하여 표현하시오.",
+   "images": [
+    {
+     "file": "2-8-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "2-8-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "2-8-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "2-8-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "2-8-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "2-8-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "2-8-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "2-8-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
   "3-4": {
    "topic": "서리 낀 창문과 꺼진 가로등를 활용하여 '따뜻함'을 역설적으로 표현하시오.",
    "images": [
@@ -526,6 +862,117 @@
     }
    ]
   },
+  "3-6": {
+   "topic": "서리 낀 창문과 고드름, 가장 차가운 것에서 피어나는 '따뜻함'을 시각화하시오.",
+   "images": [
+    {
+     "file": "3-6-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "3-6-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "3-6-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "3-6-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "3-6-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "3-6-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "3-6-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "3-6-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "3-7": {
+   "topic": "서리 낀 창문과 멈춘 시계를 활용하여 '따뜻함'을 역설적으로 표현하시오.",
+   "images": [
+    {
+     "file": "3-7-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "3-7-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "3-7-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "3-7-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "3-7-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "3-7-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "3-7-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "3-7-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "3-8": {
+   "topic": "서리 낀 창문과 녹슨 가위 사이에 숨어 있는 '따뜻함'을 발견하여 표현하시오.",
+   "images": [
+    {
+     "file": "3-8-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "3-8-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "3-8-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "3-8-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "3-8-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "3-8-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "3-8-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "3-8-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
   "4-5": {
    "topic": "꺼진 가로등과 빈 그네 사이에 숨어 있는 '따뜻함'을 발견하여 표현하시오.",
    "images": [
@@ -559,6 +1006,339 @@
     },
     {
      "file": "4-5-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "4-6": {
+   "topic": "꺼진 가로등과 고드름, 가장 차가운 것에서 피어나는 '따뜻함'을 시각화하시오.",
+   "images": [
+    {
+     "file": "4-6-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "4-6-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "4-6-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "4-6-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "4-6-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "4-6-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "4-6-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "4-6-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "4-7": {
+   "topic": "꺼진 가로등과 멈춘 시계를 활용하여 '따뜻함'을 역설적으로 표현하시오.",
+   "images": [
+    {
+     "file": "4-7-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "4-7-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "4-7-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "4-7-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "4-7-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "4-7-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "4-7-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "4-7-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "4-8": {
+   "topic": "꺼진 가로등과 녹슨 가위 사이에 숨어 있는 '따뜻함'을 발견하여 표현하시오.",
+   "images": [
+    {
+     "file": "4-8-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "4-8-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "4-8-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "4-8-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "4-8-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "4-8-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "4-8-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "4-8-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "5-6": {
+   "topic": "빈 그네와 고드름, 가장 차가운 것에서 피어나는 '따뜻함'을 시각화하시오.",
+   "images": [
+    {
+     "file": "5-6-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "5-6-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "5-6-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "5-6-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "5-6-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "5-6-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "5-6-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "5-6-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "5-7": {
+   "topic": "빈 그네와 멈춘 시계를 활용하여 '따뜻함'을 역설적으로 표현하시오.",
+   "images": [
+    {
+     "file": "5-7-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "5-7-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "5-7-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "5-7-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "5-7-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "5-7-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "5-7-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "5-7-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "5-8": {
+   "topic": "빈 그네와 녹슨 가위 사이에 숨어 있는 '따뜻함'을 발견하여 표현하시오.",
+   "images": [
+    {
+     "file": "5-8-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "5-8-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "5-8-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "5-8-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "5-8-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "5-8-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "5-8-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "5-8-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "6-7": {
+   "topic": "고드름과 멈춘 시계를 활용하여 '따뜻함'을 역설적으로 표현하시오.",
+   "images": [
+    {
+     "file": "6-7-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "6-7-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "6-7-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "6-7-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "6-7-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "6-7-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "6-7-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "6-7-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "6-8": {
+   "topic": "고드름과 녹슨 가위 사이에 숨어 있는 '따뜻함'을 발견하여 표현하시오.",
+   "images": [
+    {
+     "file": "6-8-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "6-8-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "6-8-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "6-8-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "6-8-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "6-8-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "6-8-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "6-8-7.jpg",
+     "tier": "unfinished"
+    }
+   ]
+  },
+  "7-8": {
+   "topic": "멈춘 시계와 녹슨 가위 사이에 숨어 있는 '따뜻함'을 발견하여 표현하시오.",
+   "images": [
+    {
+     "file": "7-8-0.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "7-8-1.jpg",
+     "tier": "best"
+    },
+    {
+     "file": "7-8-2.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "7-8-3.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "7-8-4.jpg",
+     "tier": "good"
+    },
+    {
+     "file": "7-8-5.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "7-8-6.jpg",
+     "tier": "plain"
+    },
+    {
+     "file": "7-8-7.jpg",
      "tier": "unfinished"
     }
    ]
