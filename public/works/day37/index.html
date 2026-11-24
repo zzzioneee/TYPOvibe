@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Day 37: 우연</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #070707; font-family: "Noto Sans KR", system-ui, sans-serif; color: #fff; }
+    canvas#view { display: block; width: 100%; height: 100%; }
+    #name {
+      position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 34px;
+      background: #070707; transition: opacity .6s;
+    }
+    #name.off { opacity: 0; pointer-events: none; }
+    #name .q { font-family: "Noto Sans KR", sans-serif; font-weight: 700; font-size: 26px; letter-spacing: -.01em; }
+    #name input {
+      width: 280px; font: 700 30px "Gaegu", sans-serif; text-align: center; color: #fff; background: transparent;
+      border: 0; border-bottom: 2px solid rgba(255, 255, 255, .7); padding: 6px 0; outline: none;
+    }
+    #name button, .pill {
+      font: 700 15px "Noto Sans KR", sans-serif; padding: .55em 1.5em .6em; border-radius: 999px; border: 1.5px solid #fff; background: transparent; color: #fff; cursor: pointer;
+    }
+    #name button:hover, .pill:hover { background: #fff; color: #111; }
+    #name button:disabled { opacity: .3; cursor: default; background: transparent; color: #fff; }
+    #hud { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; transition: opacity .4s; }
+    #hud.off { opacity: 0; pointer-events: none; }
+    #say { font-family: "Gaegu", sans-serif; font-weight: 700; font-size: 22px; white-space: nowrap; }
+    #say b { display: inline-block; padding: .05em .45em; border: 1.5px solid #fff; border-radius: 6px; font-size: 16px; margin: 0 .2em; transform: translateY(-2px); }
+    #end { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); display: flex; gap: 10px; transition: opacity .4s; }
+    #end.off { opacity: 0; pointer-events: none; }
+    #modal { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px;
+      background: rgba(10, 10, 10, .55); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: opacity .35s; }
+    #modal.off { opacity: 0; pointer-events: none; }
+    #modal img { height: min(72vh, 760px); box-shadow: 0 24px 60px rgba(0, 0, 0, .55); transform: rotate(-1.5deg); animation: pop .45s cubic-bezier(.2, 1.4, .4, 1); }
+    @keyframes pop { from { transform: translateY(40px) rotate(4deg) scale(.9); opacity: 0 } }
+    #modal .row { display: flex; gap: 10px; }
+    html.thumb #modal, html.thumb #hud, html.thumb #end, html.thumb #name { display: none; }
+  </style>
+  <script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/" } }
+  </script>
+</head>
+<body>
+  <canvas id="view"></canvas>
+  <div id="hud" class="off"><div id="say"></div></div>
+  <div id="end" class="off"><button class="pill" id="again">한 번 더</button><button class="pill" id="rename">이름 바꾸기</button></div>
+  <div id="modal" class="off"><img id="faceImg" alt="" /><div class="row"><button class="pill" id="save">저장하기</button><button class="pill" id="trash">버리기</button></div></div>
+  <div id="name">
+    <div class="q">이름을 적어 주세요</div>
+    <input id="nameInput" maxlength="8" placeholder="이름 또는 별명" autocomplete="off" />
+    <button id="start" disabled style="margin-top:30px">시작</button>
+  </div>
+  <script type="module" src="./scribble.js"></script>
+</body>
+</html>

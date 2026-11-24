@@ -35,6 +35,7 @@ import Day033 from './works/day33'
 import Day034 from './works/day34'
 import Day035 from './works/day35'
 import Day036 from './works/day36'
+import Day037 from './works/day37'
 
 type View = 'home' | string
 
@@ -399,6 +400,16 @@ const WORKS = [
     ratio: '4 / 3',
     bgTheme: 'dark' as const,
   },
+  {
+    id: 'day37',
+    day: '37',
+    date: '2026.11.24',
+    title: '우연',
+    desc: '얼굴형·머리·눈·코·입 낙서 위를 연필이 빠르게 오가고, 스탑! 하고 멈춘 낙서를 옮겨 그려 내 얼굴을 완성한다.',
+    tags: ['Three.js', 'Scribble', 'Game'],
+    ratio: '4 / 3',
+    bgTheme: 'dark' as const,
+  },
 ]
 
 export default function App() {
@@ -487,6 +498,7 @@ export default function App() {
           {view === 'day34' && <Day034 />}
           {view === 'day35' && <Day035 />}
           {view === 'day36' && <Day036 />}
+          {view === 'day37' && <Day037 />}
         </main>
       </div>
     )
