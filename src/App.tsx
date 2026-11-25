@@ -36,6 +36,7 @@ import Day034 from './works/day34'
 import Day035 from './works/day35'
 import Day036 from './works/day36'
 import Day037 from './works/day37'
+import Day038 from './works/day38'
 
 type View = 'home' | string
 
@@ -410,6 +411,16 @@ const WORKS = [
     ratio: '4 / 3',
     bgTheme: 'dark' as const,
   },
+  {
+    id: 'day38',
+    day: '38',
+    date: '2026.11.25',
+    title: '접기',
+    desc: '풀·비둘기 광장·나무 세 화면 옆 서랍에서 새 무늬 색종이를 고르면, 그 화면 위에서 종이가 3D로 접혀 산새·비둘기·참새가 되어 날고 걷는다.',
+    tags: ['Three.js', 'Origami', 'Video'],
+    ratio: '4 / 3',
+    bgTheme: 'dark' as const,
+  },
 ]
 
 export default function App() {
@@ -499,6 +510,7 @@ export default function App() {
           {view === 'day35' && <Day035 />}
           {view === 'day36' && <Day036 />}
           {view === 'day37' && <Day037 />}
+          {view === 'day38' && <Day038 />}
         </main>
       </div>
     )
