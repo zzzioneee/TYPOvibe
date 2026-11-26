@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Day 39: 잔돈</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@300;400;500;700;900&family=Noto+Serif+KR:wght@700;900&display=swap" rel="stylesheet" />
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #000; color: #fff; font-family: "Noto Sans KR", sans-serif; user-select: none; }
@@ -34,6 +34,14 @@
   #hud { position: absolute; left: 22px; top: 20px; z-index: 5; font: 400 10px "IBM Plex Mono", monospace; letter-spacing: .08em; line-height: 1.7; color: rgba(255,255,255,.75); pointer-events: none; }
   #hud b { font-weight: 500; color: #fff; }
   #help { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 5; font-size: 12px; font-weight: 300; color: rgba(255,255,255,.7); transition: opacity .8s; white-space: nowrap; pointer-events: none; }
+  #hud2 { position: absolute; right: 22px; top: 20px; z-index: 5; font: 400 10px "IBM Plex Mono", "Noto Sans KR", monospace; letter-spacing: .08em; line-height: 1.7; color: rgba(255,255,255,.75); pointer-events: none; text-align: right; }
+  .note { transition: opacity .5s, filter .5s; }
+  .note.dim { opacity: .32; filter: blur(1.6px) grayscale(1); }
+  .note.dim .frame { position: relative; }
+  .note.dim .frame::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .55; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E"); }
+  .note.dim:hover { opacity: .7; filter: blur(.4px); }
+  html.thumb #hud2,
   html.thumb #hud, html.thumb #help { display: none; }
 </style>
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/" } }</script>
@@ -43,7 +51,8 @@
 <canvas id="grain"></canvas>
 <svg id="lines"></svg>
 <div id="notes"></div>
-<div id="hud"><b>SPECIMEN · KRW 100</b><br>CU 75 / NI 25 · Ø 24.00 MM · 5.42 G<br><span id="found">SCARS 0 / 5 ANALYZED</span><br><span style="opacity:.6">BACKGROUND CLICK · CLEAR</span></div>
+<div id="hud"><b>SPECIMEN · KRW 100</b><br>CU 75 / NI 25 · Ø 24.00 MM · 5.42 G<br><span id="found">SCARS 0 / 5 ANALYZED</span></div>
+<div id="hud2">ESC / 배경 클릭 시 분석 박스 제거</div>
 <div id="help">드래그로 돌리고 스크롤로 확대해 기스를 찾아보세요 · 기스를 누르면 분석이 시작돼요</div>
 <script type="module" src="./coin.js"></script>
 </body>

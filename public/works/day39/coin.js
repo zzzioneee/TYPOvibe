@@ -67,12 +67,12 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 // 면 좌표(-1~1, 위가 +) → 캔버스 픽셀
 const P = (x, y) => [(x + 1) / 2 * N, (1 - (y + 1) / 2) * N];
 
-function arcText(g, str, r, start, end, size, top) {
-  g.save(); g.translate(N / 2, N / 2); g.font = `700 ${size}px "Noto Sans KR", sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+function arcText(g, str, r, start, end, size, top, sx = 1, sy = 1) {
+  g.save(); g.translate(N / 2, N / 2); g.font = `900 ${size}px "Noto Sans KR", sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
   const chars = [...str], n = chars.length;
   chars.forEach((c, i) => {
     const a = start + (end - start) * (n === 1 ? .5 : i / (n - 1));
-    g.save(); g.rotate(a); g.translate(0, -r * N / 2); if (!top) g.rotate(Math.PI); g.fillText(c, 0, 0); g.restore();
+    g.save(); g.rotate(a); g.translate(0, -r * N / 2); if (!top) g.rotate(Math.PI); g.scale(sx, sy); g.fillText(c, 0, 0); g.restore();
   });
   g.restore();
 }
@@ -132,21 +132,32 @@ function heightToNormal(hc, strength) {
 }
 
 async function makeFace(which) {
-  const relief = await loadImg(`art/face_${which}.png`);
+  // 실제 100원 배치: 앞면 = 정면 흉상 + 좌우 '백' '원', 뒷면 = 위 연도 · 큰 100 · 아래 '한국은행'
+  await Promise.all(['700 100px "Noto Sans KR"', '700 100px "Noto Serif KR"', '900 100px "Noto Serif KR"'].map((f) => document.fonts.load(f, '백원한국은행0123456789').catch(() => {})));
+  const relief = which === 'obv' ? await loadImg('art/face_obv.png') : null;
+  const [revText, baek, won] = which === 'obv' ? [null, await loadImg('art/baek.png'), await loadImg('art/won.png')] : [await loadImg('art/rev_text.png'), null, null];
+  const glyph = (img, x, y, hgt) => { if (!img) return; const hh = N * hgt, ww = hh * img.width / img.height, [px, py] = P(x, y); h.save(); h.globalCompositeOperation = 'lighter'; h.filter = 'blur(1.4px)'; h.drawImage(img, px - ww / 2, py - hh / 2, ww, hh); h.restore(); };
   const mk = () => { const c = document.createElement('canvas'); c.width = c.height = N; return [c, c.getContext('2d')]; };
   const [hc, h] = mk(), [cc, c] = mk(), [rc, r] = mk();
-  // 높이: 바탕 평면 → 부조 → 글자 → 테두리
   h.fillStyle = '#6a6a6a'; h.fillRect(0, 0, N, N);
-  if (relief) {
-    h.save(); h.beginPath(); h.arc(N / 2, N / 2, N * .41, 0, 7); h.clip();
-    h.globalCompositeOperation = 'lighter'; h.globalAlpha = .55; h.filter = 'blur(2px)';
-    const s = which === 'obv' ? .86 : .7; h.drawImage(relief, N * (1 - s) / 2, N * (1 - s) / 2, N * s, N * s);
-    h.restore(); h.filter = 'none'; h.globalAlpha = 1; h.globalCompositeOperation = 'source-over';
+  const word = (txt, x, y, size, weight = 700, sx = 1, fam = '"Noto Serif KR", serif') => { h.save(); h.translate(...P(x, y)); h.scale(sx, 1); h.font = `${weight} ${size}px ${fam}`; h.textAlign = 'center'; h.textBaseline = 'middle'; h.fillText(txt, 0, 0); h.restore(); };
+  if (which === 'obv') {
+    if (relief) {
+      h.save(); h.beginPath(); h.arc(N / 2, N / 2, N * .456, 0, 7); h.clip();
+      h.globalCompositeOperation = 'lighter'; h.globalAlpha = .6; h.filter = 'blur(1.5px)';
+      const sz = N * 1.02; h.drawImage(relief, (N - sz) / 2, N * .956 - sz * .93, sz, sz);   // 어깨 아래가 테두리에 딱 닿게
+      h.restore(); h.filter = 'none'; h.globalAlpha = 1; h.globalCompositeOperation = 'source-over';
+    }
+    h.fillStyle = '#e8e8e8'; h.filter = 'blur(1.3px)';
+    glyph(baek, -.66, .06, .13); glyph(won, .66, .06, .13);   // 실제 동전처럼 각진 옛 한글 글씨
+    h.filter = 'none';
+  } else {
+    // 실제 동전 글씨(1999 · 100 · 한국은행)를 따라 그린 높이 그림
+    if (revText) { h.save(); h.globalCompositeOperation = 'lighter'; h.globalAlpha = .7; h.filter = 'blur(1.6px)'; const sz = N * .98; h.drawImage(revText, (N - sz) / 2, (N - sz) / 2, sz, sz); h.restore(); }
   }
-  h.fillStyle = '#e6e6e6'; h.filter = 'blur(1.4px)';
-  if (which === 'obv') { arcText(h, '한국은행', .86, -.62, .62, 92, true); arcText(h, '2003', .86, Math.PI + .3, Math.PI - .3, 88, false); }
-  else { arcText(h, '한국은행', .86, -.55, .55, 82, true); }
-  h.filter = 'none';
+  // 테두리 안쪽 점선 고리
+  h.fillStyle = '#d8d8d8';
+  if (which === 'rev') for (let i = 0; i < 132; i++) { const a = i / 132 * Math.PI * 2; h.beginPath(); h.arc(...P(Math.cos(a) * .885, Math.sin(a) * .885), N * .0045, 0, 7); h.fill(); }
   // 테두리: 솟은 가장자리와 안쪽 경사
   const ring = h.createRadialGradient(N / 2, N / 2, N * .455, N / 2, N / 2, N * .5);
   ring.addColorStop(0, 'rgba(106,106,106,1)'); ring.addColorStop(.35, 'rgba(235,235,235,1)'); ring.addColorStop(1, 'rgba(225,225,225,1)');
@@ -244,8 +255,17 @@ addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAll(); });
 const chains = new Map();
 const analyzed = new Set();
 const BOX_W = 190, BOX_H = 305;
+// 새 흔적을 파고들면, 이전 흔적들은 흐릿하게(투명도+블러+그레인) 물러난다
+let focusSeq = 0;
+function focusChain(ch) {
+  ch.seq = ++focusSeq;
+  for (const c of chains.values()) {
+    const dim = c !== ch;
+    c.boxes.forEach((b) => { b.el.classList.toggle('dim', dim); b.el.style.zIndex = (dim ? 5 : 20) + c.boxes.indexOf(b); for (const n of [b.ln, b.dot, b.end]) n.style.opacity = dim ? .22 : 1; });
+  }
+}
 function openChain(i) {
-  if (chains.has(i)) { const ch = chains.get(i); ch.boxes.at(-1).el.animate([{ opacity: .3 }, { opacity: 1 }], { duration: 300 }); return; }
+  if (chains.has(i)) { const ch = chains.get(i); focusChain(ch); ch.boxes.at(-1).el.animate([{ opacity: .3 }, { opacity: 1 }], { duration: 300 }); return; }
   const ch = { i, boxes: [] }; chains.set(i, ch); addBox(ch);
   document.getElementById('help').style.opacity = 0;
 }
@@ -285,6 +305,7 @@ function addBox(ch) {
   const ln = document.createElementNS('http://www.w3.org/2000/svg', 'line'), dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
   dot.setAttribute('r', stage ? 2 : 3); const end = document.createElementNS('http://www.w3.org/2000/svg', 'rect'); end.setAttribute('width', 5); end.setAttribute('height', 5); svg.append(ln, dot, end);
   el.style.zIndex = 10 + stage; ch.boxes.push({ el, x: pos.x, y: pos.y, ln, dot, end });
+  focusChain(ch);
   tick();
   if (last) { analyzed.add(ch.i); document.getElementById('found').textContent = `SCARS ${analyzed.size} / 5 ANALYZED`; playScene(s.sound); }
 }
