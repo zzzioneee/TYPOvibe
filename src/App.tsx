@@ -37,6 +37,7 @@ import Day035 from './works/day35'
 import Day036 from './works/day36'
 import Day037 from './works/day37'
 import Day038 from './works/day38'
+import Day039 from './works/day39'
 
 type View = 'home' | string
 
@@ -421,6 +422,16 @@ const WORKS = [
     ratio: '4 / 3',
     bgTheme: 'dark' as const,
   },
+  {
+    id: 'day39',
+    day: '39',
+    date: '2026.11.26',
+    title: '잔돈',
+    desc: '검은 화면 속 낡은 100원짜리를 돌리고 확대하며 기스를 찾는다. 기스를 누르면 분석 박스가 꼬리를 물고 이어지며, 그 상처가 생긴 장면이 점점 구체적으로 드러난다.',
+    tags: ['Three.js', 'PBR Metal', 'Web Audio'],
+    ratio: '4 / 3',
+    bgTheme: 'dark' as const,
+  },
 ]
 
 export default function App() {
@@ -511,6 +522,7 @@ export default function App() {
           {view === 'day36' && <Day036 />}
           {view === 'day37' && <Day037 />}
           {view === 'day38' && <Day038 />}
+          {view === 'day39' && <Day039 />}
         </main>
       </div>
     )
