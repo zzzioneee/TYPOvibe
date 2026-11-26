@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Day 40: 마감 직전</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #1a1210; font-family: -apple-system, "Noto Sans KR", sans-serif; user-select: none; }
+  canvas#view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  /* 왼쪽 1/5: 업무 요청(주문) */
+  #inbox { position: absolute; left: 0; top: 0; bottom: 0; width: 20%; overflow: hidden; z-index: 2; }
+  #inbox .bg { position: absolute; inset: -40px; filter: blur(38px) saturate(1.3); }
+  #inbox .bg i { position: absolute; border-radius: 50%; }
+  #inbox .head { position: relative; padding: 22px 16px 10px; color: rgba(255,255,255,.95); font-weight: 900; font-size: 17px; letter-spacing: -.02em; text-shadow: 0 1px 6px rgba(0,0,0,.2); }
+  #inbox .head small { display: block; margin-top: 4px; font-weight: 500; font-size: 11px; opacity: .85; letter-spacing: 0; }
+  #cards { position: relative; padding: 14px 10px 80px; display: flex; flex-direction: column; gap: 6px; }
+  .card { border-radius: 14px; padding: 7px 11px 8px; background: rgba(255,255,255,.55); backdrop-filter: blur(24px) saturate(1.6); -webkit-backdrop-filter: blur(24px) saturate(1.6);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 6px 18px rgba(0,0,0,.08); animation: drop .5s cubic-bezier(.2, 1.3, .4, 1); transition: opacity .4s, transform .4s; }
+  @keyframes drop { from { transform: translateY(-30px) scale(.96); opacity: 0; } }
+  .card .from { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #333; font-weight: 500; }
+  .card .from b { width: 16px; height: 16px; border-radius: 5px; display: inline-block; }
+  .card .ttl { margin-top: 3px; font-size: 12.5px; font-weight: 700; color: #111; line-height: 1.35; word-break: keep-all; }
+  .card .bar { margin-top: 5px; height: 3px; border-radius: 3px; background: rgba(0,0,0,.12); overflow: hidden; }
+  .card .bar i { display: block; height: 100%; width: 100%; background: #34c759; border-radius: 3px; transform-origin: left; }
+  .card.late { background: rgba(255,90,80,.55); }
+  .card.late .ttl::after { content: " · 지연"; color: #b00; }
+  .card.done { opacity: 0; transform: translateX(-30px); }
+  /* 오른쪽 1/5: 튀김 트레이 */
+  #serve { position: absolute; right: 0; top: 0; bottom: 0; width: 20%; z-index: 2; pointer-events: none; }
+  #serve .head { padding: 22px 16px; text-align: right; color: #fff; font-weight: 900; font-size: 17px; letter-spacing: -.02em; }
+  #serve .head small { display: block; margin-top: 4px; font-weight: 500; font-size: 11px; opacity: .8; }
+  #serve .drop { position: absolute; left: 12px; right: 12px; bottom: 16%; height: 40%; border: 2px dashed rgba(255,255,255,.7); border-radius: 18px; opacity: 0; transition: opacity .2s; }
+  #serve .drop.on { opacity: 1; }
+  #score { position: absolute; left: 20%; right: 20%; top: 16px; z-index: 3; display: flex; justify-content: center; gap: 8px; pointer-events: none; }
+  #score span { padding: 7px 15px; border-radius: 999px; font-size: 12.5px; font-weight: 700; color: #fff; letter-spacing: -.01em;
+    background: rgba(40,26,18,.38); backdrop-filter: blur(18px) saturate(1.6); -webkit-backdrop-filter: blur(18px) saturate(1.6);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.55), inset 0 0 0 1px rgba(255,255,255,.12), 0 4px 14px rgba(0,0,0,.18); }
+  #score span b { color: #ffb067; margin-left: 2px; }
+  /* 게이지 */
+  .gauge { position: absolute; z-index: 3; width: 120px; margin-left: -60px; pointer-events: none; transition: opacity .2s; }
+  .gauge .lbl { text-align: center; font-size: 12px; font-weight: 900; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.45); margin-bottom: 4px; letter-spacing: -.01em; }
+  .gauge .track { position: relative; height: 12px; border-radius: 8px; background: #8d8d8d; box-shadow: inset 0 2px 3px rgba(0,0,0,.25), 0 2px 6px rgba(0,0,0,.2); overflow: hidden; border: 2px solid #fff; }
+  .gauge .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: #3ccf5b; border-radius: 6px; }
+  .gauge.fry .track { background: linear-gradient(90deg, #8d8d8d 0 55%, #3ccf5b 55% 76%, #ffc93c 76% 89%, #ff4d3d 89% 100%); }
+  .gauge.fry .fill { background: rgba(255,255,255,.0); }
+  .gauge.fry .needle { position: absolute; top: -3px; bottom: -3px; width: 4px; margin-left: -2px; background: #fff; border-radius: 2px; box-shadow: 0 0 0 1.5px #222; }
+  .gauge.idle { opacity: .55; }
+  #toast { position: absolute; left: 50%; bottom: 56px; transform: translateX(-50%); z-index: 4; padding: 8px 16px; border-radius: 999px; background: #222; color: #fff; font-size: 13px; font-weight: 700; opacity: 0; transition: opacity .25s; pointer-events: none; white-space: nowrap; }
+  #start { position: absolute; inset: 0; z-index: 9; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: rgba(30,18,12,.55); backdrop-filter: blur(6px); color: #fff; text-align: center; }
+  #start h1 { font-size: 46px; font-weight: 700; letter-spacing: -.04em; }
+  #start p { font-size: 14px; line-height: 1.7; opacity: .9; }
+  #start button { font: 900 16px "Noto Sans KR", sans-serif; padding: .7em 2.2em; border-radius: 999px; border: 0; background: #111; color: #fff; cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,.35); }
+  #start.off { opacity: 0; pointer-events: none; transition: opacity .5s; }
+  #coach { position: absolute; z-index: 5; pointer-events: none; transform: translate(-14px, -4px) scale(calc(1 - var(--p, 0) * .12)); transition: opacity .4s; filter: drop-shadow(0 4px 6px rgba(0,0,0,.35)); }
+  #coach .ring { position: absolute; left: 4px; top: -6px; width: 22px; height: 22px; border-radius: 50%; border: 3px solid #fff; opacity: var(--p, 0); transform: scale(calc(.6 + var(--p, 0) * .6)); }
+  html.thumb #coach { display: none; }
+  #boom { position: absolute; left: 50%; top: 50%; z-index: 5; transform: translate(-50%, -50%) scale(.6); opacity: 0; pointer-events: none; transition: opacity .2s, transform .35s cubic-bezier(.2,1.6,.4,1);
+    font: 900 16px "Noto Sans KR", sans-serif; padding: .9em 1.6em; border-radius: 999px; color: #fff; white-space: nowrap;
+    background: #111; box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 0 0 4px #ff3b30, 0 12px 36px rgba(255,59,48,.7); }
+  #boom.on { opacity: 1; transform: translate(-50%, -50%) scale(1); animation: tremble .08s linear infinite; }
+  @keyframes tremble { 0% { margin-left: -2px } 50% { margin-left: 2px } }
+  .card.heat { animation: heat .07s linear infinite !important; background: rgba(255,80,50,.7) !important; }
+  @keyframes heat { 0% { transform: translate(-1.5px, 1px) } 50% { transform: translate(1.5px, -1px) } }
+  #bombs { position: absolute; left: 0; right: 0; bottom: 16px; z-index: 4; display: flex; justify-content: center; gap: 10px; }
+  .bomb { width: 46px; height: 46px; border-radius: 50%; border: 0; cursor: pointer; padding: 6px;
+    background: rgba(255,255,255,.42); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); box-shadow: inset 0 1px 0 rgba(255,255,255,.75), 0 4px 12px rgba(0,0,0,.15); transition: transform .2s, opacity .3s; }
+  .bomb svg { width: 100%; height: 100%; display: block; }
+  .bomb:hover { transform: scale(1.1) rotate(-8deg); }
+  .bomb .fuse { animation: spark .25s steps(2) infinite; transform-origin: 42px 6px; }
+  @keyframes spark { 50% { transform: scale(1.35); } }
+  .bomb.used { opacity: .28; cursor: default; filter: grayscale(1); transform: none !important; }
+  .bomb.used .fuse { display: none; }
+  #bombs.alert .bomb:not(.used) { animation: nudge .6s ease-in-out infinite; box-shadow: inset 0 1px 0 rgba(255,255,255,.75), 0 0 0 3px rgba(255,59,48,.8), 0 4px 16px rgba(255,59,48,.5); }
+  @keyframes nudge { 50% { transform: translateY(-4px) rotate(-6deg); } }
+  .shock { position: absolute; z-index: 7; width: 60px; height: 60px; border-radius: 50%; border: 6px solid rgba(255,230,200,.9); pointer-events: none; }
+  .smoke { position: absolute; z-index: 6; border-radius: 50%; pointer-events: none; background: radial-gradient(circle, rgba(60,50,45,.85), rgba(30,25,22,0) 70%); filter: blur(6px); }
+  #flash { position: absolute; left: 0; top: 0; bottom: 0; width: 20%; z-index: 6; background: #fff; opacity: 0; pointer-events: none; transition: opacity .25s; }
+  #flash.on { opacity: .9; transition: none; }
+  .spark { position: absolute; z-index: 7; width: 10px; height: 10px; border-radius: 50%; pointer-events: none; }
+  html.thumb #start, html.thumb #toast { display: none; }
+</style>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/" } }</script>
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="inbox">
+  <div class="bg"><i style="left:-30%;top:5%;width:110%;height:45%;background:#4a7bd8"></i><i style="left:20%;top:40%;width:90%;height:40%;background:#e2584d"></i><i style="left:-20%;top:70%;width:80%;height:40%;background:#f1b84a"></i><i style="left:40%;top:15%;width:60%;height:30%;background:#79c98a"></i></div>
+  <div id="cards"></div>
+  <div id="boom">회사 폭발시키기</div>
+  <div id="bombs"><button class="bomb" title="회사 폭발시키기"></button><button class="bomb" title="회사 폭발시키기"></button><button class="bomb" title="회사 폭발시키기"></button></div>
+</div>
+<div id="serve"><div class="drop"></div></div>
+<div id="score"><span>완료 <b id="sDone">0</b></span><span>지연 <b id="sLate">0</b></span><span>탄 튀김 <b id="sBurn">0</b></span></div>
+<div id="toast"></div>
+<div id="flash"></div>
+<div id="start"><h1>발등튀김</h1><p>마감 직전, 발등에 불이 떨어졌다.<br>이제 야무지게 튀겨보자.</p><button id="go">시작</button></div>
+<script type="module" src="./fry.js"></script>
+</body>
+</html>

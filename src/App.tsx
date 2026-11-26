@@ -38,6 +38,7 @@ import Day036 from './works/day36'
 import Day037 from './works/day37'
 import Day038 from './works/day38'
 import Day039 from './works/day39'
+import Day040 from './works/day40'
 
 type View = 'home' | string
 
@@ -432,6 +433,16 @@ const WORKS = [
     ratio: '4 / 3',
     bgTheme: 'dark' as const,
   },
+  {
+    id: 'day40',
+    day: '40',
+    date: '2026.11.27',
+    title: '마감 직전',
+    desc: '발등에 불이 떨어졌다. 업무 요청이 쌓이는 동안 서랍에서 발등을 꺼내 밀가루·달걀물·빵가루를 입히고, 기름에서 초록일 때 건져 트레이에 올리는 발등튀김 게임.',
+    tags: ['Three.js', 'Clay 3D', 'Game'],
+    ratio: '4 / 3',
+    bgTheme: 'dark' as const,
+  },
 ]
 
 export default function App() {
@@ -523,6 +534,7 @@ export default function App() {
           {view === 'day37' && <Day037 />}
           {view === 'day38' && <Day038 />}
           {view === 'day39' && <Day039 />}
+          {view === 'day40' && <Day040 />}
         </main>
       </div>
     )
